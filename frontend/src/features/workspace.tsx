@@ -18,7 +18,7 @@ import {
 } from '@/lib/api';
 
 type View = 'find' | 'rides' | 'saved' | 'driver';
-type Dialog = 'waitlist' | 'help' | 'save' | 'offer' | 'booking' | 'board' | null;
+type Dialog = 'waitlist' | 'help' | 'save' | 'offer' | 'booking' | 'board' | 'account' | null;
 const navigation: { id: View; label: string; icon: IconName }[] = [
   { id: 'find', label: 'Find a ride', icon: 'route' },
   { id: 'rides', label: 'My rides', icon: 'rides' },
@@ -276,14 +276,6 @@ export function Workspace() {
             <Icon name="help" />
             How Zew works
           </button>
-          <div className="profile">
-            <span className="avatar">Y</span>
-            <span>
-              <strong>Your workspace</strong>
-              <small>Personal demo session</small>
-            </span>
-            <span className="profile-dot" />
-          </div>
         </div>
       </aside>
       <div className="page-shell">
@@ -297,6 +289,28 @@ export function Workspace() {
             <span className="timezone">
               <Icon name="sun" size={16} /> Addis Ababa · UTC+3
             </span>
+            <button
+              className="topbar-avatar"
+              onClick={() => open('account')}
+              aria-label="Account details"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                border: 'none',
+                background: '#285943',
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: 16,
+              }}
+            >
+              Y
+            </button>
           </div>
         </header>
         <main id="main">
@@ -817,7 +831,8 @@ export function Workspace() {
               offer: 'Offer a seat on your route',
               booking: 'Your ride, at a glance',
               board: 'Ready to board?',
-            }[dialog]
+              account: 'Account',
+            }[dialog]!
           }
           close={() => {
             if (!busy) setDialog(null);
@@ -1125,6 +1140,23 @@ export function Workspace() {
                 </button>
               </form>
             ))}
+          {dialog === 'account' && (
+            <div className="account-details">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+                <span className="avatar" style={{ width: 56, height: 56, background: '#285943', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 'bold' }}>Y</span>
+                <div>
+                  <h3 style={{ margin: '0 0 4px', fontSize: 20 }}>Your workspace</h3>
+                  <p style={{ margin: 0, color: '#69735f', fontSize: 14 }}>Personal demo session</p>
+                </div>
+              </div>
+              <p className="modal-description">
+                More account settings and details will go here.
+              </p>
+              <button className="secondary full" onClick={() => setDialog(null)}>
+                Close
+              </button>
+            </div>
+          )}
         </Modal>
       )}
     </div>
