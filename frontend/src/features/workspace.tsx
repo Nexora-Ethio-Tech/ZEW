@@ -129,47 +129,96 @@ export function Workspace() {
     });
     navigate('find');
   }
+  function StopField({
+    label,
+    value,
+    onChange,
+  }: {
+    label: string;
+    value: string;
+    onChange: (stopId: string) => void;
+  }) {
+    const [query, setQuery] = useState('');
+    const [focused, setFocused] = useState(false);
+
+    const allStops = Array.from(
+      new Map((data?.corridors || []).flatMap((c) => c.stops).map((s) => [s.id, s])).values()
+    );
+
+    const selectedStop = allStops.find((s) => s.id === value);
+    const displayValue = focused ? query : selectedStop?.name || '';
+
+    const matches = query
+      ? allStops.filter(
+          (s) =>
+            s.name.toLowerCase().includes(query.toLowerCase()) ||
+            s.area?.toLowerCase().includes(query.toLowerCase())
+        )
+      : allStops;
+
+    return (
+      <div className="location-field" style={{ position: 'relative' }}>
+        <span className={`location-marker ${label.toLowerCase()}`} />
+        <span style={{ width: '100%' }}>
+          <small>{label.toUpperCase()}</small>
+          <input
+            type="text"
+            placeholder="Search places..."
+            value={displayValue}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (!focused) setFocused(true);
+            }}
+            onFocus={() => {
+              setQuery('');
+              setFocused(true);
+            }}
+            onBlur={() => {
+              setTimeout(() => setFocused(false), 200);
+            }}
+            style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: 16 }}
+          />
+        </span>
+        {focused && (
+          <div className="place-results" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: '#fff', border: '1px solid #ccc', borderRadius: 8, maxHeight: 200, overflowY: 'auto' }}>
+            {matches.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className="place-result"
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee' }}
+                onClick={() => {
+                  onChange(s.id);
+                  setQuery('');
+                  setFocused(false);
+                }}
+              >
+                <strong>{s.name}</strong>
+                <br />
+                <small style={{ color: '#666' }}>{s.area}</small>
+              </button>
+            ))}
+            {!matches.length && (
+              <div style={{ padding: '8px 12px', color: '#666' }}>No places found.</div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function routeFields() {
     return (
       <>
-        <label className="field">
-          Corridor
-          <select
-            value={journey.corridorId}
-            onChange={(e) => {
-              const c = data!.corridors.find((c) => c.id === e.target.value)!;
-              updateJourney({
-                corridorId: c.id,
-                origin: c.stops[0].id,
-                destination: c.stops[c.stops.length - 1].id,
-              });
-            }}
-          >
-            {data?.corridors.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
         <div className="route-inputs">
-          <label className="location-field">
-            <span className="location-marker origin" />
-            <span>
-              <small>PICKUP</small>
-              <select
-                aria-label="Pickup"
-                value={journey.origin}
-                onChange={(e) => updateJourney({ origin: e.target.value })}
-              >
-                {corridor?.stops.map((s) => (
-                  <option value={s.id} key={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </span>
-          </label>
+          <StopField
+            label="Pickup"
+            value={journey.origin}
+            onChange={(origin) => {
+              const c = data!.corridors.find((c) => c.stops.some((s) => s.id === origin))!;
+              updateJourney({ origin, corridorId: c.id });
+            }}
+          />
           <button
             type="button"
             className="swap-button"
@@ -180,26 +229,17 @@ export function Workspace() {
           >
             <Icon name="swap" size={16} />
           </button>
-          <label className="location-field">
-            <span className="location-marker destination" />
-            <span>
-              <small>DROP-OFF</small>
-              <select
-                aria-label="Drop-off"
-                value={journey.destination}
-                onChange={(e) => updateJourney({ destination: e.target.value })}
-              >
-                {corridor?.stops.map((s) => (
-                  <option value={s.id} key={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </span>
-          </label>
+          <StopField
+            label="Drop-off"
+            value={journey.destination}
+            onChange={(destination) => {
+              const c = data!.corridors.find((c) => c.stops.some((s) => s.id === destination))!;
+              updateJourney({ destination, corridorId: c.id });
+            }}
+          />
         </div>
-        <div className="form-row">
-          <label className="field">
+        <div className="form-row" style={{ marginTop: 16 }}>
+          <label className="field" style={{ width: '100%' }}>
             Departure · Addis time
             <input
               aria-label="Departure time"
@@ -211,19 +251,30 @@ export function Workspace() {
               }}
             />
           </label>
-          <label className="field seats-field">
-            Seats
-            <select
-              value={journey.seats}
-              onChange={(e) => updateJourney({ seats: Number(e.target.value) })}
-            >
-              {[1, 2, 3, 4].map((n) => (
-                <option key={n} value={n}>
-                  {n} {n === 1 ? 'seat' : 'seats'}
-                </option>
-              ))}
-            </select>
-          </label>
+        </div>
+        <div className="fare-tier-grid" style={{ gridColumn: '1 / -1', marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          {[
+            { seats: 1, label: 'Solo', sublabel: 'Just you', icon: '👤' },
+            { seats: 2, label: 'Pair', sublabel: 'You + 1', icon: '👥' },
+            { seats: 3, label: 'Trio', sublabel: 'You + 2', icon: '🧑‍🤝‍🧑' },
+            { seats: 4, label: 'Full car', sublabel: 'You + 3', icon: '🚗' },
+          ].map(({ seats, label, sublabel, icon }) => {
+            const previewFare = 360 / seats; 
+            const active = journey.seats === seats;
+            return (
+              <button
+                key={seats}
+                type="button"
+                className={`fare-tier-card ${active ? 'is-active' : ''}`}
+                onClick={() => updateJourney({ seats })}
+                style={{ border: active ? '2px solid #285943' : '1px solid #ccc', borderRadius: 8, padding: 8, background: active ? '#eaffef' : '#fff', cursor: 'pointer', textAlign: 'center' }}
+              >
+                <span style={{ fontSize: 24, display: 'block' }}>{icon}</span>
+                <strong style={{ display: 'block', margin: '4px 0' }}>{label}</strong>
+                <span style={{ fontSize: 12, color: '#666', display: 'block' }}>{previewFare} ETB</span>
+              </button>
+            );
+          })}
         </div>
       </>
     );
