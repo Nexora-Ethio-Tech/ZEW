@@ -1,0 +1,70 @@
+import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
+import { GroupError } from './service.js';
+
+const feature = z.object({
+  geometry: z.object({
+    coordinates: z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]),
+  }),
+  properties: z.object({
+    name: z.string().optional(),
+    street: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    country: z.string().optional(),
+  }),
+});
+export function parsePlaces(data: unknown) {
+  const result = z.object({ features: z.array(feature) }).parse(data);
+  return result.features
+    .slice(0, 6)
+    .map(({ geometry, properties: p }) => ({
+      name: [...new Set([p.name, p.street, p.city, p.state, p.country].filter(Boolean))]
+        .join(', ')
+        .slice(0, 300),
+      longitude: geometry.coordinates[0],
+      latitude: geometry.coordinates[1],
+    }))
+    .filter((p) => p.name);
+}
+
+// Explicit searches only: bounded cache and one upstream request per second per API process.
+export async function placeRoutes(app: FastifyInstance) {
+  const cache = new Map<string, { expires: number; places: ReturnType<typeof parsePlaces> }>();
+  let nextRequest = 0;
+  app.post('/places/search', async (req, reply) => {
+    const { query } = z
+      .object({ query: z.string().trim().min(2).max(150) })
+      .strict()
+      .parse(req.body);
+    const key = query.toLocaleLowerCase();
+    const cached = cache.get(key);
+    if (cached && cached.expires > Date.now()) return { places: cached.places };
+    if (Date.now() < nextRequest) {
+      reply.header('Retry-After', '1');
+      throw new GroupError('Please wait a moment before searching again.', 429);
+    }
+    nextRequest = Date.now() + 1000;
+    const url = new URL(process.env.PHOTON_URL ?? 'https://photon.komoot.io/api/');
+    url.searchParams.set('q', query);
+    url.searchParams.set('limit', '6');
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(8000),
+        headers: { 'User-Agent': 'Zew-Ride-Demo/0.1', Accept: 'application/json' },
+      });
+      if (!response.ok) throw new Error('Provider unavailable');
+      const places = parsePlaces(await response.json());
+      if (cache.size >= 200) cache.delete(cache.keys().next().value!);
+      cache.set(key, { expires: Date.now() + 86400000, places });
+      return { places };
+    } catch {
+      return reply
+        .code(503)
+        .send({
+          message:
+            'Place search is temporarily unavailable. Try again, use device location, or set a pin on the map.',
+        });
+    }
+  });
+}

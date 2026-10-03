@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgis/postgis:16-3.5
+    environment:
+      POSTGRES_DB: zew
+      POSTGRES_USER: zew
+      POSTGRES_PASSWORD: change-me-for-local-only
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+
+volumes:
+  postgres_data:
+
