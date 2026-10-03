@@ -293,28 +293,37 @@ export function Workspace() {
         </div>
         <p className="nav-heading">YOUR EVERYDAY JOURNEY</p>
         <nav aria-label="Main navigation">
-          {navigation.map((item) => (
-            <button
-              key={item.id}
-              className={`nav-item ${view === item.id ? 'selected' : ''}`}
-              onClick={() => navigate(item.id)}
-              aria-current={view === item.id ? 'page' : undefined}
-            >
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
-              {item.id === 'rides' && active.length > 0 && (
-                <span className="count">{active.length}</span>
-              )}
+          {view === 'driver' ? (
+            <button className="nav-item selected" onClick={() => navigate('driver')}>
+              <Icon name="car" />
+              <span>Driver space</span>
             </button>
-          ))}
-          <div style={{ margin: '16px 0', borderTop: '1px solid #e1e3de' }} />
-          <button
-            className={`nav-item ${view === 'driver' ? 'selected' : ''}`}
-            onClick={() => navigate('driver')}
-          >
-            <Icon name="car" />
-            <span>Driver space</span>
-          </button>
+          ) : (
+            <>
+              {navigation.map((item) => (
+                <button
+                  key={item.id}
+                  className={`nav-item ${view === item.id ? 'selected' : ''}`}
+                  onClick={() => navigate(item.id)}
+                  aria-current={view === item.id ? 'page' : undefined}
+                >
+                  <Icon name={item.icon} />
+                  <span>{item.label}</span>
+                  {item.id === 'rides' && active.length > 0 && (
+                    <span className="count">{active.length}</span>
+                  )}
+                </button>
+              ))}
+              <div style={{ margin: '16px 0', borderTop: '1px solid #e1e3de' }} />
+              <button
+                className="nav-item"
+                onClick={() => navigate('driver')}
+              >
+                <Icon name="car" />
+                <span>Driver space</span>
+              </button>
+            </>
+          )}
         </nav>
         <div className="sidebar-bottom">
           <div className="pilot-card">
@@ -341,7 +350,7 @@ export function Workspace() {
         <header className="topbar">
           <span className="breadcrumb">
             Your commute <span>/</span>{' '}
-            <strong>{navigation.find((n) => n.id === view)?.label}</strong>
+            <strong>{navigation.find((n) => n.id === view)?.label || 'Driver space'}</strong>
           </span>
           <div className="topbar-right">
             <span className="demo-pill">INTERACTIVE DEMO</span>
