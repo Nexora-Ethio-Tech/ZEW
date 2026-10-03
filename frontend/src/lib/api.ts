@@ -1,7 +1,7 @@
 export interface Corridor {
   id: string;
   name: string;
-  stops: { id: string; name: string; area: string }[];
+  stops: { id: string; name: string; area: string; latitude: number; longitude: number }[];
 }
 export interface Journey {
   corridorId: string;

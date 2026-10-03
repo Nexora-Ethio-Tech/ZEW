@@ -395,13 +395,9 @@ export function Workspace() {
                       </button>
                     </form>
                     <RouteMap
-                      origin={stopName(journey.origin)}
-                      destination={stopName(journey.destination)}
-                      corridor={corridor?.name ?? ''}
-                      reverse={
-                        (corridor?.stops.findIndex((s) => s.id === journey.origin) ?? 0) >
-                        (corridor?.stops.findIndex((s) => s.id === journey.destination) ?? 0)
-                      }
+                      corridor={corridor}
+                      originId={journey.origin}
+                      destinationId={journey.destination}
                     />
                   </section>
                   {results && (
