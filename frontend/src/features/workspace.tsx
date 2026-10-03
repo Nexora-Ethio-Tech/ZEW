@@ -61,7 +61,7 @@ export function Workspace() {
       const next = await refresh();
       setJourney((j) => ({
         ...j,
-        departure: j.departure || next.trips.find((t) => t.source === 'sample')!.departure,
+        departure: j.departure || new Date().toISOString(),
       }));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load Zew');
@@ -676,7 +676,7 @@ export function Workspace() {
                 <>
                   <div className="content-toolbar">
                     <p className="muted">{data.commutes.length} of 10 commutes saved</p>
-                    <button className="secondary" onClick={() => navigate('find')}>
+                    <button className="secondary" onClick={() => open('save')}>
                       <Icon name="plus" size={17} /> Add a commute
                     </button>
                   </div>
@@ -721,7 +721,7 @@ export function Workspace() {
                       title="Make your everyday a little easier."
                       text="Choose your pickup, drop-off, and preferred time in Find a ride, then save your commute."
                       action="Save my first route"
-                      onClick={() => navigate('find')}
+                      onClick={() => open('save')}
                     />
                   )}
                 </>
