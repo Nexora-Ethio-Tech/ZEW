@@ -1,4 +1,4 @@
-import { PoolWorkspace } from '@/features/pool/pool-workspace';
+import { redirect } from 'next/navigation';
 export default function Home() {
-  return <PoolWorkspace />;
+  redirect('/planned');
 }

@@ -17,7 +17,7 @@ import {
   type Trip,
 } from '@/lib/api';
 
-type View = 'find' | 'rides' | 'saved';
+type View = 'find' | 'rides' | 'saved' | 'driver';
 type Dialog = 'waitlist' | 'help' | 'save' | 'booking' | 'board' | 'account' | null;
 const navigation: { id: View; label: string; icon: IconName }[] = [
   { id: 'find', label: 'Plan ahead', icon: 'route' },
@@ -291,45 +291,30 @@ export function Workspace() {
         <div className="city-label">
           <span className="live-dot" /> ADDIS ABABA
         </div>
+        <p className="nav-heading">YOUR EVERYDAY JOURNEY</p>
         <nav aria-label="Main navigation">
-          <p>LET’S GET GOING</p>
-          <a className="nav-item" href="/">
-            <Icon name="route" />
-            <span>Find your circle</span>
-            <span className="nav-new" style={{ fontSize: 10, background: '#e1e3de', padding: '2px 6px', borderRadius: 4, marginLeft: 'auto' }}>NEW</span>
-          </a>
-          <a className="nav-item" href="/?view=history">
-            <Icon name="rides" />
-            <span>My rides</span>
-          </a>
+          {navigation.map((item) => (
+            <button
+              key={item.id}
+              className={`nav-item ${view === item.id ? 'selected' : ''}`}
+              onClick={() => navigate(item.id)}
+              aria-current={view === item.id ? 'page' : undefined}
+            >
+              <Icon name={item.icon} />
+              <span>{item.label}</span>
+              {item.id === 'rides' && active.length > 0 && (
+                <span className="count">{active.length}</span>
+              )}
+            </button>
+          ))}
+          <div style={{ margin: '16px 0', borderTop: '1px solid #e1e3de' }} />
           <button
-            className={`nav-item ${view === 'find' ? 'selected' : ''}`}
-            onClick={() => navigate('find')}
+            className={`nav-item ${view === 'driver' ? 'selected' : ''}`}
+            onClick={() => navigate('driver')}
           >
-            <Icon name="bookmark" />
-            <span>Plan ahead</span>
-            <Icon name="chevron" size={14} />
-          </button>
-          <button
-            className={`nav-item ${view === 'rides' ? 'selected' : ''}`}
-            onClick={() => navigate('rides')}
-          >
-            <Icon name="bookmark" />
-            <span>Planned rides</span>
-            {active.length > 0 && <span className="count">{active.length}</span>}
-          </button>
-          <button
-            className={`nav-item ${view === 'saved' ? 'selected' : ''}`}
-            onClick={() => navigate('saved')}
-          >
-            <Icon name="bookmark" />
-            <span>Saved commutes</span>
-          </button>
-          <div className="pool-nav-divider" style={{ margin: '16px 0', borderTop: '1px solid #e1e3de' }} />
-          <a className="nav-item" href="/?view=driver">
             <Icon name="car" />
             <span>Driver space</span>
-          </a>
+          </button>
         </nav>
         <div className="sidebar-bottom">
           <div className="pilot-card">
@@ -748,6 +733,51 @@ export function Workspace() {
               </footer>
             </>
           )}
+          {view === 'driver' && (
+            <div className="driver-earnings-section" style={{ maxWidth: 640, margin: '0 auto', padding: '24px 0' }}>
+              <div className="section-title">
+                <h2>Driver space</h2>
+                <p>Track your payouts and active rides.</p>
+              </div>
+              <div style={{ background: '#f8f8ee', borderRadius: 12, padding: 24, border: '1px solid #e1e3de', marginBottom: 32 }}>
+                <h3 style={{ margin: '0 0 20px', fontSize: 18 }}>Your Earnings</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 20, marginBottom: 32 }}>
+                  <div>
+                    <small style={{ color: '#69735f', display: 'block', marginBottom: 4 }}>Today</small>
+                    <strong style={{ fontSize: 28 }}>0 ETB</strong>
+                  </div>
+                  <div>
+                    <small style={{ color: '#69735f', display: 'block', marginBottom: 4 }}>This week</small>
+                    <strong style={{ fontSize: 28 }}>{(data?.bookings.length || 0) * 324} ETB</strong>
+                  </div>
+                  <div>
+                    <small style={{ color: '#69735f', display: 'block', marginBottom: 4 }}>This month</small>
+                    <strong style={{ fontSize: 28 }}>{((data?.bookings.length || 0) * 324) + 1250} ETB</strong>
+                  </div>
+                </div>
+                <div style={{ borderTop: '1px solid #e1e3de', paddingTop: 20 }}>
+                  <label style={{ display: 'block', fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>Automated Payout Method</label>
+                  <p style={{ fontSize: 13, color: '#69735f', margin: '0 0 16px' }}>Passengers are charged automatically. Choose where you want your payouts sent.</p>
+                  <select className="payout-select" style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #ccc', fontSize: 15 }}>
+                    <option>CBE Birr (Ending in 4021)</option>
+                    <option>Telebirr (Ending in 9811)</option>
+                    <option>Awash Bank Transfer</option>
+                    <option>Add new payout method...</option>
+                  </select>
+                </div>
+              </div>
+              <div className="pilot-card" style={{ textAlign: 'center' }}>
+                <span className="small-icon" style={{ margin: '0 auto 16px' }}>
+                  <Icon name="car" />
+                </span>
+                <h3>Ready to drive?</h3>
+                <p>Toggle to "Driver" mode from your Account settings to start receiving ride requests on your route.</p>
+                <button className="primary" onClick={() => setDialog('account')} style={{ marginTop: 16 }}>
+                  Open Account Settings
+                </button>
+              </div>
+            </div>
+          )}
         </main>
       </div>
       {dialog && (
@@ -1029,7 +1059,25 @@ export function Workspace() {
                   <p style={{ margin: 0, color: '#69735f', fontSize: 14 }}>Personal demo session</p>
                 </div>
               </div>
-
+              <div className="role-toggle" style={{ marginBottom: 24, background: '#f8f8ee', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ margin: '0 0 12px', fontSize: 14 }}>Active Mode</h4>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button 
+                    className={`secondary ${view !== 'driver' ? 'active' : ''}`}
+                    style={{ flex: 1, border: view !== 'driver' ? '2px solid #285943' : undefined }}
+                    onClick={() => { navigate('find'); setDialog(null); }}
+                  >
+                    Passenger
+                  </button>
+                  <button 
+                    className={`secondary ${view === 'driver' ? 'active' : ''}`}
+                    style={{ flex: 1, border: view === 'driver' ? '2px solid #285943' : undefined }}
+                    onClick={() => { navigate('driver'); setDialog(null); }}
+                  >
+                    Driver
+                  </button>
+                </div>
+              </div>
               <button className="secondary full" onClick={() => setDialog(null)}>
                 Close
               </button>
