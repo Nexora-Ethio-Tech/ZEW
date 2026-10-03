@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Icon } from '@/components/icon';
 import { Modal } from '@/components/modal';
 import { usePool } from './use-pool';
-import { GroupMap } from './group-map';
+
 import { PlaceSearch } from './place-search';
 import { FarePanel } from './fare-panel';
 import { Avatar } from './avatar';
@@ -348,18 +348,7 @@ export function PoolWorkspace() {
                         <button onClick={() => setModal('location')}>Details</button>
                       </div>
                     )}
-                    <p className="place-privacy-note">
-                      {pool.locationSource === 'demo' &&
-                        'An example journey to get you started. Replace either place. '}
-                      Search any street, landmark, or city. Search text is sent to Photon; map tiles
-                      load from OpenStreetMap. Device location is optional.
-                    </p>
-                    <GroupMap
-                      pool={pool}
-                      disabled={busy || !draft}
-                      choose={(target, place) => action('/place', { target, place })}
-                    />
-                    <div className="pool-map-footnote">
+                    <div className="pool-map-footnote" style={{ marginTop: 16 }}>
                       <Icon name="shield" size={14} />
                       <span>
                         Any pickup, any destination. Same-way & two-minute rules still apply.

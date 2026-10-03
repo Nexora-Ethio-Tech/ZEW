@@ -35,6 +35,7 @@ const statusLabel = {
 export function Workspace() {
   const [data, setData] = useState<Dashboard>();
   const [view, setView] = useState<View>('find');
+  const [role, setRole] = useState<'passenger' | 'driver'>('passenger');
   const [dialog, setDialog] = useState<Dialog>(null);
   const [journey, setJourney] = useState<Journey>({
     corridorId: 'bole-centre',
@@ -240,9 +241,9 @@ export function Workspace() {
         <div className="city-label">
           <span className="live-dot" /> ADDIS ABABA
         </div>
-        <p className="nav-heading">YOUR EVERYDAY JOURNEY</p>
+        <p className="nav-heading">{role === 'passenger' ? 'YOUR EVERYDAY JOURNEY' : 'YOUR DRIVER SPACE'}</p>
         <nav aria-label="Main navigation">
-          {navigation.map((item) => (
+          {navigation.filter(item => role === 'passenger' ? item.id !== 'driver' : item.id === 'driver').map((item) => (
             <button
               key={item.id}
               className={`nav-item ${view === item.id ? 'selected' : ''}`}
@@ -1149,9 +1150,25 @@ export function Workspace() {
                   <p style={{ margin: 0, color: '#69735f', fontSize: 14 }}>Personal demo session</p>
                 </div>
               </div>
-              <p className="modal-description">
-                More account settings and details will go here.
-              </p>
+              <div className="role-toggle" style={{ marginBottom: 24, background: '#f8f8ee', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ margin: '0 0 12px', fontSize: 14 }}>Active Mode</h4>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button 
+                    className={`secondary ${role === 'passenger' ? 'active' : ''}`}
+                    style={{ flex: 1, border: role === 'passenger' ? '2px solid #285943' : undefined }}
+                    onClick={() => { setRole('passenger'); setView('find'); setDialog(null); }}
+                  >
+                    Passenger
+                  </button>
+                  <button 
+                    className={`secondary ${role === 'driver' ? 'active' : ''}`}
+                    style={{ flex: 1, border: role === 'driver' ? '2px solid #285943' : undefined }}
+                    onClick={() => { setRole('driver'); setView('driver'); setDialog(null); }}
+                  >
+                    Driver
+                  </button>
+                </div>
+              </div>
               <button className="secondary full" onClick={() => setDialog(null)}>
                 Close
               </button>
