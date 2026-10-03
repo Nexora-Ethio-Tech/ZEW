@@ -17,13 +17,14 @@ import {
   type Trip,
 } from '@/lib/api';
 
-type View = 'find' | 'rides' | 'saved' | 'driver';
+type View = 'find' | 'rides' | 'saved' | 'driver' | 'earnings';
 type Dialog = 'waitlist' | 'help' | 'save' | 'offer' | 'booking' | 'board' | 'account' | null;
 const navigation: { id: View; label: string; icon: IconName }[] = [
-  { id: 'find', label: 'Find a ride', icon: 'route' },
+  { id: 'find', label: 'Plan ahead', icon: 'route' },
   { id: 'rides', label: 'My rides', icon: 'rides' },
   { id: 'saved', label: 'Saved commutes', icon: 'bookmark' },
   { id: 'driver', label: 'Driver space', icon: 'car' },
+  { id: 'earnings', label: 'Earnings', icon: 'wallet' },
 ];
 const statusLabel = {
   confirmed: 'Seat confirmed',
@@ -243,7 +244,7 @@ export function Workspace() {
         </div>
         <p className="nav-heading">{role === 'passenger' ? 'YOUR EVERYDAY JOURNEY' : 'YOUR DRIVER SPACE'}</p>
         <nav aria-label="Main navigation">
-          {navigation.filter(item => role === 'passenger' ? item.id !== 'driver' : item.id === 'driver').map((item) => (
+          {navigation.filter(item => role === 'passenger' ? (item.id !== 'driver' && item.id !== 'earnings') : (item.id === 'driver' || item.id === 'earnings')).map((item) => (
             <button
               key={item.id}
               className={`nav-item ${view === item.id ? 'selected' : ''}`}
@@ -804,6 +805,49 @@ export function Workspace() {
                     </details>
                   )}
                 </>
+              )}
+              {view === 'earnings' && (
+                <div className="earnings-view">
+                  <div className="section-title" style={{ marginBottom: 24 }}>
+                    <h2>Your Earnings</h2>
+                    <p style={{ color: '#69735f', margin: 0, fontSize: 14 }}>Track your simulated payouts and performance.</p>
+                  </div>
+                  <div className="driver-stats" style={{ marginBottom: 32 }}>
+                    <Stat
+                      label="Today"
+                      value="0 ETB"
+                      icon="wallet"
+                    />
+                    <Stat
+                      label="This week"
+                      value={`${completed.reduce((n, b) => n + b.fare * 0.9, 0).toFixed(0)} ETB`}
+                      icon="bookmark"
+                    />
+                    <Stat
+                      label="This month"
+                      value={`${completed.reduce((n, b) => n + b.fare * 0.9, 0).toFixed(0)} ETB`}
+                      icon="check"
+                    />
+                  </div>
+                  <div className="card" style={{ padding: 24 }}>
+                    <h3 style={{ margin: '0 0 16px', fontSize: 18 }}>Payout History</h3>
+                    {completed.length > 0 ? (
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        {completed.map((b) => (
+                          <li key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid #e1e3de' }}>
+                            <div>
+                              <strong style={{ display: 'block', fontSize: 16 }}>Trip payout</strong>
+                              <small style={{ color: '#69735f' }}>{day(b.departure)}</small>
+                            </div>
+                            <strong style={{ fontSize: 16, color: '#285943' }}>+{(b.fare * 0.9).toFixed(0)} ETB</strong>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p style={{ color: '#69735f', margin: 0 }}>No completed rides yet. Your simulated payouts will appear here.</p>
+                    )}
+                  </div>
+                </div>
               )}
               <footer>
                 <span className="footer-brand">zew.</span>

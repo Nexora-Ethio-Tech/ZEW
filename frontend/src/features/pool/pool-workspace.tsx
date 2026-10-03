@@ -151,7 +151,7 @@ export function PoolWorkspace() {
           </button>
           <Link href="/planned">
             <Icon name="bookmark" />
-            Planned commutes
+            Plan ahead
             <Icon name="chevron" size={14} />
           </Link>
           <div className="pool-nav-divider" />
