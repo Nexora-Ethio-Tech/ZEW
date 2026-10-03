@@ -139,6 +139,36 @@ export function demoRiders(now = Date.now()): PoolRider[] {
       destination: 'meskel',
       direction: 'reverse' as const,
     },
+    {
+      id: 'lidia',
+      name: 'Lidia B.',
+      initials: 'LB',
+      color: 'mint',
+      pickup: 'At the bakery',
+      pickupSeconds: 45,
+      destination: 'mexico',
+      direction: 'forward' as const,
+    },
+    {
+      id: 'yonas',
+      name: 'Yonas M.',
+      initials: 'YM',
+      color: 'blue',
+      pickup: 'Just past the traffic light',
+      pickupSeconds: 15,
+      destination: 'meskel',
+      direction: 'forward' as const,
+    },
+    {
+      id: 'kalkidan',
+      name: 'Kalkidan S.',
+      initials: 'KS',
+      color: 'peach',
+      pickup: 'Near the taxi stand',
+      pickupSeconds: 95,
+      destination: 'wollosefer',
+      direction: 'forward' as const,
+    },
   ].map((r) => ({ ...r, readyUntil: now + 120000, locationAt: now, optedIn: true }));
 }
 export function seedPool(now = Date.now()): PoolState {
