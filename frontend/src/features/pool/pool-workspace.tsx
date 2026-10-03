@@ -1,6 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Icon } from '@/components/icon';
 import { Modal } from '@/components/modal';
 import { usePool } from './use-pool';
@@ -13,12 +14,21 @@ import './pool.css';
 
 type View = 'discover' | 'history' | 'driver';
 export function PoolWorkspace() {
+  const searchParams = useSearchParams();
+  const paramView = searchParams?.get('view') as View;
+
   const { pool, busy: updating, error, locating, now, action, locate, start, setError } = usePool();
   const busy = updating || locating;
-  const [view, setView] = useState<View>('discover');
+  const [view, setView] = useState<View>(paramView && ['discover', 'history', 'driver'].includes(paramView) ? paramView : 'discover');
+
+  useEffect(() => {
+    if (paramView && ['discover', 'history', 'driver'].includes(paramView)) {
+      setView(paramView);
+    }
+  }, [paramView]);
   const [filter, setFilter] = useState<'ready' | 'all'>('ready');
   const [focused, setFocused] = useState<string | null>(null);
-  const [modal, setModal] = useState<'how' | 'fare' | 'location' | null>(null);
+  const [modal, setModal] = useState<'how' | 'fare' | 'location' | 'account' | null>(null);
   const [driverId, setDriverId] = useState('hana');
   const draft = pool?.status === 'draft';
   const ready =
@@ -184,14 +194,14 @@ export function PoolWorkspace() {
             <Icon name="help" size={17} />
             How it works
           </button>
-          <div className="pool-profile">
+          <button className="pool-profile" onClick={() => setModal('account')} style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', width: '100%' }}>
             <Avatar name="You" size={37} />
             <span>
               <strong>Your little corner</strong>
               <small>Personal workspace</small>
             </span>
             <Icon name="chevron" size={15} />
-          </div>
+          </button>
         </div>
       </aside>
       <div className="pool-main-shell">
@@ -206,7 +216,9 @@ export function PoolWorkspace() {
             <button className="top-help" aria-label="How Zew works" onClick={() => setModal('how')}>
               <Icon name="help" size={20} />
             </button>
-            <Avatar name="You" size={33} />
+            <button onClick={() => setModal('account')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+              <Avatar name="You" size={33} />
+            </button>
           </div>
         </header>
         <main className="pool-main">
@@ -846,9 +858,46 @@ export function PoolWorkspace() {
                 </small>
               </>
             )}
-            <button className="pool-primary" onClick={() => setModal(null)}>
-              Got it
-              <Icon name="check" size={16} />
+            {modal !== 'account' && (
+              <button className="pool-primary" onClick={() => setModal(null)}>
+                Got it
+                <Icon name="check" size={16} />
+              </button>
+            )}
+          </div>
+        </Modal>
+      )}
+      {modal === 'account' && (
+        <Modal title="Account" close={() => setModal(null)}>
+          <div className="account-details" style={{ padding: 24, minWidth: 320 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+              <span className="avatar" style={{ width: 56, height: 56, background: '#285943', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 'bold' }}>Y</span>
+              <div>
+                <h3 style={{ margin: '0 0 4px', fontSize: 20 }}>Your workspace</h3>
+                <p style={{ margin: 0, color: '#69735f', fontSize: 14 }}>Personal live session</p>
+              </div>
+            </div>
+            <div className="role-toggle" style={{ marginBottom: 24, background: '#f8f8ee', borderRadius: 12, padding: 16 }}>
+              <h4 style={{ margin: '0 0 12px', fontSize: 14 }}>Active Mode</h4>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button 
+                  className={`pool-secondary ${view !== 'driver' ? 'active' : ''}`}
+                  style={{ flex: 1, border: view !== 'driver' ? '2px solid #285943' : undefined }}
+                  onClick={() => { setView('discover'); setModal(null); }}
+                >
+                  Passenger
+                </button>
+                <button 
+                  className={`pool-secondary ${view === 'driver' ? 'active' : ''}`}
+                  style={{ flex: 1, border: view === 'driver' ? '2px solid #285943' : undefined }}
+                  onClick={() => { setView('driver'); setModal(null); }}
+                >
+                  Driver
+                </button>
+              </div>
+            </div>
+            <button className="pool-secondary" style={{ width: '100%' }} onClick={() => setModal(null)}>
+              Close
             </button>
           </div>
         </Modal>

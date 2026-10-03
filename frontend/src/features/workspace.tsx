@@ -291,22 +291,45 @@ export function Workspace() {
         <div className="city-label">
           <span className="live-dot" /> ADDIS ABABA
         </div>
-        <p className="nav-heading">YOUR EVERYDAY JOURNEY</p>
         <nav aria-label="Main navigation">
-          {navigation.map((item) => (
-            <button
-              key={item.id}
-              className={`nav-item ${view === item.id ? 'selected' : ''}`}
-              onClick={() => navigate(item.id)}
-              aria-current={view === item.id ? 'page' : undefined}
-            >
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
-              {item.id === 'rides' && active.length > 0 && (
-                <span className="count">{active.length}</span>
-              )}
-            </button>
-          ))}
+          <p>LET’S GET GOING</p>
+          <a className="nav-item" href="/">
+            <Icon name="route" />
+            <span>Find your circle</span>
+            <span className="nav-new" style={{ fontSize: 10, background: '#e1e3de', padding: '2px 6px', borderRadius: 4, marginLeft: 'auto' }}>NEW</span>
+          </a>
+          <a className="nav-item" href="/?view=history">
+            <Icon name="rides" />
+            <span>My rides</span>
+          </a>
+          <button
+            className={`nav-item ${view === 'find' ? 'selected' : ''}`}
+            onClick={() => navigate('find')}
+          >
+            <Icon name="bookmark" />
+            <span>Plan ahead</span>
+            <Icon name="chevron" size={14} />
+          </button>
+          <button
+            className={`nav-item ${view === 'rides' ? 'selected' : ''}`}
+            onClick={() => navigate('rides')}
+          >
+            <Icon name="bookmark" />
+            <span>Planned rides</span>
+            {active.length > 0 && <span className="count">{active.length}</span>}
+          </button>
+          <button
+            className={`nav-item ${view === 'saved' ? 'selected' : ''}`}
+            onClick={() => navigate('saved')}
+          >
+            <Icon name="bookmark" />
+            <span>Saved commutes</span>
+          </button>
+          <div className="pool-nav-divider" style={{ margin: '16px 0', borderTop: '1px solid #e1e3de' }} />
+          <a className="nav-item" href="/?view=driver">
+            <Icon name="car" />
+            <span>Driver space</span>
+          </a>
         </nav>
         <div className="sidebar-bottom">
           <div className="pilot-card">
