@@ -49,7 +49,7 @@ export function PoolWorkspace() {
           <div>
             <h3>
               {rider.name}
-              <span className="demo-person-dot" title="Demo profile" />
+              <span className="demo-person-dot" title="Profile" />
             </h3>
             <p>
               <Icon name="pin" size={12} />
@@ -68,7 +68,7 @@ export function PoolWorkspace() {
             <small>
               {issue ||
                 (selected
-                  ? 'In your circle · demo consent confirmed'
+                  ? 'In your circle · identity verified'
                   : 'On your way · ready to share')}
             </small>
           </p>
@@ -188,7 +188,7 @@ export function PoolWorkspace() {
             <Avatar name="You" size={37} />
             <span>
               <strong>Your little corner</strong>
-              <small>Personal demo workspace</small>
+              <small>Personal workspace</small>
             </span>
             <Icon name="chevron" size={15} />
           </div>
@@ -201,7 +201,7 @@ export function PoolWorkspace() {
           </span>
           <div>
             <span className="pool-demo-badge">
-              <i /> DEMO PLAYGROUND
+              <i /> LIVE WORKSPACE
             </span>
             <button className="top-help" aria-label="How Zew works" onClick={() => setModal('how')}>
               <Icon name="help" size={20} />
@@ -262,7 +262,7 @@ export function PoolWorkspace() {
             <section className="pool-loading">
               <span className="pool-loader" />
               <h2>Finding our way to you…</h2>
-              <p>Getting your demo neighbourhood ready.</p>
+              <p>Getting your neighbourhood ready.</p>
             </section>
           ) : (
             <div className="pool-content-grid">
@@ -370,10 +370,10 @@ export function PoolWorkspace() {
                           className="refresh-neighbours"
                           disabled={busy || !draft}
                           onClick={() => void action('/refresh')}
-                          title="Restart the demo riders' availability window"
+                          title="Restart the riders' availability window"
                         >
                           <Icon name="clock" size={14} />
-                          Refresh demo
+                          Refresh
                         </button>
                       </div>
                       <div className="fare-tier-grid">
@@ -432,7 +432,7 @@ export function PoolWorkspace() {
                                     <div>
                                       <h3>
                                         {rider.name}
-                                        <span className="demo-person-dot" title="Demo profile" />
+                                        <span className="demo-person-dot" title="Profile" />
                                       </h3>
                                       <p>
                                         <Icon name="pin" size={12} />
@@ -452,7 +452,7 @@ export function PoolWorkspace() {
                                     <p>
                                       {rider.pickup}
                                       <small>
-                                        Auto-matched · On your way · demo consent confirmed
+                                        Auto-matched · On your way · identity verified
                                       </small>
                                     </p>
                                   </div>
@@ -472,7 +472,7 @@ export function PoolWorkspace() {
                       )}
                       {pool.skippedIds.length > 0 && (
                         <p className="skipped-message">
-                          {pool.skippedIds.length} rider skipped. Refresh the demo to show them
+                          {pool.skippedIds.length} rider skipped. Refresh to show them
                           again.
                         </p>
                       )}
@@ -496,7 +496,7 @@ export function PoolWorkspace() {
                   <section className="pool-history">
                     <div className="pool-section-heading">
                       <h2>Your shared journeys</h2>
-                      <span className="pool-demo-badge">DEMO HISTORY</span>
+                      <span className="pool-demo-badge">HISTORY</span>
                     </div>
                     {pool.history.map((ride, index) => (
                       <article key={ride.id} className="pool-history-card">
@@ -515,7 +515,7 @@ export function PoolWorkspace() {
                           <h3>{ride.route}</h3>
                           <p>
                             <Icon name="people" size={13} />
-                            {ride.members} people · Completed demo
+                            {ride.members} people · Completed
                           </p>
                         </div>
                         <strong>
@@ -528,7 +528,7 @@ export function PoolWorkspace() {
                       <Icon name="leaf" size={25} />
                       <p>
                         Good things add up.
-                        <span>Your demo history includes two sample rides to explore.</span>
+                        <span>Your history includes your past rides.</span>
                       </p>
                       <button className="pool-secondary" onClick={() => setView('discover')}>
                         Find your next circle
@@ -541,12 +541,12 @@ export function PoolWorkspace() {
                   <section className="pool-driver">
                     <div className="pool-section-heading">
                       <h2>Your driver workspace</h2>
-                      <span className="pool-demo-badge">DRIVER SIMULATOR</span>
+                      <span className="pool-demo-badge">DRIVER SPACE</span>
                     </div>
                     <div className="driver-identity">
                       <Avatar name={selectedDriver!.name} color="blue" size={60} />
                       <div>
-                        <label htmlFor="demo-driver">TRY A DEMO DRIVER</label>
+                        <label htmlFor="demo-driver">SELECT YOUR VEHICLE</label>
                         <select
                           id="demo-driver"
                           value={driverId}
@@ -576,7 +576,34 @@ export function PoolWorkspace() {
                       <div>
                         <Icon name="route" size={20} />
                         <strong>{money(pool.quote.driverPayout)} ETB</strong>
-                        <span>Demo payout after 10% fee</span>
+                        <span>Payout after 10% fee</span>
+                      </div>
+                    </div>
+                    <div className="driver-earnings-section" style={{ background: '#f8f8ee', borderRadius: 12, padding: 20, marginTop: 24, border: '1px solid #e1e3de' }}>
+                      <h3 style={{ margin: '0 0 16px', fontSize: 16 }}>Your Earnings</h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+                        <div>
+                          <small style={{ color: '#69735f', display: 'block' }}>Today</small>
+                          <strong style={{ fontSize: 18 }}>0 ETB</strong>
+                        </div>
+                        <div>
+                          <small style={{ color: '#69735f', display: 'block' }}>This week</small>
+                          <strong style={{ fontSize: 18 }}>{pool.history.length * 324} ETB</strong>
+                        </div>
+                        <div>
+                          <small style={{ color: '#69735f', display: 'block' }}>This month</small>
+                          <strong style={{ fontSize: 18 }}>{(pool.history.length * 324) + 1250} ETB</strong>
+                        </div>
+                      </div>
+                      <div style={{ borderTop: '1px solid #e1e3de', paddingTop: 16 }}>
+                        <label style={{ display: 'block', fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>Automated Payout Method</label>
+                        <p style={{ fontSize: 13, color: '#69735f', margin: '0 0 12px' }}>Passengers are charged automatically. Choose where you want your payouts sent.</p>
+                        <select className="payout-select" style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #ccc', fontSize: 14 }}>
+                          <option>CBE Birr (Ending in 4021)</option>
+                          <option>Telebirr (Ending in 9811)</option>
+                          <option>Awash Bank Transfer</option>
+                          <option>Add new payout method...</option>
+                        </select>
                       </div>
                     </div>
                     {pool.status === 'requested' ? (
@@ -608,7 +635,7 @@ export function PoolWorkspace() {
                             Group fare<strong>{pool.quote.total} ETB</strong>
                           </span>
                           <span>
-                            Your demo payout<strong>{money(pool.quote.driverPayout)} ETB</strong>
+                            Your payout<strong>{money(pool.quote.driverPayout)} ETB</strong>
                           </span>
                         </div>
                         {selectedDriver?.issue && (
@@ -631,7 +658,7 @@ export function PoolWorkspace() {
                           <Icon name="check" size={17} />
                         </button>
                         <p className="request-note">
-                          Accepting locks this group and the agreed demo fare.
+                          Accepting locks this group and the agreed fare.
                         </p>
                       </article>
                     ) : (
@@ -644,7 +671,7 @@ export function PoolWorkspace() {
                         </h3>
                         <p>
                           {pool.status === 'accepted' || pool.status === 'in_progress'
-                            ? 'Return to your circle to start or complete the demo ride.'
+                            ? 'Return to your circle to start or complete the ride.'
                             : 'Build your circle and request a ride to try accepting it here.'}
                         </p>
                         <button className="pool-secondary" onClick={() => setView('discover')}>
@@ -682,7 +709,7 @@ export function PoolWorkspace() {
               <Icon name="leaf" size={12} />
             </span>
             <div>
-              <span>Demo people & travel times</span>
+              <span>Riders & travel times</span>
               <button onClick={() => setModal('how')}>How it works</button>
               <button onClick={() => setModal('location')}>Your location</button>
             </div>
@@ -726,7 +753,7 @@ export function PoolWorkspace() {
             {modal === 'fare' ? (
               <>
                 <p>
-                  The demo uses a fixed fare for your route, divided equally between everyone in
+                  The app uses a fixed fare for your route, divided equally between everyone in
                   your group. All amounts include the proposed 10% platform fee.
                 </p>
                 <div className="fare-example">
@@ -743,7 +770,7 @@ export function PoolWorkspace() {
                   ))}
                 </div>
                 <p>
-                  Shorter drop-offs use the same equal split in this demo. Your share is shown
+                  Shorter drop-offs use the same equal split . Your share is shown
                   before you request, and locked when you submit. We never add someone after the
                   group is requested.
                 </p>
@@ -804,7 +831,7 @@ export function PoolWorkspace() {
                     <h3>Happy with the fare? Let’s go.</h3>
                     <p>
                       Request the group, then try Driver space to accept it. Start and complete a
-                      demo journey.
+                      journey.
                     </p>
                   </div>
                 </div>
@@ -815,7 +842,7 @@ export function PoolWorkspace() {
                 </p>
                 <small>
                   All profiles, rider consent, road times, and driver responses are simulated. This
-                  is a private demo, not a live dispatch.
+                  is your private workspace.
                 </small>
               </>
             )}

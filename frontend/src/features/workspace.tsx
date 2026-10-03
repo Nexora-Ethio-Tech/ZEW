@@ -17,14 +17,12 @@ import {
   type Trip,
 } from '@/lib/api';
 
-type View = 'find' | 'rides' | 'saved' | 'driver' | 'earnings';
-type Dialog = 'waitlist' | 'help' | 'save' | 'offer' | 'booking' | 'board' | 'account' | null;
+type View = 'find' | 'rides' | 'saved';
+type Dialog = 'waitlist' | 'help' | 'save' | 'booking' | 'board' | 'account' | null;
 const navigation: { id: View; label: string; icon: IconName }[] = [
   { id: 'find', label: 'Plan ahead', icon: 'route' },
   { id: 'rides', label: 'My rides', icon: 'rides' },
   { id: 'saved', label: 'Saved commutes', icon: 'bookmark' },
-  { id: 'driver', label: 'Driver space', icon: 'car' },
-  { id: 'earnings', label: 'Earnings', icon: 'wallet' },
 ];
 const statusLabel = {
   confirmed: 'Seat confirmed',
@@ -36,7 +34,7 @@ const statusLabel = {
 export function Workspace() {
   const [data, setData] = useState<Dashboard>();
   const [view, setView] = useState<View>('find');
-  const [role, setRole] = useState<'passenger' | 'driver'>('passenger');
+
   const [dialog, setDialog] = useState<Dialog>(null);
   const [journey, setJourney] = useState<Journey>({
     corridorId: 'bole-centre',
@@ -293,9 +291,9 @@ export function Workspace() {
         <div className="city-label">
           <span className="live-dot" /> ADDIS ABABA
         </div>
-        <p className="nav-heading">{role === 'passenger' ? 'YOUR EVERYDAY JOURNEY' : 'YOUR DRIVER SPACE'}</p>
+        <p className="nav-heading">YOUR EVERYDAY JOURNEY</p>
         <nav aria-label="Main navigation">
-          {navigation.filter(item => role === 'passenger' ? (item.id !== 'driver' && item.id !== 'earnings') : (item.id === 'driver' || item.id === 'earnings')).map((item) => (
+          {navigation.map((item) => (
             <button
               key={item.id}
               className={`nav-item ${view === item.id ? 'selected' : ''}`}
@@ -431,13 +429,11 @@ export function Workspace() {
                       ? 'Find a seat with someone already heading your way.'
                       : view === 'rides'
                         ? 'Your upcoming rides, boarding details, and trip history.'
-                        : view === 'saved'
-                          ? 'Keep your favourite commutes close. Find your next ride faster.'
-                          : 'Offer the seats you have. Make your everyday drive go further.'}
+                        : 'Keep your favourite commutes close. Find your next ride faster.'}
                   </p>
                 </div>
                 <div className="heading-note">
-                  <Icon name={view === 'driver' ? 'car' : 'leaf'} size={29} />
+                  <Icon name="leaf" size={29} />
                   <span>
                     A shared ride.
                     <br />A lighter city.
@@ -713,193 +709,7 @@ export function Workspace() {
                   )}
                 </>
               )}
-              {view === 'driver' && (
-                <>
-                  <div className="driver-stats">
-                    <Stat
-                      label="Your offered trips"
-                      value={String(
-                        data.trips.filter((t) => t.source === 'yours' && t.status === 'open')
-                          .length,
-                      )}
-                      icon="car"
-                    />
-                    <Stat
-                      label="Completed demo rides"
-                      value={String(completed.length)}
-                      icon="check"
-                    />
-                    <Stat
-                      label="Simulated driver payout"
-                      value={`${completed.reduce((n, b) => n + b.fare * 0.9, 0).toFixed(0)} ETB`}
-                      icon="people"
-                    />
-                  </div>
-                  <div className="driver-note">
-                    <Icon name="help" size={18} />
-                    <p>
-                      This is your private driver sandbox. You can offer trips and simulate boarding
-                      for your sample ride bookings. Trips aren’t published to other people.
-                    </p>
-                  </div>
-                  <div className="section-title">
-                    <h2>Your offered trips</h2>
-                    <button className="primary" onClick={() => open('offer')}>
-                      <Icon name="plus" size={17} /> Offer a ride
-                    </button>
-                  </div>
-                  <div className="offered-list">
-                    {data.trips
-                      .filter((t) => t.source === 'yours')
-                      .map((t) => (
-                        <article className="card offered-card" key={t.id}>
-                          <span className="small-icon">
-                            <Icon name="car" />
-                          </span>
-                          <div>
-                            <strong>
-                              {stopName(t.origin)} → {stopName(t.destination)}
-                            </strong>
-                            <p>
-                              {day(t.departure)} · {time(t.departure)} EAT · {t.seats} seats ·{' '}
-                              {t.vehicle}
-                            </p>
-                          </div>
-                          {t.status === 'open' ? (
-                            <button
-                              className="danger-link"
-                              disabled={busy}
-                              onClick={() =>
-                                void run(async () => {
-                                  await api(`/trips/${t.id}/cancel`, 'POST');
-                                  await refresh();
-                                  setNotice('Your trip has been cancelled.');
-                                })
-                              }
-                            >
-                              Cancel offer
-                            </button>
-                          ) : (
-                            <span className="status-pill cancelled">Cancelled</span>
-                          )}
-                        </article>
-                      ))}
-                  </div>
-                  {!data.trips.some((t) => t.source === 'yours') && (
-                    <div className="empty-inline">
-                      <Icon name="car" size={28} />
-                      <p>Heading across town? Offer a seat on your planned route.</p>
-                    </div>
-                  )}
-                  <div className="section-title boarding-title">
-                    <h2>Boarding simulator</h2>
-                    <span className="muted">For bookings in My rides</span>
-                  </div>
-                  {active.map((b) => (
-                    <article key={b.id} className="card offered-card">
-                      <span className="avatar">Y</span>
-                      <div>
-                        <strong>
-                          {stopName(b.origin)} → {stopName(b.destination)}
-                        </strong>
-                        <p>
-                          {statusLabel[b.status]} · {b.seats} seats · {b.fare} ETB demo fare
-                        </p>
-                      </div>
-                      {b.status === 'confirmed' ? (
-                        <button
-                          className="secondary"
-                          onClick={() => {
-                            setBoarding(b);
-                            open('board');
-                          }}
-                        >
-                          Enter boarding code
-                        </button>
-                      ) : (
-                        <button
-                          className="primary"
-                          disabled={busy}
-                          onClick={() =>
-                            void run(async () => {
-                              await api(`/bookings/${b.id}/action`, 'POST', { action: 'complete' });
-                              await refresh();
-                              setNotice(
-                                'Demo trip completed. Simulated receipt added to Past rides.',
-                              );
-                            })
-                          }
-                        >
-                          Complete demo trip
-                          <Icon name="check" size={17} />
-                        </button>
-                      )}
-                    </article>
-                  ))}
-                  {!active.length && (
-                    <div className="empty-inline">
-                      <Icon name="people" size={28} />
-                      <p>Book a sample ride first to try the boarding and completion flow.</p>
-                    </div>
-                  )}
-                  {data.events.length > 0 && (
-                    <details className="activity-log">
-                      <summary>Workspace activity</summary>
-                      {data.events.slice(0, 8).map((e, i) => (
-                        <p key={`${e.entityId}-${i}`}>
-                          <span>{e.kind.replaceAll('.', ' ')}</span>
-                          <small>
-                            {day(e.createdAt)} · {time(e.createdAt)}
-                          </small>
-                        </p>
-                      ))}
-                    </details>
-                  )}
-                </>
-              )}
-              {view === 'earnings' && (
-                <div className="earnings-view">
-                  <div className="section-title" style={{ marginBottom: 24 }}>
-                    <h2>Your Earnings</h2>
-                    <p style={{ color: '#69735f', margin: 0, fontSize: 14 }}>Track your simulated payouts and performance.</p>
-                  </div>
-                  <div className="driver-stats" style={{ marginBottom: 32 }}>
-                    <Stat
-                      label="Today"
-                      value="0 ETB"
-                      icon="wallet"
-                    />
-                    <Stat
-                      label="This week"
-                      value={`${completed.reduce((n, b) => n + b.fare * 0.9, 0).toFixed(0)} ETB`}
-                      icon="bookmark"
-                    />
-                    <Stat
-                      label="This month"
-                      value={`${completed.reduce((n, b) => n + b.fare * 0.9, 0).toFixed(0)} ETB`}
-                      icon="check"
-                    />
-                  </div>
-                  <div className="card" style={{ padding: 24 }}>
-                    <h3 style={{ margin: '0 0 16px', fontSize: 18 }}>Payout History</h3>
-                    {completed.length > 0 ? (
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                        {completed.map((b) => (
-                          <li key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid #e1e3de' }}>
-                            <div>
-                              <strong style={{ display: 'block', fontSize: 16 }}>Trip payout</strong>
-                              <small style={{ color: '#69735f' }}>{day(b.departure)}</small>
-                            </div>
-                            <strong style={{ fontSize: 16, color: '#285943' }}>+{(b.fare * 0.9).toFixed(0)} ETB</strong>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p style={{ color: '#69735f', margin: 0 }}>No completed rides yet. Your simulated payouts will appear here.</p>
-                    )}
-                  </div>
-                </div>
-              )}
+
               <footer>
                 <span className="footer-brand">zew.</span>
                 <span>A better everyday, together.</span>
@@ -1074,56 +884,7 @@ export function Workspace() {
               </button>
             </div>
           )}
-          {dialog === 'offer' && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const values = new FormData(e.currentTarget);
-                void run(async () => {
-                  await api('/trips', 'POST', {
-                    ...journey,
-                    driver: values.get('driver'),
-                    vehicle: values.get('vehicle'),
-                  });
-                  await refresh();
-                  setDialog(null);
-                  setNotice('Your trip offer is saved in your driver sandbox.');
-                });
-              }}
-            >
-              <p className="modal-description">
-                Share a planned journey. Demo fare is set at 100 ETB per seat, with a simulated 10%
-                platform fee.
-              </p>
-              <div className="form-row">
-                <label className="field">
-                  Driver name
-                  <input
-                    name="driver"
-                    required
-                    minLength={2}
-                    maxLength={40}
-                    placeholder="Your display name"
-                  />
-                </label>
-                <label className="field">
-                  Vehicle
-                  <input
-                    name="vehicle"
-                    required
-                    minLength={2}
-                    maxLength={60}
-                    placeholder="e.g. Toyota Vitz"
-                  />
-                </label>
-              </div>
-              {routeFields()}
-              <button className="primary full" disabled={busy}>
-                Save demo offer
-                <Icon name="arrow" size={17} />
-              </button>
-            </form>
-          )}
+
           {dialog === 'board' && boarding && (
             <form
               onSubmit={(e) => {
@@ -1245,25 +1006,7 @@ export function Workspace() {
                   <p style={{ margin: 0, color: '#69735f', fontSize: 14 }}>Personal demo session</p>
                 </div>
               </div>
-              <div className="role-toggle" style={{ marginBottom: 24, background: '#f8f8ee', borderRadius: 12, padding: 16 }}>
-                <h4 style={{ margin: '0 0 12px', fontSize: 14 }}>Active Mode</h4>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button 
-                    className={`secondary ${role === 'passenger' ? 'active' : ''}`}
-                    style={{ flex: 1, border: role === 'passenger' ? '2px solid #285943' : undefined }}
-                    onClick={() => { setRole('passenger'); setView('find'); setDialog(null); }}
-                  >
-                    Passenger
-                  </button>
-                  <button 
-                    className={`secondary ${role === 'driver' ? 'active' : ''}`}
-                    style={{ flex: 1, border: role === 'driver' ? '2px solid #285943' : undefined }}
-                    onClick={() => { setRole('driver'); setView('driver'); setDialog(null); }}
-                  >
-                    Driver
-                  </button>
-                </div>
-              </div>
+
               <button className="secondary full" onClick={() => setDialog(null)}>
                 Close
               </button>
