@@ -3739,3 +3739,52 @@
   padding: 3px 10px;
 }
 
+/* ── Location Prompt Card ── */
+.location-prompt-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 32px 24px;
+  margin: 16px 0;
+  backdrop-filter: blur(10px);
+}
+.location-prompt-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(130, 200, 140, 0.15);
+  color: #82c88c;
+  margin-bottom: 16px;
+}
+.location-prompt-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+.location-prompt-card p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+  max-width: 400px;
+}
+.location-prompt-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+}
+.location-prompt-actions button {
+  width: 100%;
+  justify-content: center;
+}

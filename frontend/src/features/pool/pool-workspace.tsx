@@ -269,43 +269,75 @@ export function PoolWorkspace() {
               <div className="pool-content-left">
                 {view === 'discover' && (
                   <>
-                    <section className="pickup-bar">
-                      <div className="pickup-field">
-                        <span className="pickup-field-icon">
-                          <Icon name="pin" size={19} />
+                    {pool.locationSource === 'demo' ? (
+                      <section className="location-prompt-card">
+                        <div className="location-prompt-icon">
+                          <Icon name="pin" size={28} />
+                        </div>
+                        <h3>Where are you right now?</h3>
+                        <p>
+                          We'll use your phone's GPS as your exact pickup spot. We never track you
+                          in the background.
+                        </p>
+                        <div className="location-prompt-actions">
+                          <button
+                            className="pool-primary"
+                            onClick={locate}
+                            disabled={busy || locating || !draft}
+                          >
+                            <Icon name="pin" size={16} />
+                            {locating ? 'Locating…' : 'Share device location'}
+                          </button>
+                          <button
+                            className="pool-secondary"
+                            onClick={() => {
+                              void action('/place', { target: 'pickup', place: pool.mapPickup });
+                            }}
+                            disabled={busy || !draft}
+                          >
+                            Search for a place
+                          </button>
+                        </div>
+                      </section>
+                    ) : (
+                      <section className="pickup-bar">
+                        <div className="pickup-field">
+                          <span className="pickup-field-icon">
+                            <Icon name="pin" size={19} />
+                          </span>
+                          <div>
+                            <PlaceSearch
+                              target="pickup"
+                              value={pool.pickupName}
+                              disabled={busy || !draft}
+                              choose={(place) => action('/place', { target: 'pickup', place })}
+                            />
+                          </div>
+                        </div>
+                        <span className="pickup-route-arrow">
+                          <Icon name="arrow" size={17} />
                         </span>
-                        <div>
-                          <PlaceSearch
-                            target="pickup"
-                            value={pool.pickupName}
-                            disabled={busy || !draft}
-                            choose={(place) => action('/place', { target: 'pickup', place })}
-                          />
+                        <div className="pickup-field dropoff-field">
+                          <span className="dropoff-square" />
+                          <div>
+                            <PlaceSearch
+                              target="destination"
+                              value={destination?.name ?? ''}
+                              disabled={busy || !draft}
+                              choose={(place) => action('/place', { target: 'destination', place })}
+                            />
+                          </div>
                         </div>
-                      </div>
-                      <span className="pickup-route-arrow">
-                        <Icon name="arrow" size={17} />
-                      </span>
-                      <div className="pickup-field dropoff-field">
-                        <span className="dropoff-square" />
-                        <div>
-                          <PlaceSearch
-                            target="destination"
-                            value={destination?.name ?? ''}
-                            disabled={busy || !draft}
-                            choose={(place) => action('/place', { target: 'destination', place })}
-                          />
-                        </div>
-                      </div>
-                      <button
-                        className="locate-button"
-                        onClick={locate}
-                        disabled={busy || locating || !draft}
-                      >
-                        <Icon name="pin" size={15} />
-                        {locating ? 'Locating…' : 'Use my location'}
-                      </button>
-                    </section>
+                        <button
+                          className="locate-button"
+                          onClick={locate}
+                          disabled={busy || locating || !draft}
+                        >
+                          <Icon name="pin" size={15} />
+                          {locating ? 'Locating…' : 'Use my location'}
+                        </button>
+                      </section>
+                    )}
                     {(pool.locationIssue || pool.locationSource === 'device') && (
                       <div className={`location-message ${pool.locationIssue ? 'outside' : ''}`}>
                         <Icon name="pin" size={15} />
@@ -340,9 +372,7 @@ export function PoolWorkspace() {
                     <section className="neighbours" id="nearby-riders">
                       <div className="neighbours-heading">
                         <div>
-                          <h2>
-                            How many do you want to share with?
-                          </h2>
+                          <h2>How many do you want to share with?</h2>
                           <p>
                             Pick a fare that works for you. We'll auto-fill riders going your way.
                           </p>
@@ -372,9 +402,7 @@ export function PoolWorkspace() {
                               id={`fare-tier-${seats}`}
                               className={`fare-tier-card ${active ? 'is-active' : ''}`}
                               disabled={busy || !draft}
-                              onClick={() =>
-                                void action('/preference', { targetSeats: seats })
-                              }
+                              onClick={() => void action('/preference', { targetSeats: seats })}
                             >
                               <span className="tier-icon">{icon}</span>
                               <strong className="tier-label">{label}</strong>
@@ -406,7 +434,10 @@ export function PoolWorkspace() {
                             {pool.riders
                               .filter((r) => pool.selectedIds.includes(r.id))
                               .map((rider) => (
-                                <article key={rider.id} className="neighbour-card is-selected is-autofilled">
+                                <article
+                                  key={rider.id}
+                                  className="neighbour-card is-selected is-autofilled"
+                                >
                                   <div className="neighbour-top">
                                     <Avatar name={rider.name} color={rider.color} size={48} />
                                     <div>
@@ -416,7 +447,10 @@ export function PoolWorkspace() {
                                       </h3>
                                       <p>
                                         <Icon name="pin" size={12} />
-                                        {pool.destinations.find((d) => d.id === rider.destination)?.name}
+                                        {
+                                          pool.destinations.find((d) => d.id === rider.destination)
+                                            ?.name
+                                        }
                                       </p>
                                     </div>
                                     <span className="pickup-time">
@@ -428,7 +462,9 @@ export function PoolWorkspace() {
                                     <span className="tiny-route" />
                                     <p>
                                       {rider.pickup}
-                                      <small>Auto-matched · On your way · demo consent confirmed</small>
+                                      <small>
+                                        Auto-matched · On your way · demo consent confirmed
+                                      </small>
                                     </p>
                                   </div>
                                   <div className="neighbour-footer autofill-footer">
@@ -458,7 +494,8 @@ export function PoolWorkspace() {
                         <p>
                           A little closer, a lot simpler.
                           <small>
-                            Riders farther away or across the median won't be matched to your circle.
+                            Riders farther away or across the median won't be matched to your
+                            circle.
                           </small>
                         </p>
                         <Icon name="shield" size={24} />

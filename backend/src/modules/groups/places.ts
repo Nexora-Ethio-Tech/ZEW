@@ -59,12 +59,10 @@ export async function placeRoutes(app: FastifyInstance) {
       cache.set(key, { expires: Date.now() + 86400000, places });
       return { places };
     } catch {
-      return reply
-        .code(503)
-        .send({
-          message:
-            'Place search is temporarily unavailable. Try again, use device location, or set a pin on the map.',
-        });
+      return reply.code(503).send({
+        message:
+          'Place search is temporarily unavailable. Try again, use device location, or set a pin on the map.',
+      });
     }
   });
 }
