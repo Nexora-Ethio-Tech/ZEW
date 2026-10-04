@@ -531,11 +531,22 @@ select {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: #858f7c;
-  font-size: 10px;
+  background: #f4f8f2;
+  border: 1px solid #c9d8c0;
+  border-radius: 8px;
+  color: #285943;
+  font-size: 13px;
+  font-weight: 600;
   width: 100%;
-  margin-top: 15px;
-  padding: 3px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.save-link:hover {
+  background: #e6f0e1;
+  border-color: #285943;
+  color: #1b4533;
 }
 .route-map {
   min-width: 0;

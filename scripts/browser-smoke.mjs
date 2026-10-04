@@ -4,8 +4,8 @@ import { writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const origin = process.env.ZEW_BASE_URL || 'http://127.0.0.1:3000';
-const tab = await fetch(`http://127.0.0.1:9235/json/new?${origin}/planned`, { method: 'PUT' }).then(
-  (r) => r.json(),
+const tab = await fetch('http://127.0.0.1:9235/json/new?about:blank', { method: 'PUT' }).then((r) =>
+  r.json(),
 );
 const socket = new WebSocket(tab.webSocketDebuggerUrl);
 const tasks = new Map();
@@ -13,6 +13,14 @@ let sequence = 0;
 const exceptions = [];
 socket.addEventListener('message', (event) => {
   const message = JSON.parse(event.data);
+  if (message.method === 'Fetch.requestPaused') {
+    void send('Fetch.fulfillRequest', {
+      requestId: message.params.requestId,
+      responseCode: 200,
+      responseHeaders: [{ name: 'Content-Type', value: 'image/png' }],
+      body: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
+    });
+  }
   if (message.method === 'Runtime.exceptionThrown')
     exceptions.push(message.params.exceptionDetails.text);
   if (!message.id) return;
@@ -64,6 +72,8 @@ const shot = async (name) => {
 try {
   await send('Runtime.enable');
   await send('Page.enable');
+  await send('Fetch.enable', { patterns: [{ urlPattern: '*tile.openstreetmap.org/*' }] });
+  await send('Page.navigate', { url: `${origin}/planned` });
   await send('Emulation.setDeviceMetricsOverride', {
     width: 1440,
     height: 1050,
@@ -84,17 +94,19 @@ try {
   await click('Confirm demo reservation');
   await waitFor('!!document.querySelector(".boarding-code strong")');
   const code = await evaluate('document.querySelector(".boarding-code strong").textContent');
-  await click('Driver space');
+  await click('Switch to Driver Mode');
   await click('Enter boarding code');
   await input('input[name="code"]', code);
   await click('Confirm boarding');
   await waitFor('document.body.innerText.includes("Complete demo trip")');
   await click('Complete demo trip');
+  await click('Earnings & Payouts');
   await waitFor('document.body.innerText.includes("90 ETB")');
+  await click('Switch to Passenger Mode');
   await click('My rides');
   await click('Past rides');
   await waitFor('document.body.innerText.includes("Demo payment recorded")');
-  await click('Find a ride');
+  await click('Plan ahead');
   await click('Save this commute');
   await input('input[name="name"]', 'Morning commute');
   await click('Save commute');
@@ -103,7 +115,7 @@ try {
   await waitFor('document.body.innerText.includes("Morning commute")');
   await click('Use this route');
   await waitFor('!!document.querySelector(".search-card")');
-  await click('Driver space');
+  await click('Switch to Driver Mode');
   await click('Offer a ride');
   await input('input[name="driver"]', 'Demo Driver');
   await input('input[name="vehicle"]', 'Toyota Vitz');
@@ -111,14 +123,14 @@ try {
   await waitFor('document.body.innerText.includes("Cancel offer")');
   await click('Cancel offer');
   await waitFor('!!document.querySelector(".offered-card .cancelled")');
-  await click('Find a ride');
+  await click('Switch to Passenger Mode');
   await click('Join the pilot');
   await input('input[name="name"]', 'Browser Demo');
   await input('input[name="email"]', 'demo@example.com');
   await evaluate('document.querySelector("input[name=consent]").click()');
   await click('Save my interest');
   await waitFor('document.body.innerText.includes("Your interest is saved.")');
-  await click('Back to my commute');
+  await click('Back to my workspace');
   await evaluate('document.querySelector(".toast button")?.click()');
   await send('Emulation.setDeviceMetricsOverride', {
     width: 390,

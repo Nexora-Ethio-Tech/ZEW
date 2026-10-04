@@ -11,6 +11,8 @@ import {
   acceptGroup,
   driverIssue,
   setDeviceLocation,
+  setTargetPreference,
+  poolView,
 } from '../src/modules/groups/service.js';
 
 test('group adds only same-direction riders within the full 120-second pickup span', () => {
@@ -163,4 +165,88 @@ test('device coordinates are private, fallback clears them, and other sessions c
   const other = (await app.inject({ url: '/api/v1/pool', headers })).json();
   assert.equal(other.location, undefined);
   assert.equal((await app.inject({ url: '/api/v1/pool' })).statusCode, 401);
+});
+
+test('fare options agree with selected groups and unavailable preferences preserve membership', () => {
+  const now = Date.now(),
+    pool = seedPool(now);
+  assert.deepEqual(
+    poolView(pool, now).fareOptions.map((option) => option.yourFare),
+    [360, 180, 120, 90],
+  );
+  setTargetPreference(pool, 4, now);
+  assert.deepEqual(pool.selectedIds, ['sara', 'bereket', 'eden']);
+  assert.equal(fareQuote(pool).yourFare, poolView(pool, now).fareOptions[3].yourFare);
+  pool.skippedIds = ['sara', 'bereket', 'yonas', 'kalkidan'];
+  const before = structuredClone(pool);
+  assert.throws(() => setTargetPreference(pool, 4, now), /Not enough ready/);
+  assert.deepEqual(pool, before, 'A rejected preference must not replace the current group');
+  assert.match(poolView(pool, now).fareOptions[3].issue!, /Not enough ready/);
+  assert.throws(() => setTargetPreference(pool, 2.5, now), /Target seats/);
+});
+
+test('auto-fill checks driver arrival and readiness; expired riders cannot be selected', () => {
+  const now = Date.now(),
+    pool = seedPool(now);
+  pool.riders[0].readyUntil = now + 50000; // Hana needs 55 seconds to reach Sara.
+  setTargetPreference(pool, 2, now);
+  assert.deepEqual(pool.selectedIds, ['bereket']);
+  assert.throws(() => setTargetPreference(pool, 2, now + 121000), /Not enough ready/);
+  setTargetPreference(pool, 1, now + 121000);
+  assert.equal(fareQuote(pool).count, 1);
+});
+
+test('API preferences reject tampering and return authoritative destination fares', async (t) => {
+  const { app, request } = await setup();
+  t.after(() => app.close());
+  assert.equal((await request('/preference', { targetSeats: 2, fare: 1 })).statusCode, 400);
+  assert.equal((await request('/preference', { targetSeats: 2.5 })).statusCode, 400);
+  assert.equal((await request('/preference', { targetSeats: 5 })).statusCode, 400);
+  await request('/destination', { destination: 'mexico' });
+  const group = (await request('/preference', { targetSeats: 4 })).json();
+  assert.equal(group.quote.yourFare, 105);
+  assert.equal(group.fareOptions[3].yourFare, group.quote.yourFare);
+  await request('/request', { version: group.version });
+  assert.equal((await request('/preference', { targetSeats: 1 })).statusCode, 409);
+});
+
+test('completed circle receipts fund only their demo driver and duplicate completion cannot add earnings', async (t) => {
+  const { app, request } = await setup();
+  t.after(() => app.close());
+  const initial = (await request('', undefined, 'GET')).json();
+  assert.ok(
+    initial.driverEarnings.every((entry: { payout: number }) => entry.payout === 0),
+    'Seeded rider history is not driver income',
+  );
+  const group = (await request('/preference', { targetSeats: 3 })).json();
+  await request('/request', { version: group.version });
+  await request('/accept', { groupId: group.id, driverId: 'hana' });
+  await request('/action', { action: 'start' });
+  const results = await Promise.all([
+    request('/action', { action: 'complete' }),
+    request('/action', { action: 'complete' }),
+  ]);
+  assert.deepEqual(results.map((result) => result.statusCode).sort(), [200, 409]);
+  const completed = (await request('', undefined, 'GET')).json();
+  assert.equal(completed.history.length, 3);
+  assert.equal(completed.history[0].total, 360);
+  assert.equal(completed.history[0].fee, 36);
+  assert.equal(completed.history[0].driverPayout, 324);
+  assert.deepEqual(
+    completed.driverEarnings.find((entry: { driverId: string }) => entry.driverId === 'hana'),
+    { driverId: 'hana', completedTrips: 1, payout: 324 },
+  );
+  assert.equal(
+    completed.driverEarnings.find((entry: { driverId: string }) => entry.driverId === 'dawit')
+      .payout,
+    0,
+  );
+  await request('/action', { action: 'new' });
+  await request('/destination', { destination: 'mexico' });
+  const later = (await request('', undefined, 'GET')).json();
+  assert.equal(
+    later.history[0].total,
+    360,
+    'Receipt amounts are immutable when the next destination changes',
+  );
 });

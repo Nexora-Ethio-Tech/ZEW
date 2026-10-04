@@ -13,11 +13,18 @@ ws.addEventListener('message', (event) => {
   const data = JSON.parse(event.data);
   // Never use automated map interaction to fetch public OSM tiles. Test map controls with an inert tile.
   if (data.method === 'Fetch.requestPaused') {
+    const places = data.params.request.url.includes('/places/search');
     void send('Fetch.fulfillRequest', {
       requestId: data.params.requestId,
       responseCode: 200,
-      responseHeaders: [{ name: 'Content-Type', value: 'image/png' }],
-      body: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
+      responseHeaders: [{ name: 'Content-Type', value: places ? 'application/json' : 'image/png' }],
+      body: places
+        ? Buffer.from(
+            JSON.stringify({
+              places: [{ name: 'Adama, Ethiopia', latitude: 8.54, longitude: 39.27 }],
+            }),
+          ).toString('base64')
+        : 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
     }).catch(() => {});
   }
   if (data.method === 'Runtime.exceptionThrown') errors.push(data.params.exceptionDetails.text);
@@ -71,7 +78,12 @@ const screenshot = async (name) => {
 try {
   await send('Runtime.enable');
   await send('Page.enable');
-  await send('Fetch.enable', { patterns: [{ urlPattern: '*tile.openstreetmap.org/*' }] });
+  await send('Fetch.enable', {
+    patterns: [
+      { urlPattern: '*tile.openstreetmap.org/*' },
+      ...(process.env.ZEW_LIVE_PLACES === '1' ? [] : [{ urlPattern: '*/api/v1/places/search' }]),
+    ],
+  });
   await send('Page.navigate', { url: origin });
   await send('Emulation.setDeviceMetricsOverride', {
     width: 1440,
@@ -86,6 +98,17 @@ try {
   await wait('!!document.querySelector(".group-card")');
   await fare(360);
   await screenshot('zew-circle-desktop');
+  await labelled('Your demo account');
+  assert.equal(
+    await evaluate('document.querySelectorAll("dialog[open]").length'),
+    1,
+    'Account opens exactly one dialog',
+  );
+  await labelled('Close dialog');
+  await evaluate('document.querySelector("#fare-tier-4").click()');
+  await fare(90);
+  await evaluate('document.querySelector("#fare-tier-1").click()');
+  await fare(360);
   await labelled('Add Sara M.');
   await fare(180);
   await labelled('Add Bereket A.');
@@ -144,7 +167,7 @@ try {
   await click('Use my location');
   await wait('document.body.innerText.includes("accuracy ±10m")');
   assert.equal(await evaluate('document.querySelector(".request-group").disabled'), false);
-  // Real geocoder through the API; not limited to the original Addis pickup zones.
+  // Search interaction is deterministic by default; opt into the public geocoder with ZEW_LIVE_PLACES=1.
   await evaluate(
     `(()=>{const input=document.querySelector('#place-pickup');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'Adama Ethiopia');input.dispatchEvent(new Event('input',{bubbles:true}));})()`,
   );
@@ -213,9 +236,47 @@ try {
   await evaluate('document.querySelector(".group-card").scrollIntoView()');
   await pause(250);
   await screenshot('zew-circle-mobile-fare');
+  await labelled('Your demo account');
+  assert.equal(await evaluate('document.querySelectorAll("dialog[open]").length'), 1);
+  assert.equal(
+    await evaluate(
+      'document.querySelector("dialog").scrollWidth <= document.querySelector("dialog").clientWidth',
+    ),
+    true,
+    'Dialog fits mobile viewport',
+  );
+  await labelled('Close dialog');
+  await send('Network.enable');
+  await send('Network.emulateNetworkConditions', {
+    offline: true,
+    latency: 0,
+    downloadThroughput: 0,
+    uploadThroughput: 0,
+  });
+  await wait('document.body.innerText.includes("You’re offline")');
+  assert.equal(await evaluate('document.querySelector(".request-group").disabled'), true);
+  await send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 0,
+    downloadThroughput: -1,
+    uploadThroughput: -1,
+  });
+  await wait('!document.body.innerText.includes("You’re offline")');
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 320,
+    height: 760,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await pause(200);
+  assert.equal(
+    await evaluate('document.documentElement.scrollWidth<=innerWidth'),
+    true,
+    'No narrow mobile overflow',
+  );
   assert.deepEqual(errors, [], 'No browser exceptions');
   console.log(
-    'PASS: group fares/lifecycle, two-minute rules, arbitrary GPS, permission denial, live place search, map-pin selection, custom-place persistence and mobile layout. OSM tiles stubbed for automated testing.',
+    'PASS: group fares/tiers/lifecycle, two-minute rules, arbitrary GPS, permission denial, place selection, map pins, persistence, single account dialog, offline recovery and mobile layout. Public tiles stubbed; live search is opt-in.',
   );
   console.log(
     'Screenshots: /tmp/zew-circle-desktop.png, /tmp/zew-circle-full.png, /tmp/zew-circle-mobile.png, /tmp/zew-circle-mobile-fare.png',

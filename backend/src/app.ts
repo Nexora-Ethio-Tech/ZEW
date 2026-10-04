@@ -3,7 +3,7 @@ import cors from '@fastify/cors';
 import { randomInt, randomUUID } from 'node:crypto';
 import { z, ZodError } from 'zod';
 import { Store } from './shared/store.js';
-import { corridors, validRoute, type Booking, type Trip } from './modules/trips/model.js';
+import { corridors, sampleTripsForTime, validRoute, type Booking, type Trip } from './modules/trips/model.js';
 import { availableSeats, findMatches, rejectionReason } from './modules/matching/service.js';
 import { env } from './config/env.js';
 import { groupRoutes } from './modules/groups/routes.js';
@@ -24,12 +24,17 @@ const fields = {
   departure: z
     .string()
     .datetime({ offset: true })
-    .refine((s) => Date.parse(s) > Date.now(), 'Choose a future departure time')
+    .refine(
+      (s) => Date.parse(s) > Date.now() - 5 * 60 * 1000,
+      'Choose a future departure time',
+    )
     .refine(
       (s) => Date.parse(s) < Date.now() + 31 * 86400000,
       'Choose a date within the next 30 days',
     ),
-  seats: z.number().int().min(1).max(4),
+  seats: z.number().int().min(1).max(50),
+  minSeats: z.number().int().min(1).max(50).optional(),
+  maxSeats: z.number().int().min(1).max(50).optional(),
 };
 const journey = z
   .object(fields)
@@ -98,6 +103,9 @@ export function buildApp({ databasePath = ':memory:', logger = false } = {}) {
       api.register(placeRoutes);
       api.get('/dashboard', async (req) => {
         const state = store.read(req.sessionId);
+        const completed = state.bookings.filter((booking) => booking.status === 'completed');
+        const totalFare = completed.reduce((sum, booking) => sum + booking.fare, 0);
+        const platformFee = Math.round(totalFare * 10) / 100;
         return {
           mode: 'demo',
           corridors,
@@ -106,6 +114,12 @@ export function buildApp({ databasePath = ':memory:', logger = false } = {}) {
           commutes: state.commutes,
           waitlistJoined: !!state.waitlist,
           events: store.events(req.sessionId),
+          demoEarnings: {
+            completedTrips: completed.length,
+            totalFare,
+            platformFee,
+            driverPayout: totalFare - platformFee,
+          },
         };
       });
       api.post('/matches', async (req) =>
@@ -115,7 +129,14 @@ export function buildApp({ databasePath = ':memory:', logger = false } = {}) {
         const input = bookingInput.parse(req.body);
         return reply.code(201).send(
           store.mutate(req.sessionId, 'booking.confirmed', (state) => {
-            const trip = state.trips.find((t) => t.id === input.tripId);
+            let trip = state.trips.find((t) => t.id === input.tripId);
+            if (!trip) {
+              const dynamicSamples = sampleTripsForTime(input.departure);
+              trip = dynamicSamples.find((t) => t.id === input.tripId);
+              if (trip) {
+                state.trips.push(trip);
+              }
+            }
             if (!trip) throw new ApiError(404, 'Trip not found');
             const reason = rejectionReason(state, trip, input);
             if (reason) throw new ApiError(409, reason);

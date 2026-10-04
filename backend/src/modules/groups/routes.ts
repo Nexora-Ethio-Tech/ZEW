@@ -174,6 +174,7 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
       else if (action === 'start' && pool.status === 'accepted') pool.status = 'in_progress';
       else if (action === 'complete' && pool.status === 'in_progress') {
         pool.status = 'completed';
+        const quote = fareQuote(pool);
         pool.history.unshift({
           id: pool.id,
           route: `${poolView(pool).pickupName} → ${groupDestinations(pool).find((d) => d.id === pool.destination)!.name}`,
@@ -181,6 +182,10 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
           fare: pool.lockedFare ?? fareQuote(pool).yourFare,
           date: new Date().toISOString(),
           demo: true,
+          driverId: pool.driverId,
+          total: quote.total,
+          fee: quote.fee,
+          driverPayout: quote.driverPayout,
         });
         pool.history = pool.history.slice(0, 30);
       } else throw new GroupError('This action is not available for this group.');

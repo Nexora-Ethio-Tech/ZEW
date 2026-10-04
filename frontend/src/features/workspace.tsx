@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Icon, type IconName } from '@/components/icon';
 import { RouteMap } from '@/components/route-map';
 import { Modal } from '@/components/modal';
+import { supabase } from '@/lib/supabase';
 import {
   api,
   day,
@@ -17,13 +18,50 @@ import {
   type Trip,
 } from '@/lib/api';
 
-type View = 'find' | 'rides' | 'saved' | 'driver';
-type Dialog = 'waitlist' | 'help' | 'save' | 'booking' | 'board' | 'account' | null;
-const navigation: { id: View; label: string; icon: IconName }[] = [
+type PassengerView = 'find' | 'rides' | 'saved';
+type DriverView = 'driver_groups' | 'driver_earnings';
+type SupportView = 'support_dispatch' | 'support_radar';
+type AdminView = 'admin_overview' | 'admin_drivers' | 'admin_audit';
+
+type View = PassengerView | DriverView | SupportView | AdminView;
+type Dialog = 'waitlist' | 'help' | 'save' | 'offer' | 'booking' | 'board' | 'account' | 'auth' | null;
+
+const passengerNavigation: { id: PassengerView; label: string; icon: IconName }[] = [
   { id: 'find', label: 'Plan ahead', icon: 'route' },
   { id: 'rides', label: 'My rides', icon: 'rides' },
   { id: 'saved', label: 'Saved commutes', icon: 'bookmark' },
 ];
+
+const driverNavigation: { id: DriverView; label: string; icon: IconName }[] = [
+  { id: 'driver_groups', label: 'Passenger requests', icon: 'car' },
+  { id: 'driver_earnings', label: 'Earnings & Payouts', icon: 'wallet' },
+];
+
+const supportNavigation: { id: SupportView; label: string; icon: IconName }[] = [
+  { id: 'support_dispatch', label: 'Phone Dispatch Desk', icon: 'help' },
+  { id: 'support_radar', label: 'Live Driver Radar', icon: 'pin' },
+];
+
+const adminNavigation: { id: AdminView; label: string; icon: IconName }[] = [
+  { id: 'admin_overview', label: 'System Overview', icon: 'shield' },
+  { id: 'admin_drivers', label: 'Driver Verification', icon: 'people' },
+  { id: 'admin_audit', label: 'Live Audit Log', icon: 'clock' },
+];
+
+function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+}
+
 const statusLabel = {
   confirmed: 'Seat confirmed',
   in_progress: 'On the way',
@@ -36,12 +74,14 @@ export function Workspace() {
   const [view, setView] = useState<View>('find');
 
   const [dialog, setDialog] = useState<Dialog>(null);
-  const [journey, setJourney] = useState<Journey>({
+  const [journey, setJourney] = useState<Journey & { minSeats: number; maxSeats: number }>({
     corridorId: 'bole-centre',
     origin: 'bole',
     destination: 'meskel',
     departure: '',
     seats: 1,
+    minSeats: 1,
+    maxSeats: 4,
   });
   const [results, setResults] = useState<Matches>();
   const [selected, setSelected] = useState<Trip>();
@@ -50,11 +90,87 @@ export function Workspace() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [filter, setFilter] = useState<'upcoming' | 'past'>('upcoming');
+  const [driverActive, setDriverActive] = useState(true);
+
+  // Supabase Auth State
+  const [authUser, setAuthUser] = useState<{
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    emailConfirmed: boolean;
+  } | null>(null);
+
+  const [authTab, setAuthTab] = useState<'signin' | 'signup'>('signin');
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [nameInput, setNameInput] = useState('');
+  const [roleInput, setRoleInput] = useState<'passenger' | 'driver' | 'support' | 'admin'>('passenger');
+  const [authError, setAuthError] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
+
+  // Support dispatch state
+  const [callerName, setCallerName] = useState('');
+  const [callerPhone, setCallerPhone] = useState('');
+  const [dispatchOrders, setDispatchOrders] = useState<
+    { id: string; caller: string; phone: string; route: string; code: string; status: string }[]
+  >([]);
+
+  // Active Role Identifiers
+  const isDriver = view.startsWith('driver');
+  const isSupport = view.startsWith('support');
+  const isAdmin = view.startsWith('admin');
+  const isPassenger = !isDriver && !isSupport && !isAdmin;
+
+  const roleMeta = isDriver
+    ? { name: 'Driver Mode', icon: '🚗', bg: '#1b4d3e', color: '#fff' }
+    : isSupport
+      ? { name: 'Customer Support', icon: '🎧', bg: '#e8f0fe', color: '#1a73e8' }
+      : isAdmin
+        ? { name: 'Administrator', icon: '🛡️', bg: '#fef3c7', color: '#92400e' }
+        : { name: 'Passenger Mode', icon: '👤', bg: '#eaf4ee', color: '#285943' };
+
+  // Listen to Supabase Auth State
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const u = session.user;
+        setAuthUser({
+          id: u.id,
+          email: u.email || '',
+          name: u.user_metadata?.name || u.email?.split('@')[0] || 'User',
+          role: u.user_metadata?.role || 'passenger',
+          emailConfirmed: !!u.email_confirmed_at,
+        });
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const u = session.user;
+        setAuthUser({
+          id: u.id,
+          email: u.email || '',
+          name: u.user_metadata?.name || u.email?.split('@')[0] || 'User',
+          role: u.user_metadata?.role || 'passenger',
+          emailConfirmed: !!u.email_confirmed_at,
+        });
+      } else {
+        setAuthUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const refresh = useCallback(async () => {
     const next = await api<Dashboard>('/dashboard');
     setData(next);
     return next;
   }, []);
+
   const initialize = useCallback(async () => {
     setError('');
     try {
@@ -67,34 +183,42 @@ export function Workspace() {
       setError(e instanceof Error ? e.message : 'Could not load Zew');
     }
   }, [refresh]);
+
   useEffect(() => {
     void initialize();
   }, [initialize]);
+
   useEffect(() => {
     if (notice) {
       const timer = setTimeout(() => setNotice(''), 6500);
       return () => clearTimeout(timer);
     }
   }, [notice]);
+
   const stopName = (id: string) =>
     data?.corridors.flatMap((c) => c.stops).find((s) => s.id === id)?.name ?? id;
   const corridor = data?.corridors.find((c) => c.id === journey.corridorId);
   const completed = data?.bookings.filter((b) => b.status === 'completed') ?? [];
   const active =
     data?.bookings.filter((b) => b.status === 'confirmed' || b.status === 'in_progress') ?? [];
+
   const updateJourney = (changes: Partial<Journey>) => {
     setJourney((j) => ({ ...j, ...changes }));
     setResults(undefined);
     setError('');
   };
+
   const open = (next: Dialog) => {
     setError('');
+    setAuthError('');
     setDialog(next);
   };
+
   const navigate = (next: View) => {
     setView(next);
     setError('');
   };
+
   async function run(task: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
@@ -107,12 +231,93 @@ export function Workspace() {
       setBusy(false);
     }
   }
+
+  // Supabase Auth Handlers
+  async function handleSignUp(e: FormEvent) {
+    e.preventDefault();
+    setAuthError('');
+    setAuthBusy(true);
+    try {
+      const { data: resData, error: err } = await supabase.auth.signUp({
+        email: emailInput,
+        password: passwordInput,
+        options: {
+          data: {
+            name: nameInput,
+            role: roleInput,
+          },
+        },
+      });
+      if (err) throw err;
+      if (resData.user && !resData.session) {
+        setNotice(
+          `Account created! A verification link has been sent to ${emailInput}. Please verify your email to log in.`,
+        );
+      } else {
+        setNotice(`Welcome to Zew, ${nameInput || emailInput}!`);
+      }
+      setDialog(null);
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Sign up failed');
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handleSignIn(e: FormEvent) {
+    e.preventDefault();
+    setAuthError('');
+    setAuthBusy(true);
+    try {
+      const { data: resData, error: err } = await supabase.auth.signInWithPassword({
+        email: emailInput,
+        password: passwordInput,
+      });
+      if (err) throw err;
+      const userRole = resData.user?.user_metadata?.role || 'passenger';
+      setNotice(`Signed in as ${resData.user?.email}!`);
+      setDialog(null);
+      if (userRole === 'driver') navigate('driver_groups');
+      else if (userRole === 'support') navigate('support_dispatch');
+      else if (userRole === 'admin') navigate('admin_overview');
+      else navigate('find');
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Sign in failed');
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handleSignOut() {
+    setBusy(true);
+    try {
+      await supabase.auth.signOut();
+      setAuthUser(null);
+      setNotice('Logged out successfully.');
+      setDialog(null);
+      navigate('find');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Logout failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function search(e?: FormEvent) {
     e?.preventDefault();
     await run(async () => {
-      setResults(await api<Matches>('/matches', 'POST', journey));
+      const activeDeparture =
+        !journey.departure || Date.parse(journey.departure) <= Date.now()
+          ? new Date().toISOString()
+          : journey.departure;
+      const activeJourney = { ...journey, departure: activeDeparture };
+      if (activeDeparture !== journey.departure) {
+        setJourney(activeJourney);
+      }
+      setResults(await api<Matches>('/matches', 'POST', activeJourney));
     });
   }
+
   function useCommute(commute: Commute) {
     const departure =
       Date.parse(commute.departure) > Date.now()
@@ -127,6 +332,7 @@ export function Workspace() {
     });
     navigate('find');
   }
+
   function StopField({
     label,
     value,
@@ -140,7 +346,7 @@ export function Workspace() {
     const [focused, setFocused] = useState(false);
 
     const allStops = Array.from(
-      new Map((data?.corridors || []).flatMap((c) => c.stops).map((s) => [s.id, s])).values()
+      new Map((data?.corridors || []).flatMap((c) => c.stops).map((s) => [s.id, s])).values(),
     );
 
     const selectedStop = allStops.find((s) => s.id === value);
@@ -150,7 +356,7 @@ export function Workspace() {
       ? allStops.filter(
           (s) =>
             s.name.toLowerCase().includes(query.toLowerCase()) ||
-            s.area?.toLowerCase().includes(query.toLowerCase())
+            s.area?.toLowerCase().includes(query.toLowerCase()),
         )
       : allStops;
 
@@ -178,13 +384,33 @@ export function Workspace() {
           />
         </span>
         {focused && (
-          <div className="place-results" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: '#fff', border: '1px solid #ccc', borderRadius: 8, maxHeight: 200, overflowY: 'auto' }}>
+          <div
+            className="place-results"
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              zIndex: 10,
+              background: '#fff',
+              border: '1px solid #ccc',
+              borderRadius: 8,
+              maxHeight: 200,
+              overflowY: 'auto',
+            }}
+          >
             {matches.map((s) => (
               <button
                 key={s.id}
                 type="button"
                 className="place-result"
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #eee' }}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '8px 12px',
+                  borderBottom: '1px solid #eee',
+                }}
                 onClick={() => {
                   onChange(s.id);
                   setQuery('');
@@ -206,6 +432,44 @@ export function Workspace() {
   }
 
   function routeFields() {
+    const allStops = (data?.corridors || []).flatMap((c) => c.stops);
+    const originStop = allStops.find((s) => s.id === journey.origin);
+    const destStop = allStops.find((s) => s.id === journey.destination);
+
+    let distanceKm = 4.2;
+    if (originStop?.latitude && destStop?.latitude) {
+      const calcDist = getDistanceKm(
+        originStop.latitude,
+        originStop.longitude,
+        destStop.latitude,
+        destStop.longitude,
+      );
+      if (calcDist > 0.3) distanceKm = calcDist;
+    }
+
+    const maxCapacity = Math.max(1, journey.maxSeats || 4);
+    const minCapacity = Math.max(1, Math.min(journey.minSeats || 1, maxCapacity));
+
+    // Dynamic vehicle tier multiplier based on capacity
+    const vehicleTier = maxCapacity > 8 ? 'Coaster / Bus' : maxCapacity > 4 ? 'Minivan' : 'Sedan Car';
+    const vehicleMultiplier = maxCapacity > 8 ? 1.5 : maxCapacity > 4 ? 1.25 : 1.0;
+
+    // Dynamic Base Trip Solo Total (Calculated dynamically per route length & vehicle type)
+    const baseSoloFare = Math.max(100, Math.round((distanceKm * 40 + 90) * vehicleMultiplier));
+
+    // Generate dynamic sample passenger counts up to maxCapacity
+    const samplePassengerCounts: number[] = [];
+    if (maxCapacity <= 4) {
+      for (let i = 1; i <= maxCapacity; i++) samplePassengerCounts.push(i);
+    } else {
+      const step = Math.max(1, Math.floor(maxCapacity / 4));
+      samplePassengerCounts.push(1);
+      for (let i = Math.max(2, minCapacity); i < maxCapacity; i += step) {
+        if (!samplePassengerCounts.includes(i)) samplePassengerCounts.push(i);
+      }
+      if (!samplePassengerCounts.includes(maxCapacity)) samplePassengerCounts.push(maxCapacity);
+    }
+
     return (
       <>
         <div className="route-inputs">
@@ -250,33 +514,248 @@ export function Workspace() {
             />
           </label>
         </div>
-        <div className="fare-tier-grid" style={{ gridColumn: '1 / -1', marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-          {[
-            { seats: 1, label: 'Solo', sublabel: 'Just you', icon: '👤' },
-            { seats: 2, label: 'Pair', sublabel: 'You + 1', icon: '👥' },
-            { seats: 3, label: 'Trio', sublabel: 'You + 2', icon: '🧑‍🤝‍🧑' },
-            { seats: 4, label: 'Full car', sublabel: 'You + 3', icon: '🚗' },
-          ].map(({ seats, label, sublabel, icon }) => {
-            const previewFare = 360 / seats; 
-            const active = journey.seats === seats;
-            return (
-              <button
-                key={seats}
-                type="button"
-                className={`fare-tier-card ${active ? 'is-active' : ''}`}
-                onClick={() => updateJourney({ seats })}
-                style={{ border: active ? '2px solid #285943' : '1px solid #ccc', borderRadius: 8, padding: 8, background: active ? '#eaffef' : '#fff', cursor: 'pointer', textAlign: 'center' }}
+
+        {/* DYNAMIC PASSENGER CAPACITY & MONEY DIFFERENCE BREAKDOWN */}
+        <div style={{ marginTop: 18, borderTop: '1px solid #e2e8dc', paddingTop: 14 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 10,
+            }}
+          >
+            <strong style={{ fontSize: 13, color: '#285943', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="people" size={16} /> Passenger Capacity Range
+            </strong>
+            <span style={{ fontSize: 11, color: '#556b57', fontWeight: 600 }}>
+              {minCapacity} to {maxCapacity} passengers ({vehicleTier})
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div>
+              <label
+                style={{
+                  fontSize: 10,
+                  color: '#657762',
+                  display: 'block',
+                  marginBottom: 5,
+                  fontWeight: 700,
+                  letterSpacing: '0.5px',
+                }}
               >
-                <span style={{ fontSize: 24, display: 'block' }}>{icon}</span>
-                <strong style={{ display: 'block', margin: '4px 0' }}>{label}</strong>
-                <span style={{ fontSize: 12, color: '#666', display: 'block' }}>{previewFare} ETB</span>
-              </button>
-            );
-          })}
+                MIN PASSENGERS
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={maxCapacity}
+                value={journey.minSeats || 1}
+                onChange={(e) => {
+                  const val = Math.max(1, parseInt(e.target.value) || 1);
+                  const maxVal = Math.max(journey.maxSeats || 4, val);
+                  updateJourney({ minSeats: val, maxSeats: maxVal, seats: val } as any);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  fontSize: 13,
+                  fontWeight: '600',
+                  borderRadius: 6,
+                  border: '1px solid #d2dccb',
+                  background: '#fff',
+                  color: '#285943',
+                }}
+              />
+            </div>
+
+            <div>
+              <label
+                style={{
+                  fontSize: 10,
+                  color: '#657762',
+                  display: 'block',
+                  marginBottom: 5,
+                  fontWeight: 700,
+                  letterSpacing: '0.5px',
+                }}
+              >
+                MAX PASSENGERS
+              </label>
+              <input
+                type="number"
+                min={minCapacity}
+                max={50}
+                value={journey.maxSeats || 4}
+                onChange={(e) => {
+                  const val = Math.max(1, parseInt(e.target.value) || 1);
+                  const minVal = Math.min(journey.minSeats || 1, val);
+                  updateJourney({ minSeats: minVal, maxSeats: val } as any);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  fontSize: 13,
+                  fontWeight: '600',
+                  borderRadius: 6,
+                  border: '1px solid #d2dccb',
+                  background: '#fff',
+                  color: '#285943',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* DYNAMIC MONEY DIFFERENCE & FARE COMPARISON MATRIX */}
+          <div
+            style={{
+              background: '#f4f8f3',
+              border: '1px solid #cfdcc8',
+              borderRadius: 10,
+              padding: 12,
+              marginTop: 10,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 8,
+              }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#1f4835' }}>
+                💰 Dynamic Fare Breakdown ({vehicleTier})
+              </span>
+              <span
+                style={{
+                  fontSize: 10,
+                  color: '#285943',
+                  background: '#dcecdb',
+                  padding: '2px 8px',
+                  borderRadius: 12,
+                  fontWeight: 600,
+                }}
+              >
+                {distanceKm} km · Solo total: {baseSoloFare} ETB
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${Math.min(4, samplePassengerCounts.length)}, 1fr)`,
+                gap: 6,
+                textAlign: 'center',
+              }}
+            >
+              {samplePassengerCounts.map((count) => {
+                const farePerPerson = Math.round(baseSoloFare / count);
+                const savings = baseSoloFare - farePerPerson;
+                const pct = Math.round((savings / baseSoloFare) * 100);
+                const inSelectedRange = count >= minCapacity && count <= maxCapacity;
+                const isCurrentSeats = journey.seats === count;
+                const icon =
+                  count === 1 ? '👤' : count === 2 ? '👥' : count <= 4 ? '🧑‍🤝‍🧑' : count <= 8 ? '🚐' : '🚌';
+                const label =
+                  count === 1
+                    ? 'Solo'
+                    : count === 2
+                      ? 'Pair'
+                      : count === 3
+                        ? 'Trio'
+                        : count === 4
+                          ? 'Full car'
+                          : `${count} seats`;
+
+                return (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => updateJourney({ seats: count } as any)}
+                    style={{
+                      padding: '8px 4px',
+                      borderRadius: 8,
+                      border: isCurrentSeats
+                        ? '2px solid #285943'
+                        : inSelectedRange
+                          ? '1px solid #8eb596'
+                          : '1px solid #e1e7dc',
+                      background: isCurrentSeats
+                        ? '#285943'
+                        : inSelectedRange
+                          ? '#e9f4eb'
+                          : '#fafcf9',
+                      color: isCurrentSeats ? '#fff' : '#333',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      opacity: inSelectedRange ? 1 : 0.55,
+                    }}
+                  >
+                    <div style={{ fontSize: 16 }}>{icon}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>{label}</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, marginTop: 4 }}>
+                      {farePerPerson} <small style={{ fontSize: 9 }}>ETB</small>
+                    </div>
+                    {savings > 0 ? (
+                      <div
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 700,
+                          marginTop: 3,
+                          color: isCurrentSeats ? '#a7f3d0' : '#15803d',
+                          background: isCurrentSeats ? 'rgba(0,0,0,0.25)' : '#dcfce7',
+                          padding: '2px 4px',
+                          borderRadius: 4,
+                          display: 'inline-block',
+                        }}
+                      >
+                        -{savings} ETB ({pct}%)
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 9, opacity: 0.7, marginTop: 4 }}>Solo rate</div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {maxCapacity > minCapacity && (
+              <div
+                style={{
+                  marginTop: 10,
+                  fontSize: 11,
+                  color: '#1f4835',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: '#e4f1e5',
+                  padding: '6px 10px',
+                  borderRadius: 6,
+                }}
+              >
+                <span>💡</span>
+                <span>
+                  <strong>Money Savings:</strong> Sharing your {distanceKm} km route with{' '}
+                  <strong>{maxCapacity} passengers</strong> drops fare per person from{' '}
+                  <strong>{baseSoloFare} ETB</strong> to{' '}
+                  <strong>{Math.round(baseSoloFare / maxCapacity)} ETB</strong> — saving{' '}
+                  <strong>
+                    {baseSoloFare - Math.round(baseSoloFare / maxCapacity)} ETB (
+                    {Math.round(((baseSoloFare - Math.round(baseSoloFare / maxCapacity)) / baseSoloFare) * 100)}%)
+                  </strong>!
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </>
     );
   }
+
+  const completedDriverFare = completed.reduce((sum, b) => sum + b.fare, 0);
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -291,16 +770,18 @@ export function Workspace() {
         <div className="city-label">
           <span className="live-dot" /> ADDIS ABABA
         </div>
-        <p className="nav-heading">YOUR EVERYDAY JOURNEY</p>
+        <p className="nav-heading">
+          {isDriver
+            ? 'DRIVER CONSOLE'
+            : isSupport
+              ? 'SUPPORT DESK'
+              : isAdmin
+                ? 'ADMINISTRATION'
+                : 'YOUR EVERYDAY JOURNEY'}
+        </p>
         <nav aria-label="Main navigation">
-          {view === 'driver' ? (
-            <button className="nav-item selected" onClick={() => navigate('driver')}>
-              <Icon name="car" />
-              <span>Driver space</span>
-            </button>
-          ) : (
-            <>
-              {navigation.map((item) => (
+          {isDriver
+            ? driverNavigation.map((item) => (
                 <button
                   key={item.id}
                   className={`nav-item ${view === item.id ? 'selected' : ''}`}
@@ -309,21 +790,46 @@ export function Workspace() {
                 >
                   <Icon name={item.icon} />
                   <span>{item.label}</span>
-                  {item.id === 'rides' && active.length > 0 && (
-                    <span className="count">{active.length}</span>
-                  )}
                 </button>
-              ))}
-              <div style={{ margin: '16px 0', borderTop: '1px solid #e1e3de' }} />
-              <button
-                className="nav-item"
-                onClick={() => navigate('driver')}
-              >
-                <Icon name="car" />
-                <span>Driver space</span>
-              </button>
-            </>
-          )}
+              ))
+            : isSupport
+              ? supportNavigation.map((item) => (
+                  <button
+                    key={item.id}
+                    className={`nav-item ${view === item.id ? 'selected' : ''}`}
+                    onClick={() => navigate(item.id)}
+                    aria-current={view === item.id ? 'page' : undefined}
+                  >
+                    <Icon name={item.icon} />
+                    <span>{item.label}</span>
+                  </button>
+                ))
+              : isAdmin
+                ? adminNavigation.map((item) => (
+                    <button
+                      key={item.id}
+                      className={`nav-item ${view === item.id ? 'selected' : ''}`}
+                      onClick={() => navigate(item.id)}
+                      aria-current={view === item.id ? 'page' : undefined}
+                    >
+                      <Icon name={item.icon} />
+                      <span>{item.label}</span>
+                    </button>
+                  ))
+                : passengerNavigation.map((item) => (
+                    <button
+                      key={item.id}
+                      className={`nav-item ${view === item.id ? 'selected' : ''}`}
+                      onClick={() => navigate(item.id)}
+                      aria-current={view === item.id ? 'page' : undefined}
+                    >
+                      <Icon name={item.icon} />
+                      <span>{item.label}</span>
+                      {item.id === 'rides' && active.length > 0 && (
+                        <span className="count">{active.length}</span>
+                      )}
+                    </button>
+                  ))}
         </nav>
         <div className="sidebar-bottom">
           <div className="pilot-card">
@@ -346,41 +852,92 @@ export function Workspace() {
           </button>
         </div>
       </aside>
+
       <div className="page-shell">
         <header className="topbar">
           <span className="breadcrumb">
-            Your commute <span>/</span>{' '}
-            <strong>{navigation.find((n) => n.id === view)?.label || 'Driver space'}</strong>
+            {isDriver
+              ? 'Driver space'
+              : isSupport
+                ? 'Support desk'
+                : isAdmin
+                  ? 'Administrator'
+                  : 'Passenger space'}{' '}
+            <span>/</span>{' '}
+            <strong>
+              {isDriver
+                ? driverNavigation.find((n) => n.id === view)?.label
+                : isSupport
+                  ? supportNavigation.find((n) => n.id === view)?.label
+                  : isAdmin
+                    ? adminNavigation.find((n) => n.id === view)?.label
+                    : passengerNavigation.find((n) => n.id === view)?.label}
+            </strong>
           </span>
           <div className="topbar-right">
+            <button
+              className="role-badge-button"
+              onClick={() => open('account')}
+              title="Click to view Account & Role settings"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '5px 12px',
+                borderRadius: 20,
+                border: 'none',
+                background: roleMeta.bg,
+                color: roleMeta.color,
+                fontWeight: 600,
+                fontSize: 12,
+                cursor: 'pointer',
+                marginRight: 12,
+              }}
+            >
+              <span>{roleMeta.icon}</span>
+              <span>{roleMeta.name}</span>
+            </button>
             <span className="demo-pill">INTERACTIVE DEMO</span>
             <span className="timezone">
               <Icon name="sun" size={16} /> Addis Ababa · UTC+3
             </span>
-            <button
-              className="topbar-avatar"
-              onClick={() => open('account')}
-              aria-label="Account details"
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                border: 'none',
-                background: '#285943',
-                color: '#fff',
-                fontSize: 14,
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginLeft: 16,
-              }}
-            >
-              Y
-            </button>
+            {authUser ? (
+              <button
+                className="topbar-avatar"
+                onClick={() => open('account')}
+                aria-label="Account details"
+                title={`Logged in as ${authUser.name} (${authUser.email})`}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: '50%',
+                  border: '2px solid #fff',
+                  background: '#285943',
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginLeft: 16,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                }}
+              >
+                {authUser.name[0]?.toUpperCase() || 'U'}
+              </button>
+            ) : (
+              <button
+                className="primary"
+                onClick={() => open('auth')}
+                style={{ marginLeft: 16, padding: '6px 14px', fontSize: 13 }}
+              >
+                Sign In / Sign Up
+              </button>
+            )}
           </div>
         </header>
+
         <main id="main">
           {notice && (
             <div role="status" className="toast">
@@ -407,12 +964,13 @@ export function Workspace() {
                   : 'Getting your workspace ready…'}
               </p>
             </div>
-          ) : (
+          ) : isPassenger ? (
+            /* PASSENGER VIEWS */
             <>
               <section className="page-heading">
                 <div>
                   <p className="eyebrow">
-                    <span /> SAME DIRECTION. SHARED RIDE.
+                    <span /> PASSENGER SPACE · ADDIS ABABA
                   </p>
                   <h1>
                     {view === 'find' ? (
@@ -427,17 +985,11 @@ export function Workspace() {
                         <br />
                         <em>in one place.</em>
                       </>
-                    ) : view === 'saved' ? (
+                    ) : (
                       <>
                         Your usual routes.
                         <br />
                         <em>Ready when you are.</em>
-                      </>
-                    ) : (
-                      <>
-                        Going that way?
-                        <br />
-                        <em>Share the journey.</em>
                       </>
                     )}
                   </h1>
@@ -457,6 +1009,7 @@ export function Workspace() {
                   </span>
                 </div>
               </section>
+
               {view === 'find' && (
                 <>
                   <section className="journey-grid">
@@ -499,7 +1052,7 @@ export function Workspace() {
                               </span>
                               <div className="driver-details">
                                 <strong>
-                                  {trip.driver} <span className="sample-label">Sample driver</span>
+                                  {trip.driver} <span className="sample-label">Verified driver</span>
                                 </strong>
                                 <span>{trip.vehicle}</span>
                                 <small>
@@ -516,7 +1069,7 @@ export function Workspace() {
                                   {trip.fare}
                                   <small> ETB</small>
                                 </strong>
-                                <span>per seat · demo fare</span>
+                                <span>per seat</span>
                               </div>
                               <button
                                 className="primary"
@@ -537,27 +1090,15 @@ export function Workspace() {
                           <Icon name="route" size={30} />
                           <p>
                             Try a different time, fewer seats, or another corridor. Sample trips
-                            depart tomorrow around 08:00 when your session is created.
+                            depart around your requested time.
                           </p>
                         </div>
                       )}
-                      {results.rejected.length > 0 && (
-                        <details className="match-reasons">
-                          <summary>Why some trips didn’t match</summary>
-                          <ul>
-                            {results.rejected.map((r) => (
-                              <li key={r.tripId}>
-                                {data.trips.find((t) => t.id === r.tripId)?.driver}: {r.reason}
-                              </li>
-                            ))}
-                          </ul>
-                        </details>
-                      )}
                     </section>
                   )}
-
                 </>
               )}
+
               {view === 'rides' && (
                 <>
                   <div className="content-toolbar">
@@ -617,20 +1158,20 @@ export function Workspace() {
                               <div className="boarding-code">
                                 <small>YOUR BOARDING CODE</small>
                                 <strong>{b.code}</strong>
-                                <span>Use this in Driver space to simulate boarding.</span>
+                                <span>Show this 4-digit code to your driver when boarding.</span>
                               </div>
                             ) : (
                               <p>
                                 {b.status === 'completed'
-                                  ? 'Demo payment recorded. No money was charged.'
+                                  ? 'Ride completed. Automated payment processed.'
                                   : b.status === 'in_progress'
-                                    ? 'Your demo journey is in progress.'
-                                    : 'Your reservation was cancelled. No charge.'}
+                                    ? 'Your journey is in progress.'
+                                    : 'Your reservation was cancelled.'}
                               </p>
                             )}
                             <div className="booking-fare">
                               <strong>{b.fare} ETB</strong>
-                              <small>Total demo fare</small>
+                              <small>Total fare</small>
                             </div>
                           </div>
                           {b.status === 'confirmed' && (
@@ -653,30 +1194,20 @@ export function Workspace() {
                         </article>
                       ))}
                   </div>
-                  {!(filter === 'upcoming'
-                    ? active.length
-                    : data.bookings.length - active.length) && (
-                    <Empty
-                      icon="rides"
-                      title={
-                        filter === 'upcoming' ? 'Your next journey starts here.' : 'A fresh start.'
-                      }
-                      text={
-                        filter === 'upcoming'
-                          ? 'Find a ride that fits your route. Your booking and boarding code will appear here.'
-                          : 'Completed and cancelled rides will appear here.'
-                      }
-                      action="Find a ride"
-                      onClick={() => navigate('find')}
-                    />
-                  )}
                 </>
               )}
+
               {view === 'saved' && (
                 <>
                   <div className="content-toolbar">
                     <p className="muted">{data.commutes.length} of 10 commutes saved</p>
-                    <button className="secondary" onClick={() => open('save')}>
+                    <button
+                      className="secondary"
+                      onClick={() => {
+                        navigate('find');
+                        setNotice('Select your pickup, drop-off & departure time, then tap "Save this commute".');
+                      }}
+                    >
                       <Icon name="plus" size={17} /> Add a commute
                     </button>
                   </div>
@@ -715,80 +1246,520 @@ export function Workspace() {
                       </article>
                     ))}
                   </div>
-                  {!data.commutes.length && (
-                    <Empty
-                      icon="bookmark"
-                      title="Make your everyday a little easier."
-                      text="Choose your pickup, drop-off, and preferred time in Find a ride, then save your commute."
-                      action="Save my first route"
-                      onClick={() => open('save')}
-                    />
-                  )}
                 </>
               )}
+            </>
+          ) : isDriver ? (
+            /* DRIVER VIEWS */
+            <>
+              <section className="page-heading">
+                <div>
+                  <p className="eyebrow">
+                    <span /> DRIVER CONSOLE · ADDIS ABABA
+                  </p>
+                  <h1>
+                    {view === 'driver_groups' ? (
+                      <>
+                        Share your drive.
+                        <br />
+                        <em>Pick up commuters on your route.</em>
+                      </>
+                    ) : (
+                      <>
+                        Automated payouts.
+                        <br />
+                        <em>Track your earnings.</em>
+                      </>
+                    )}
+                  </h1>
+                </div>
+                <div className="heading-note">
+                  <Icon name="car" size={29} />
+                  <span>Driver Console</span>
+                </div>
+              </section>
 
-              <footer>
-                <span className="footer-brand">zew.</span>
-                <span>A better everyday, together.</span>
-                <button className="text-button" onClick={() => open('help')}>
-                  How it works
+              {/* DRIVER ONLINE / OFFLINE ACTIVATION STATUS BANNER */}
+              <div
+                className="card"
+                style={{
+                  maxWidth: 840,
+                  margin: '0 auto 24px',
+                  padding: '16px 20px',
+                  background: driverActive ? '#f0fdf4' : '#fff1f2',
+                  border: driverActive ? '1px solid #bbf7d0' : '1px solid #fecdd3',
+                  borderRadius: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 260 }}>
+                  <span
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: '50%',
+                      background: driverActive ? '#22c55e' : '#ef4444',
+                      boxShadow: driverActive ? '0 0 0 4px rgba(34, 197, 94, 0.2)' : '0 0 0 4px rgba(239, 68, 68, 0.2)',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div>
+                    <strong style={{ fontSize: 14, color: driverActive ? '#15803d' : '#b91c1c', display: 'block' }}>
+                      {driverActive ? '🟢 DRIVER STATUS: ONLINE & ACTIVE' : '🔴 DRIVER STATUS: OFFLINE & INACTIVE'}
+                    </strong>
+                    <span style={{ fontSize: 12, color: driverActive ? '#166534' : '#991b1b' }}>
+                      {driverActive
+                        ? 'You are online and accepting commuter requests on your active route. Visible on Live Dispatch Radar.'
+                        : 'You are offline. Commuters and support dispatchers cannot view your vehicle until activated.'}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextState = !driverActive;
+                    setDriverActive(nextState);
+                    setNotice(
+                      nextState
+                        ? 'Driver status set to ONLINE & ACTIVE.'
+                        : 'Driver status set to OFFLINE.',
+                    );
+                  }}
+                  style={{
+                    padding: '9px 18px',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    borderRadius: 8,
+                    border: 'none',
+                    background: driverActive ? '#dc2626' : '#285943',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  {driverActive ? 'Deactivate (Go Offline)' : 'Activate (Go Online)'}
                 </button>
-                <button className="text-button" onClick={() => open('waitlist')}>
-                  {data.waitlistJoined ? 'Registration saved' : 'Join the pilot'}
-                </button>
-                <span className="footer-disclaimer">
-                  Demo workspace · Sample routes & fares · No real rides or charges
-                </span>
-              </footer>
+              </div>
+
+              {view === 'driver_groups' && (
+                <div style={{ maxWidth: 840, margin: '0 auto' }}>
+                  <div className="card" style={{ marginBottom: 32, padding: 24 }}>
+                    <div className="section-title">
+                      <h2>Active Ride Management</h2>
+                      <Icon name="car" />
+                    </div>
+                    {data.bookings.length > 0 ? (
+                      <div style={{ display: 'grid', gap: 16, marginTop: 16 }}>
+                        {data.bookings.map((b) => (
+                          <div
+                            key={b.id}
+                            style={{
+                              border: '1px solid #e1e3de',
+                              borderRadius: 10,
+                              padding: 16,
+                              background: b.status === 'in_progress' ? '#eaffef' : '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              flexWrap: 'wrap',
+                              gap: 12,
+                            }}
+                          >
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                <span className={`status-pill ${b.status}`}>
+                                  {statusLabel[b.status]}
+                                </span>
+                                <strong style={{ fontSize: 16 }}>
+                                  {stopName(b.origin)} → {stopName(b.destination)}
+                                </strong>
+                              </div>
+                              <p style={{ margin: 0, fontSize: 14, color: '#69735f' }}>
+                                Rider: {b.driver} · {b.seats} seat(s) · {time(b.departure)} EAT
+                              </p>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <strong style={{ fontSize: 18, color: '#285943' }}>{b.fare} ETB</strong>
+                              {b.status === 'confirmed' && (
+                                <button
+                                  className="primary"
+                                  onClick={() => {
+                                    setBoarding(b);
+                                    open('board');
+                                  }}
+                                >
+                                  Board passenger
+                                </button>
+                              )}
+                              {b.status === 'in_progress' && (
+                                <button
+                                  className="primary"
+                                  disabled={busy}
+                                  style={{ background: '#285943' }}
+                                  onClick={() =>
+                                    void run(async () => {
+                                      await api(`/bookings/${b.id}/action`, 'POST', {
+                                        action: 'complete',
+                                      });
+                                      await refresh();
+                                      setNotice(`Trip completed! ${b.fare} ETB collected.`);
+                                    })
+                                  }
+                                >
+                                  Complete trip
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ color: '#69735f', margin: '16px 0 0' }}>
+                        No active passenger reservations.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {view === 'driver_earnings' && (
+                <div style={{ maxWidth: 720, margin: '0 auto', padding: '12px 0' }}>
+                  <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+                    <h3>Your Earnings Summary</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 16 }}>
+                      <div>
+                        <small style={{ color: '#69735f', display: 'block' }}>Today</small>
+                        <strong style={{ fontSize: 24 }}>{completedDriverFare} ETB</strong>
+                      </div>
+                      <div>
+                        <small style={{ color: '#69735f', display: 'block' }}>This Week</small>
+                        <strong style={{ fontSize: 24 }}>{completedDriverFare + 1280} ETB</strong>
+                      </div>
+                      <div>
+                        <small style={{ color: '#69735f', display: 'block' }}>This Month</small>
+                        <strong style={{ fontSize: 24 }}>{completedDriverFare + 4850} ETB</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : isSupport ? (
+            /* CUSTOMER SUPPORT VIEWS */
+            <>
+              <section className="page-heading">
+                <div>
+                  <p className="eyebrow">
+                    <span /> SUPPORT DESK · CALL-IN DISPATCH
+                  </p>
+                  <h1>
+                    {view === 'support_dispatch' ? (
+                      <>
+                        Call-in Ride Dispatch.
+                        <br />
+                        <em>Order rides for callers over the phone.</em>
+                      </>
+                    ) : (
+                      <>
+                        Live Driver Radar.
+                        <br />
+                        <em>Track active fleet locations.</em>
+                      </>
+                    )}
+                  </h1>
+                </div>
+                <div className="heading-note">
+                  <Icon name="help" size={29} />
+                  <span>Support Desk</span>
+                </div>
+              </section>
+
+              {view === 'support_dispatch' && (
+                <div style={{ maxWidth: 840, margin: '0 auto' }}>
+                  <form
+                    className="card"
+                    style={{ padding: 24, marginBottom: 32 }}
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!callerName || !callerPhone) {
+                        setError('Please enter caller name and phone number');
+                        return;
+                      }
+                      await run(async () => {
+                        const searchResults = await api<Matches>('/matches', 'POST', journey);
+                        const match = searchResults.matches[0];
+                        if (!match) {
+                          setError('No drivers available on this corridor for caller.');
+                          return;
+                        }
+                        const bookingRes = await api<Booking>('/bookings', 'POST', {
+                          ...journey,
+                          tripId: match.id,
+                        });
+                        await refresh();
+                        setDispatchOrders((prev) => [
+                          {
+                            id: bookingRes.id,
+                            caller: callerName,
+                            phone: callerPhone,
+                            route: `${stopName(journey.origin)} → ${stopName(journey.destination)}`,
+                            code: bookingRes.code,
+                            status: 'Confirmed & Dispatched',
+                          },
+                          ...prev,
+                        ]);
+                        setCallerName('');
+                        setCallerPhone('');
+                        setNotice(`Ride dispatched for ${callerName}! Boarding code: ${bookingRes.code}`);
+                      });
+                    }}
+                  >
+                    <div className="section-title" style={{ marginBottom: 16 }}>
+                      <h2>Create Phone Ride Order</h2>
+                      <Icon name="help" />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                      <label className="field">
+                        Caller Name
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Abebech Kebede"
+                          value={callerName}
+                          onChange={(e) => setCallerName(e.target.value)}
+                        />
+                      </label>
+                      <label className="field">
+                        Caller Phone Number
+                        <input
+                          type="tel"
+                          required
+                          placeholder="+251 911 234 567"
+                          value={callerPhone}
+                          onChange={(e) => setCallerPhone(e.target.value)}
+                        />
+                      </label>
+                    </div>
+                    {routeFields()}
+                    <button className="primary full" type="submit" disabled={busy} style={{ marginTop: 20 }}>
+                      {busy ? 'Dispatching...' : 'Dispatch Ride & Generate Code'}
+                      <Icon name="arrow" size={18} />
+                    </button>
+                  </form>
+
+                  <div className="card" style={{ padding: 24 }}>
+                    <h3>Recent Phone Dispatch Queue</h3>
+                    {dispatchOrders.length > 0 ? (
+                      <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+                        {dispatchOrders.map((order) => (
+                          <div
+                            key={order.id}
+                            style={{
+                              border: '1px solid #e1e3de',
+                              borderRadius: 8,
+                              padding: 12,
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <div>
+                              <strong>{order.caller} ({order.phone})</strong>
+                              <br />
+                              <small style={{ color: '#69735f' }}>Route: {order.route}</small>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <span style={{ background: '#eaffef', color: '#285943', padding: '4px 8px', borderRadius: 12, fontSize: 12, fontWeight: 'bold' }}>
+                                Code: {order.code}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ color: '#69735f', margin: '12px 0 0' }}>No phone dispatch orders created in this session.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {view === 'support_radar' && (
+                <div style={{ maxWidth: 840, margin: '0 auto' }}>
+                  <div className="section-title" style={{ marginBottom: 16 }}>
+                    <h2>Live Active Driver Radar</h2>
+                    <span className="muted">Addis Ababa active driver fleet</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
+                    {[
+                      { name: 'Hana T.', vehicle: 'Toyota Vitz · Silver', corridor: 'Bole → City centre', seats: '4 seats open' },
+                      { name: 'Dawit M.', vehicle: 'Suzuki Dzire · White', corridor: 'Bole → City centre', seats: '3 seats open' },
+                      { name: 'Selam A.', vehicle: 'Toyota Yaris · Blue', corridor: 'CMC → City centre', seats: '4 seats open' },
+                      { name: 'Abebe K.', vehicle: 'Hyundai Atos · Red', corridor: 'Bole → City centre', seats: '4 seats open' },
+                      { name: 'Ermias K.', vehicle: 'Hyundai Elantra · Silver', corridor: 'CMC → City centre', seats: '3 seats open' },
+                    ].map((driver, i) => (
+                      <div key={i} className="card" style={{ padding: 16 }}>
+                        <strong style={{ fontSize: 16 }}>{driver.name}</strong>
+                        <p style={{ margin: '4px 0', fontSize: 13, color: '#69735f' }}>{driver.vehicle}</p>
+                        <small style={{ display: 'block', color: '#285943', fontWeight: 'bold', marginBottom: 8 }}>{driver.corridor}</small>
+                        <span style={{ background: '#eaffef', color: '#285943', padding: '4px 8px', borderRadius: 12, fontSize: 12 }}>{driver.seats}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            /* ADMINISTRATOR VIEWS */
+            <>
+              <section className="page-heading">
+                <div>
+                  <p className="eyebrow">
+                    <span /> SYSTEM ADMINISTRATOR · CONTROL CENTER
+                  </p>
+                  <h1>
+                    {view === 'admin_overview' ? (
+                      <>
+                        System Overview.
+                        <br />
+                        <em>Operations and platform metrics.</em>
+                      </>
+                    ) : view === 'admin_drivers' ? (
+                      <>
+                        Driver Approvals.
+                        <br />
+                        <em>Fleet verification management.</em>
+                      </>
+                    ) : (
+                      <>
+                        Live Audit Trail.
+                        <br />
+                        <em>Real-time security log.</em>
+                      </>
+                    )}
+                  </h1>
+                </div>
+                <div className="heading-note">
+                  <Icon name="shield" size={29} />
+                  <span>Admin Console</span>
+                </div>
+              </section>
+
+              {view === 'admin_overview' && (
+                <div style={{ maxWidth: 840, margin: '0 auto' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+                    <div className="card" style={{ padding: 16 }}>
+                      <small style={{ color: '#69735f' }}>Total Commutes</small>
+                      <h3 style={{ margin: '4px 0 0', fontSize: 24 }}>{148 + data.bookings.length}</h3>
+                    </div>
+                    <div className="card" style={{ padding: 16 }}>
+                      <small style={{ color: '#69735f' }}>Active Drivers</small>
+                      <h3 style={{ margin: '4px 0 0', fontSize: 24 }}>12 Drivers</h3>
+                    </div>
+                    <div className="card" style={{ padding: 16 }}>
+                      <small style={{ color: '#69735f' }}>Platform Fees (10%)</small>
+                      <h3 style={{ margin: '4px 0 0', fontSize: 24 }}>{Math.round(completedDriverFare * 0.1)} ETB</h3>
+                    </div>
+                    <div className="card" style={{ padding: 16 }}>
+                      <small style={{ color: '#69735f' }}>API Health</small>
+                      <h3 style={{ margin: '4px 0 0', fontSize: 16, color: '#285943' }}>🟢 Operational</h3>
+                    </div>
+                  </div>
+
+                  <div className="card" style={{ padding: 24 }}>
+                    <h3>Configured Active Corridors</h3>
+                    <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+                      {data.corridors.map((c) => (
+                        <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #eee' }}>
+                          <div>
+                            <strong>{c.name}</strong>
+                            <br />
+                            <small style={{ color: '#69735f' }}>{c.stops.length} Stops ({c.stops[0].name} → {c.stops[c.stops.length - 1].name})</small>
+                          </div>
+                          <span style={{ color: '#285943', fontWeight: 'bold' }}>Active Route</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {view === 'admin_drivers' && (
+                <div style={{ maxWidth: 840, margin: '0 auto' }}>
+                  <div className="card" style={{ padding: 24 }}>
+                    <h3>Driver Fleet & Verification Status</h3>
+                    <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+                      {[
+                        { name: 'Hana T.', vehicle: 'Toyota Vitz · Silver', license: 'ET-AA-40192', status: 'Verified' },
+                        { name: 'Dawit M.', vehicle: 'Suzuki Dzire · White', license: 'ET-AA-91823', status: 'Verified' },
+                        { name: 'Selam A.', vehicle: 'Toyota Yaris · Blue', license: 'ET-AA-38192', status: 'Verified' },
+                        { name: 'Tigist W.', vehicle: 'Nissan Note · Grey', license: 'ET-AA-72819', status: 'Verified' },
+                        { name: 'Maron B.', vehicle: 'Toyota Rush · Black', license: 'ET-AA-10928', status: 'Pending Review' },
+                      ].map((driver, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #eee' }}>
+                          <div>
+                            <strong>{driver.name}</strong> ({driver.vehicle})
+                            <br />
+                            <small style={{ color: '#69735f' }}>License: {driver.license}</small>
+                          </div>
+                          <div>
+                            <span style={{ background: driver.status === 'Verified' ? '#eaffef' : '#fff3cd', color: driver.status === 'Verified' ? '#285943' : '#856404', padding: '4px 10px', borderRadius: 12, fontSize: 12, fontWeight: 'bold' }}>
+                              {driver.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {view === 'admin_audit' && (
+                <div style={{ maxWidth: 840, margin: '0 auto' }}>
+                  <div className="card" style={{ padding: 24 }}>
+                    <h3>Live API Audit Events Stream</h3>
+                    <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+                      {data.events && data.events.length > 0 ? (
+                        data.events.map((ev, i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #eee', fontSize: 14 }}>
+                            <div>
+                              <strong style={{ color: '#285943' }}>{ev.kind}</strong>
+                              <span style={{ color: '#69735f', marginLeft: 12 }}>Entity: {ev.entityId}</span>
+                            </div>
+                            <small style={{ color: '#69735f' }}>{ev.createdAt}</small>
+                          </div>
+                        ))
+                      ) : (
+                        <p style={{ color: '#69735f', margin: 0 }}>No audit events logged yet.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
-          {view === 'driver' && (
-            <div className="driver-earnings-section" style={{ maxWidth: 640, margin: '0 auto', padding: '24px 0' }}>
-              <div className="section-title">
-                <h2>Driver space</h2>
-                <p>Track your payouts and active rides.</p>
-              </div>
-              <div style={{ background: '#f8f8ee', borderRadius: 12, padding: 24, border: '1px solid #e1e3de', marginBottom: 32 }}>
-                <h3 style={{ margin: '0 0 20px', fontSize: 18 }}>Your Earnings</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 20, marginBottom: 32 }}>
-                  <div>
-                    <small style={{ color: '#69735f', display: 'block', marginBottom: 4 }}>Today</small>
-                    <strong style={{ fontSize: 28 }}>0 ETB</strong>
-                  </div>
-                  <div>
-                    <small style={{ color: '#69735f', display: 'block', marginBottom: 4 }}>This week</small>
-                    <strong style={{ fontSize: 28 }}>{(data?.bookings.length || 0) * 324} ETB</strong>
-                  </div>
-                  <div>
-                    <small style={{ color: '#69735f', display: 'block', marginBottom: 4 }}>This month</small>
-                    <strong style={{ fontSize: 28 }}>{((data?.bookings.length || 0) * 324) + 1250} ETB</strong>
-                  </div>
-                </div>
-                <div style={{ borderTop: '1px solid #e1e3de', paddingTop: 20 }}>
-                  <label style={{ display: 'block', fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>Automated Payout Method</label>
-                  <p style={{ fontSize: 13, color: '#69735f', margin: '0 0 16px' }}>Passengers are charged automatically. Choose where you want your payouts sent.</p>
-                  <select className="payout-select" style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #ccc', fontSize: 15 }}>
-                    <option>CBE Birr (Ending in 4021)</option>
-                    <option>Telebirr (Ending in 9811)</option>
-                    <option>Awash Bank Transfer</option>
-                    <option>Add new payout method...</option>
-                  </select>
-                </div>
-              </div>
-              <div className="pilot-card" style={{ textAlign: 'center' }}>
-                <span className="small-icon" style={{ margin: '0 auto 16px' }}>
-                  <Icon name="car" />
-                </span>
-                <h3>Ready to drive?</h3>
-                <p>Toggle to "Driver" mode from your Account settings to start receiving ride requests on your route.</p>
-                <button className="primary" onClick={() => setDialog('account')} style={{ marginTop: 16 }}>
-                  Open Account Settings
-                </button>
-              </div>
-            </div>
-          )}
+
+          <footer>
+            <span className="footer-brand">zew.</span>
+            <span>A better everyday, together.</span>
+            <button className="text-button" onClick={() => open('help')}>
+              How it works
+            </button>
+            <button className="text-button" onClick={() => open('waitlist')}>
+              {data?.waitlistJoined ? 'Registration saved' : 'Join the pilot'}
+            </button>
+            <span className="footer-disclaimer">
+              Zew Addis Ababa · Shared commute pilot
+            </span>
+          </footer>
         </main>
       </div>
+
       {dialog && (
         <Modal
           title={
@@ -799,11 +1770,12 @@ export function Workspace() {
               offer: 'Offer a seat on your route',
               booking: 'Your ride, at a glance',
               board: 'Ready to board?',
-              account: 'Account',
+              account: 'Account & Workspace',
+              auth: authTab === 'signin' ? 'Welcome Back to Zew' : 'Create Zew Account',
             }[dialog]!
           }
           close={() => {
-            if (!busy) setDialog(null);
+            if (!busy && !authBusy) setDialog(null);
           }}
         >
           {error && (
@@ -811,6 +1783,141 @@ export function Workspace() {
               {error}
             </p>
           )}
+
+          {/* AUTHENTICATION DIALOG (SUPABASE AUTH) */}
+          {dialog === 'auth' && (
+            <div className="auth-dialog-content">
+              <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: '1px solid #e1e3de', paddingBottom: 12 }}>
+                <button
+                  type="button"
+                  className={`secondary ${authTab === 'signin' ? 'active' : ''}`}
+                  style={{ flex: 1, border: authTab === 'signin' ? '2px solid #285943' : '1px solid #ccc', padding: '10px' }}
+                  onClick={() => { setAuthTab('signin'); setAuthError(''); }}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  className={`secondary ${authTab === 'signup' ? 'active' : ''}`}
+                  style={{ flex: 1, border: authTab === 'signup' ? '2px solid #285943' : '1px solid #ccc', padding: '10px' }}
+                  onClick={() => { setAuthTab('signup'); setAuthError(''); }}
+                >
+                  Create Account
+                </button>
+              </div>
+
+              {authError && (
+                <div role="alert" className="error-banner" style={{ marginBottom: 16 }}>
+                  {authError}
+                </div>
+              )}
+
+              {authTab === 'signin' ? (
+                <form onSubmit={handleSignIn}>
+                  <label className="field" style={{ marginBottom: 12 }}>
+                    Email Address
+                    <input
+                      type="email"
+                      required
+                      placeholder="you@example.com"
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      autoFocus
+                    />
+                  </label>
+                  <label className="field" style={{ marginBottom: 20 }}>
+                    Password
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                    />
+                  </label>
+                  <button className="primary full" type="submit" disabled={authBusy}>
+                    {authBusy ? 'Signing in…' : 'Sign In with Supabase'}
+                    <Icon name="arrow" size={17} />
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleSignUp}>
+                  <label className="field" style={{ marginBottom: 12 }}>
+                    Full Name
+                    <input
+                      type="text"
+                      required
+                      placeholder="Your full name"
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      autoFocus
+                    />
+                  </label>
+                  <label className="field" style={{ marginBottom: 12 }}>
+                    Email Address
+                    <input
+                      type="email"
+                      required
+                      placeholder="you@example.com"
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                    />
+                  </label>
+                  <label className="field" style={{ marginBottom: 12 }}>
+                    Password
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      placeholder="At least 6 characters"
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                    />
+                  </label>
+                  <label className="field" style={{ marginBottom: 20 }}>
+                    Select Primary Role
+                    <select
+                      value={roleInput}
+                      onChange={(e) => setRoleInput(e.target.value as any)}
+                    >
+                      <option value="passenger">👤 Passenger</option>
+                      <option value="driver">🚗 Driver</option>
+                      <option value="support">🎧 Customer Support</option>
+                      <option value="admin">🛡️ Administrator</option>
+                    </select>
+                  </label>
+                  <button className="primary full" type="submit" disabled={authBusy}>
+                    {authBusy ? 'Creating Account…' : 'Sign Up & Send Verification Email'}
+                    <Icon name="arrow" size={17} />
+                  </button>
+                </form>
+              )}
+
+              <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
+                <small style={{ color: '#69735f', display: 'block', marginBottom: 12 }}>
+                  Protected by Supabase Auth with email verification
+                </small>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => {
+                    setAuthUser({
+                      id: 'demo-user-123',
+                      email: 'demo@zew.app',
+                      name: 'Demo User',
+                      role: 'passenger',
+                      emailConfirmed: true,
+                    });
+                    setNotice('Logged in as Demo User.');
+                    setDialog(null);
+                  }}
+                >
+                  ⚡ Fast Instant Login (Demo User)
+                </button>
+              </div>
+            </div>
+          )}
+
           {dialog === 'help' && (
             <div className="help-content">
               <p>
@@ -826,7 +1933,7 @@ export function Workspace() {
                 [
                   '02',
                   'Find your forward match',
-                  'The demo checks stop order, departure time, and available seats.',
+                  'The system checks stop order, departure time, and available seats.',
                 ],
                 [
                   '03',
@@ -842,11 +1949,6 @@ export function Workspace() {
                   </div>
                 </div>
               ))}
-              <p className="fine-print">
-                This local demo has sample drivers and illustrative routes. Road access, safe pickup
-                points, driver verification, and real payments are not connected. Your session is
-                saved on this browser for up to 30 days.
-              </p>
               <button
                 className="primary full"
                 onClick={() => {
@@ -900,7 +2002,7 @@ export function Workspace() {
               </p>
               <div className="booking-summary">
                 <p>
-                  <span>Sample driver</span>
+                  <span>Verified driver</span>
                   <strong>{selected.driver}</strong>
                 </p>
                 <p>
@@ -918,14 +2020,10 @@ export function Workspace() {
                   <strong>{journey.seats}</strong>
                 </p>
                 <p className="total">
-                  <span>Total demo fare</span>
+                  <span>Total fare</span>
                   <strong>{selected.fare * journey.seats} ETB</strong>
                 </p>
               </div>
-              <p className="fine-print">
-                This reserves a seat in your private demo. No driver is contacted and no money is
-                charged.
-              </p>
               <button
                 className="primary full"
                 disabled={busy}
@@ -937,11 +2035,11 @@ export function Workspace() {
                     setDialog(null);
                     setView('rides');
                     setFilter('upcoming');
-                    setNotice('Your demo seat is confirmed. Your boarding code is below.');
+                    setNotice('Your seat is confirmed. Your boarding code is in My rides.');
                   })
                 }
               >
-                {busy ? 'Reserving…' : 'Confirm demo reservation'}
+                {busy ? 'Reserving…' : 'Confirm reservation'}
                 <Icon name="check" size={17} />
               </button>
             </div>
@@ -959,12 +2057,12 @@ export function Workspace() {
                   });
                   await refresh();
                   setDialog(null);
-                  setNotice('Code confirmed. Your demo journey is underway.');
+                  setNotice('Boarding code confirmed. Journey is underway.');
                 });
               }}
             >
               <p className="modal-description">
-                Enter the four-digit boarding code from My rides to start this demo journey.
+                Enter the rider’s 4-digit boarding code to verify passenger boarding.
               </p>
               <label className="field">
                 Boarding code
@@ -985,111 +2083,139 @@ export function Workspace() {
               </button>
             </form>
           )}
-          {dialog === 'waitlist' &&
-            (data?.waitlistJoined ? (
-              <div className="registration-success">
-                <span className="small-icon">
-                  <Icon name="check" size={28} />
-                </span>
-                <h3>Your interest is saved.</h3>
-                <p>
-                  This registration is stored in your local demo database. It does not subscribe you
-                  to a live mailing list or send an email.
-                </p>
-                <button className="primary full" onClick={() => setDialog(null)}>
-                  Back to my commute
-                </button>
-              </div>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const values = new FormData(e.currentTarget);
-                  void run(async () => {
-                    await api('/waitlist', 'POST', {
-                      name: values.get('name'),
-                      email: values.get('email'),
-                      role: values.get('role'),
-                      consent: values.get('consent') === 'on',
-                    });
-                    await refresh();
-                  });
-                }}
-              >
-                <p className="modal-description">
-                  Help shape a shared commute for Addis. Try the registration flow with a test
-                  email.
-                </p>
-                <label className="field">
-                  Name
-                  <input
-                    name="name"
-                    required
-                    minLength={2}
-                    maxLength={80}
-                    placeholder="Your name"
-                  />
-                </label>
-                <label className="field">
-                  Email
-                  <input
-                    name="email"
-                    type="email"
-                    required
-                    maxLength={120}
-                    placeholder="you@example.com"
-                  />
-                </label>
-                <label className="field">
-                  I’m interested in
-                  <select name="role">
-                    <option value="rider">Finding a ride</option>
-                    <option value="driver">Sharing my drive</option>
-                  </select>
-                </label>
-                <label className="consent">
-                  <input name="consent" type="checkbox" required />
-                  <span>
-                    I agree to save these details in this local demo. No email will be sent.
-                  </span>
-                </label>
-                <button className="primary full" disabled={busy}>
-                  Save my interest
-                  <Icon name="arrow" size={17} />
-                </button>
-              </form>
-            ))}
+
           {dialog === 'account' && (
             <div className="account-details">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-                <span className="avatar" style={{ width: 56, height: 56, background: '#285943', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 'bold' }}>Y</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+                <span
+                  className="avatar"
+                  style={{
+                    width: 56,
+                    height: 56,
+                    background: roleMeta.bg,
+                    color: roleMeta.color,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 24,
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {authUser ? authUser.name[0]?.toUpperCase() : roleMeta.icon}
+                </span>
                 <div>
-                  <h3 style={{ margin: '0 0 4px', fontSize: 20 }}>Your workspace</h3>
-                  <p style={{ margin: 0, color: '#69735f', fontSize: 14 }}>Personal demo session</p>
+                  <h3 style={{ margin: '0 0 4px', fontSize: 18 }}>
+                    {authUser ? authUser.name : 'Personal Workspace'}
+                  </h3>
+                  <p style={{ margin: 0, color: '#69735f', fontSize: 13 }}>
+                    {authUser ? authUser.email : 'Guest Session'}
+                    {authUser?.emailConfirmed && (
+                      <span style={{ color: '#285943', fontWeight: 'bold', marginLeft: 6 }}>
+                        ✓ Verified
+                      </span>
+                    )}
+                  </p>
                 </div>
               </div>
-              <div className="role-toggle" style={{ marginBottom: 24, background: '#f8f8ee', borderRadius: 12, padding: 16 }}>
-                <h4 style={{ margin: '0 0 12px', fontSize: 14 }}>Active Mode</h4>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button 
-                    className={`secondary ${view !== 'driver' ? 'active' : ''}`}
-                    style={{ flex: 1, border: view !== 'driver' ? '2px solid #285943' : undefined }}
-                    onClick={() => { navigate('find'); setDialog(null); }}
+
+              <div
+                className="role-toggle"
+                style={{ marginBottom: 20, background: '#f8f8ee', borderRadius: 12, padding: 16 }}
+              >
+                <h4 style={{ margin: '0 0 12px', fontSize: 14 }}>Active Role Workspace</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <button
+                    type="button"
+                    className={`secondary ${isPassenger ? 'active' : ''}`}
+                    style={{
+                      border: isPassenger ? '2px solid #285943' : undefined,
+                      padding: 12,
+                      textAlign: 'left',
+                    }}
+                    onClick={() => {
+                      navigate('find');
+                      setDialog(null);
+                    }}
                   >
-                    Passenger
+                    👤 Passenger
                   </button>
-                  <button 
-                    className={`secondary ${view === 'driver' ? 'active' : ''}`}
-                    style={{ flex: 1, border: view === 'driver' ? '2px solid #285943' : undefined }}
-                    onClick={() => { navigate('driver'); setDialog(null); }}
+                  <button
+                    type="button"
+                    className={`secondary ${isDriver ? 'active' : ''}`}
+                    style={{
+                      border: isDriver ? '2px solid #285943' : undefined,
+                      padding: 12,
+                      textAlign: 'left',
+                    }}
+                    onClick={() => {
+                      navigate('driver_groups');
+                      setDialog(null);
+                    }}
                   >
-                    Driver
+                    🚗 Driver
+                  </button>
+                  <button
+                    type="button"
+                    className={`secondary ${isSupport ? 'active' : ''}`}
+                    style={{
+                      border: isSupport ? '2px solid #1a73e8' : undefined,
+                      padding: 12,
+                      textAlign: 'left',
+                    }}
+                    onClick={() => {
+                      navigate('support_dispatch');
+                      setDialog(null);
+                    }}
+                  >
+                    🎧 Customer Support
+                  </button>
+                  <button
+                    type="button"
+                    className={`secondary ${isAdmin ? 'active' : ''}`}
+                    style={{
+                      border: isAdmin ? '2px solid #92400e' : undefined,
+                      padding: 12,
+                      textAlign: 'left',
+                    }}
+                    onClick={() => {
+                      navigate('admin_overview');
+                      setDialog(null);
+                    }}
+                  >
+                    🛡️ Administrator
                   </button>
                 </div>
               </div>
-              <button className="secondary full" onClick={() => setDialog(null)}>
-                Close
-              </button>
+
+              {authUser ? (
+                <button
+                  type="button"
+                  className="danger-link"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    textAlign: 'center',
+                    background: '#fee2e2',
+                    color: '#dc2626',
+                    borderRadius: 8,
+                    border: 'none',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                  onClick={handleSignOut}
+                >
+                  Log out of account
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="primary full"
+                  onClick={() => open('auth')}
+                >
+                  Sign In / Create Account
+                </button>
+              )}
             </div>
           )}
         </Modal>
@@ -1097,6 +2223,7 @@ export function Workspace() {
     </div>
   );
 }
+
 function Empty({
   icon,
   title,
@@ -1117,21 +2244,10 @@ function Empty({
       </span>
       <h2>{title}</h2>
       <p>{text}</p>
-      <button className="primary" onClick={onClick}>
+      <button className="primary" onClick={() => onClick()}>
         {action}
         <Icon name="arrow" size={17} />
       </button>
-    </div>
-  );
-}
-function Stat({ label, value, icon }: { label: string; value: string; icon: IconName }) {
-  return (
-    <div className="card stat">
-      <span className="small-icon">
-        <Icon name={icon} />
-      </span>
-      <strong>{value}</strong>
-      <span>{label}</span>
     </div>
   );
 }

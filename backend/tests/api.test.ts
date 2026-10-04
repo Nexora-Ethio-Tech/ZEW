@@ -99,6 +99,25 @@ test('booking flow: duplicate protection, boarding code, valid transitions, simu
   );
 });
 
+test('planned quote and earnings use server totals and count only completed reservations', async (t) => {
+  const { app, journey, request } = await setup();
+  t.after(() => app.close());
+  const selected = { ...journey, seats: 2 };
+  const matches = (await request('/matches', selected)).json();
+  const match = matches.matches.find((trip: { id: string }) => trip.id === 'sample-hana');
+  const booking = (await request('/bookings', { ...selected, tripId: match.id })).json();
+  assert.equal(booking.fare, match.totalFare);
+  const before = (await request('/dashboard', undefined, 'GET')).json();
+  assert.equal(before.demoEarnings.driverPayout, 0);
+  await request(`/bookings/${booking.id}/action`, { action: 'board', code: booking.code });
+  await request(`/bookings/${booking.id}/action`, { action: 'complete' });
+  const after = (await request('/dashboard', undefined, 'GET')).json();
+  assert.equal(after.demoEarnings.completedTrips, 1);
+  assert.equal(after.demoEarnings.totalFare, booking.fare);
+  assert.equal(after.demoEarnings.platformFee + after.demoEarnings.driverPayout, booking.fare);
+  assert.equal(after.demoEarnings.driverPayout, 180);
+});
+
 test('cancellation releases seats and another browser cannot read or mutate a booking', async (t) => {
   const { app, journey, request } = await setup();
   t.after(() => app.close());

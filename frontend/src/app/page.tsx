@@ -1,4 +1,6 @@
-import { redirect } from 'next/navigation';
+import { Workspace } from '@/features/workspace';
+
 export default function Home() {
-  redirect('/planned');
+  return <Workspace />;
 }
+

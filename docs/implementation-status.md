@@ -14,11 +14,13 @@ Implemented 2026-10-01 as a private, persistent demo. Every browser session is i
 | --- | --- |
 | Rider | Corridor/stop/time/seat form, ranked sample matches, reservation, boarding code, cancellation, history |
 | Driver | Create/cancel personal demo offers, validate boarding code, complete a simulated journey, payout total |
+| Support Desk | Phone dispatch desk (book on behalf of caller, generate code), live driver radar & fleet monitor |
+| Administrator | System KPIs, revenue tracking, driver verification/approvals, and live API audit stream |
 | Commutes | Save, reuse, remove; maximum 10 per session |
-| Registration | Consent, name/email/role validation, persisted local signup; no outbound email |
-| Persistence | Node 24 built-in SQLite, session-token hashes, 30-day sessions, transactional state changes and event log |
+| Authentication | Supabase Auth (Email Sign Up with email verification, Password Sign In, Sign Out / Logout from Account menu, Instant Demo Login), role-based session state |
+| Persistence | Node 24 built-in SQLite + `migrations/` runner (`npm run migrate`), Supabase database integration support, session-token hashes, 30-day sessions, transactional state changes and event log |
 | Web app | Responsive layout, install manifest and PNG icons, production offline notice |
-| Checks | API tests for matching, transitions, duplicate races, isolation, validation, and restart persistence; browser acceptance script |
+| Checks | API tests for matching, transitions, duplicate races, isolation, validation, migrations, and restart persistence; browser acceptance script |
 
 ## API
 

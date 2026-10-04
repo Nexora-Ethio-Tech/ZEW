@@ -1,4 +1,5 @@
 import type { PoolState } from '../groups/model.js';
+
 // Ordered schematic stops, not verified road routes or approved boarding points.
 export const corridors = [
   {
@@ -30,12 +31,15 @@ export const corridors = [
     ],
   },
 ] as const;
+
 export interface Journey {
   corridorId: string;
   origin: string;
   destination: string;
   departure: string;
   seats: number;
+  minSeats?: number;
+  maxSeats?: number;
 }
 export interface Trip extends Journey {
   id: string;
@@ -67,6 +71,7 @@ export interface State {
   commutes: Commute[];
   waitlist: { name: string; email: string; role: string; consentAt: string } | null;
 }
+
 export function routePositions(journey: Pick<Journey, 'corridorId' | 'origin' | 'destination'>) {
   const corridor = corridors.find((c) => c.id === journey.corridorId);
   return {
@@ -74,57 +79,168 @@ export function routePositions(journey: Pick<Journey, 'corridorId' | 'origin' | 
     end: corridor?.stops.findIndex((s) => s.id === journey.destination) ?? -1,
   };
 }
+
 export function validRoute(journey: Pick<Journey, 'corridorId' | 'origin' | 'destination'>) {
   const { start, end } = routePositions(journey);
   return start >= 0 && end >= 0 && start !== end;
 }
+
+export function sampleTripsForTime(referenceTime?: string): Trip[] {
+  const baseTime = referenceTime ? Date.parse(referenceTime) : Date.now() + 5 * 60000;
+  const t = (offsetMinutes: number) => new Date(baseTime + offsetMinutes * 60000).toISOString();
+
+  return [
+    {
+      id: 'sample-hana',
+      corridorId: 'bole-centre',
+      origin: 'bole',
+      destination: 'mexico',
+      departure: t(0),
+      seats: 3,
+      driver: 'Hana T.',
+      vehicle: 'Toyota Vitz · Silver',
+      fare: 100,
+      source: 'sample',
+      status: 'open',
+    },
+    {
+      id: 'sample-dawit',
+      corridorId: 'bole-centre',
+      origin: 'bole',
+      destination: 'meskel',
+      departure: t(15),
+      seats: 2,
+      driver: 'Dawit M.',
+      vehicle: 'Suzuki Dzire · White',
+      fare: 90,
+      source: 'sample',
+      status: 'open',
+    },
+    {
+      id: 'sample-abebe',
+      corridorId: 'bole-centre',
+      origin: 'bole',
+      destination: 'wollosefer',
+      departure: t(5),
+      seats: 4,
+      driver: 'Abebe K.',
+      vehicle: 'Hyundai Atos · Red',
+      fare: 75,
+      source: 'sample',
+      status: 'open',
+    },
+    {
+      id: 'sample-tigist',
+      corridorId: 'bole-centre',
+      origin: 'atlas',
+      destination: 'mexico',
+      departure: t(8),
+      seats: 3,
+      driver: 'Tigist W.',
+      vehicle: 'Nissan Note · Grey',
+      fare: 85,
+      source: 'sample',
+      status: 'open',
+    },
+    {
+      id: 'sample-yared',
+      corridorId: 'bole-centre',
+      origin: 'wollosefer',
+      destination: 'mexico',
+      departure: t(12),
+      seats: 4,
+      driver: 'Yared G.',
+      vehicle: 'Toyota Corolla · Black',
+      fare: 80,
+      source: 'sample',
+      status: 'open',
+    },
+    {
+      id: 'sample-bethlehem',
+      corridorId: 'bole-centre',
+      origin: 'wollosefer',
+      destination: 'mexico',
+      departure: t(20),
+      seats: 4,
+      driver: 'Bethlehem S.',
+      vehicle: 'Volkswagen Polo · Blue',
+      fare: 85,
+      source: 'sample',
+      status: 'open',
+    },
+    {
+      id: 'sample-selam',
+      corridorId: 'cmc-centre',
+      origin: 'cmc',
+      destination: 'meskel',
+      departure: t(0),
+      seats: 3,
+      driver: 'Selam A.',
+      vehicle: 'Toyota Yaris · Blue',
+      fare: 110,
+      source: 'sample',
+      status: 'open',
+    },
+    {
+      id: 'sample-ermias',
+      corridorId: 'cmc-centre',
+      origin: 'cmc',
+      destination: 'kazanchis',
+      departure: t(10),
+      seats: 3,
+      driver: 'Ermias K.',
+      vehicle: 'Hyundai Elantra · Silver',
+      fare: 95,
+      source: 'sample',
+      status: 'open',
+    },
+    {
+      id: 'sample-kaleb',
+      corridorId: 'cmc-centre',
+      origin: 'cmc',
+      destination: 'hayahulet',
+      departure: t(15),
+      seats: 4,
+      driver: 'Suzuki Swift · White',
+      vehicle: 'Suzuki Swift · White',
+      fare: 80,
+      source: 'sample',
+      status: 'open',
+    },
+    {
+      id: 'sample-maron',
+      corridorId: 'cmc-centre',
+      origin: 'megenagna',
+      destination: 'meskel',
+      departure: t(8),
+      seats: 4,
+      driver: 'Maron B.',
+      vehicle: 'Toyota Rush · Black',
+      fare: 85,
+      source: 'sample',
+      status: 'open',
+    },
+    {
+      id: 'sample-liya',
+      corridorId: 'cmc-centre',
+      origin: 'hayahulet',
+      destination: 'meskel',
+      departure: t(22),
+      seats: 3,
+      driver: 'Liya H.',
+      vehicle: 'Honda Fit · Green',
+      fare: 75,
+      source: 'sample',
+      status: 'open',
+    },
+  ];
+}
+
 export function seedState(): State {
-  const date = new Date(Date.now() + 27 * 3600000).toISOString().slice(0, 10);
-  const departure = `${date}T08:00:00+03:00`;
   return {
     commutes: [],
     bookings: [],
     waitlist: null,
-    trips: [
-      {
-        id: 'sample-hana',
-        corridorId: 'bole-centre',
-        origin: 'bole',
-        destination: 'mexico',
-        departure,
-        seats: 3,
-        driver: 'Hana T.',
-        vehicle: 'Toyota Vitz · Silver',
-        fare: 100,
-        source: 'sample',
-        status: 'open',
-      },
-      {
-        id: 'sample-dawit',
-        corridorId: 'bole-centre',
-        origin: 'bole',
-        destination: 'meskel',
-        departure: `${date}T08:15:00+03:00`,
-        seats: 2,
-        driver: 'Dawit M.',
-        vehicle: 'Suzuki Dzire · White',
-        fare: 90,
-        source: 'sample',
-        status: 'open',
-      },
-      {
-        id: 'sample-selam',
-        corridorId: 'cmc-centre',
-        origin: 'cmc',
-        destination: 'meskel',
-        departure,
-        seats: 3,
-        driver: 'Selam A.',
-        vehicle: 'Toyota Yaris · Blue',
-        fare: 110,
-        source: 'sample',
-        status: 'open',
-      },
-    ],
+    trips: sampleTripsForTime(),
   };
 }

@@ -53,9 +53,8 @@ export function riderIssue(pool: PoolState, rider: PoolRider, now = Date.now()):
   if (rider.pickupSeconds < 0 || span > MAX_PICKUP_SECONDS) return 'More than 2 minutes away';
   return null;
 }
-export function fareQuote(pool: PoolState) {
+export function fareQuote(pool: PoolState, count = 1 + pool.selectedIds.length) {
   const total = groupDestinations(pool).find((d) => d.id === pool.destination)!.fare;
-  const count = 1 + pool.selectedIds.length;
   // Integer santim allocation. Any rounding remainder goes to the lead rider.
   const otherShare = Math.floor((total * 100) / count);
   const ownShare = total * 100 - otherShare * (count - 1);
@@ -111,21 +110,34 @@ export function addRider(pool: PoolState, id: string, now = Date.now()) {
 }
 export function setTargetPreference(pool: PoolState, targetSeats: number, now = Date.now()) {
   requireDraft(pool);
-  if (targetSeats < 1 || targetSeats > MAX_MEMBERS) {
+  if (!Number.isInteger(targetSeats) || targetSeats < 1 || targetSeats > MAX_MEMBERS) {
     throw new GroupError('Target seats must be between 1 and 4.');
   }
+  const preview = preferencePreview(pool, targetSeats, now);
+  if (preview.issue) throw new GroupError(preview.issue);
   pool.targetSeats = targetSeats;
-  pool.selectedIds = [];
-  if (targetSeats > 1) {
-    const validRiders = pool.riders.filter(
-      (r) => !pool.skippedIds.includes(r.id) && !riderIssue(pool, r, now),
-    );
-    for (const rider of validRiders) {
-      if (pool.selectedIds.length >= targetSeats - 1) break;
-      pool.selectedIds.push(rider.id);
-    }
-  }
+  pool.selectedIds = preview.selectedIds;
   pool.version++;
+}
+function preferencePreview(pool: PoolState, seats: number, now: number) {
+  const candidate = { ...pool, selectedIds: [] as string[] };
+  for (const rider of pool.riders) {
+    if (candidate.selectedIds.length >= seats - 1) break;
+    if (pool.skippedIds.includes(rider.id) || riderIssue(candidate, rider, now)) continue;
+    const next = { ...candidate, selectedIds: [...candidate.selectedIds, rider.id] };
+    if (demoDrivers.some((driver) => !driverIssue(next, driver.id, now)))
+      candidate.selectedIds.push(rider.id);
+  }
+  return {
+    seats,
+    yourFare: fareQuote(pool, seats).yourFare,
+    selectedIds: candidate.selectedIds,
+    issue:
+      locationIssue(pool, now) ||
+      (candidate.selectedIds.length !== seats - 1
+        ? 'Not enough ready demo riders. Refresh availability or choose a smaller circle.'
+        : null),
+  };
 }
 export function driverIssue(pool: PoolState, id: string, now = Date.now()) {
   const driver = demoDrivers.find((d) => d.id === id);
@@ -236,6 +248,7 @@ export function newGroup(pool: PoolState, now = Date.now()) {
       r.destination = 'custom';
     });
   pool.status = 'draft';
+  pool.targetSeats = 1;
   pool.requestedUntil = undefined;
   pool.lockedFare = undefined;
   pool.driverId = undefined;
@@ -285,7 +298,26 @@ export function poolView(pool: PoolState, now = Date.now()) {
       }[pool.destination]!,
     },
     locationIssue: locationIssue(pool, now),
-    targetSeats: pool.targetSeats ?? 4,
+    targetSeats: pool.targetSeats ?? 1,
+    fareOptions: Array.from({ length: MAX_MEMBERS }, (_, i) => {
+      const { selectedIds: _selected, ...preview } = preferencePreview(pool, i + 1, now);
+      return preview;
+    }),
+    requestIssue:
+      locationIssue(pool, now) ||
+      (!demoDrivers.some((driver) => !driverIssue(pool, driver.id, now))
+        ? 'No demo driver can reach this circle in time. Refresh availability or remove a rider.'
+        : null),
+    driverEarnings: demoDrivers.map((driver) => {
+      const receipts = pool.history.filter(
+        (ride) => ride.driverId === driver.id && ride.driverPayout !== undefined,
+      );
+      return {
+        driverId: driver.id,
+        completedTrips: receipts.length,
+        payout: Math.round(receipts.reduce((sum, ride) => sum + ride.driverPayout!, 0) * 100) / 100,
+      };
+    }),
     destinations: groupDestinations(pool),
     pickupZones: pickupZones.map(({ id, name }) => ({ id, name })),
     quote: fareQuote(pool),

@@ -19,6 +19,7 @@ export interface Trip extends Journey {
   status: 'open' | 'cancelled';
   availableSeats: number;
   differenceMinutes?: number;
+  totalFare?: number;
 }
 export interface Booking extends Journey {
   id: string;
@@ -40,6 +41,12 @@ export interface Dashboard {
   bookings: Booking[];
   commutes: Commute[];
   waitlistJoined: boolean;
+  demoEarnings: {
+    completedTrips: number;
+    totalFare: number;
+    platformFee: number;
+    driverPayout: number;
+  };
   events: { kind: string; entityId: string; createdAt: string }[];
 }
 export interface Matches {
@@ -52,7 +59,10 @@ async function token() {
   const existing = localStorage.getItem(key);
   if (existing) return existing;
   if (!pendingSession)
-    pendingSession = fetch('/api/v1/session', { method: 'POST' })
+    pendingSession = fetch('/api/v1/session', {
+      method: 'POST',
+      signal: AbortSignal.timeout(15000),
+    })
       .then(async (response) => {
         if (!response.ok)
           throw new Error('Could not start your demo. Check that the backend is running.');

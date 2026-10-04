@@ -8,10 +8,15 @@ export function usePool() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [online, setOnline] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const hasPool = useRef(false);
+  const reading = useRef(false);
   const offset = useRef(0),
     inflight = useRef(false);
   const receive = useCallback((next: Pool) => {
+    hasPool.current = true;
     offset.current = next.serverNow - Date.now();
     setPool((current) =>
       !current ||
@@ -23,33 +28,70 @@ export function usePool() {
     setNow(next.serverNow);
   }, []);
   const start = useCallback(async () => {
+    if (reading.current || inflight.current) return;
+    reading.current = true;
+    setSyncing(true);
     try {
       setError('');
-      receive(await api<Pool>('/pool/bootstrap', 'POST'));
+      const next = await api<Pool>('/pool/bootstrap', 'POST');
+      setPool(next);
+      receive(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load your group.');
+    } finally {
+      reading.current = false;
+      setSyncing(false);
     }
   }, [receive]);
+  const refresh = useCallback(async () => {
+    if (inflight.current || reading.current || !navigator.onLine) return;
+    if (!hasPool.current) return start();
+    reading.current = true;
+    setSyncing(true);
+    try {
+      receive(await api<Pool>('/pool'));
+      setError('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Connection lost.');
+    } finally {
+      reading.current = false;
+      setSyncing(false);
+    }
+  }, [receive, start]);
   useEffect(() => {
     void start();
   }, [start]);
   useEffect(() => {
     const tick = setInterval(() => setNow(Date.now() + offset.current), 1000);
-    const poll = setInterval(async () => {
-      if (inflight.current || document.hidden) return;
-      try {
-        receive(await api<Pool>('/pool'));
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Connection lost.');
-      }
+    const poll = setInterval(() => {
+      if (!document.hidden) void refresh();
     }, 15000);
+    const reconnect = () => {
+      setOnline(true);
+      void refresh();
+    };
+    const offline = () => setOnline(false);
+    const visible = () => {
+      if (!document.hidden) void refresh();
+    };
+    setOnline(navigator.onLine);
+    window.addEventListener('online', reconnect);
+    window.addEventListener('offline', offline);
+    document.addEventListener('visibilitychange', visible);
     return () => {
       clearInterval(tick);
       clearInterval(poll);
+      window.removeEventListener('online', reconnect);
+      window.removeEventListener('offline', offline);
+      document.removeEventListener('visibilitychange', visible);
     };
-  }, [receive]);
+  }, [refresh]);
   async function action(path: string, body?: unknown) {
     if (inflight.current) return false;
+    if (!navigator.onLine) {
+      setError('Reconnect before changing your circle. No ride actions are queued offline.');
+      return false;
+    }
     inflight.current = true;
     setBusy(true);
     setError('');
@@ -101,5 +143,18 @@ export function usePool() {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
   }
-  return { pool, error, busy, locating, now, start, action, locate, setError };
+  return {
+    pool,
+    error,
+    busy,
+    locating,
+    now,
+    start,
+    action,
+    locate,
+    setError,
+    online,
+    syncing,
+    refresh,
+  };
 }

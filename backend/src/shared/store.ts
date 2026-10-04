@@ -3,11 +3,16 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { seedState, type State } from '../modules/trips/model.js';
+import { supabase } from './supabase.js';
+import { runMigrations } from './migrate.js';
 
 export class Store {
   private db: DatabaseSync;
   constructor(path: string) {
-    if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
+    if (path !== ':memory:') {
+      mkdirSync(dirname(path), { recursive: true });
+      runMigrations(path);
+    }
     this.db = new DatabaseSync(path);
     this.db.exec(`PRAGMA journal_mode=WAL;
       CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, token_hash TEXT UNIQUE NOT NULL, state TEXT NOT NULL, expires_at INTEGER NOT NULL);
@@ -16,9 +21,25 @@ export class Store {
   create() {
     const token = randomBytes(32).toString('hex'),
       id = randomUUID();
+    const expiresAt = Date.now() + 30 * 86400000;
+    const tokenHash = this.hash(token);
+    const initialState = JSON.stringify(seedState());
+
     this.db
       .prepare('INSERT INTO sessions VALUES (?, ?, ?, ?)')
-      .run(id, this.hash(token), JSON.stringify(seedState()), Date.now() + 30 * 86400000);
+      .run(id, tokenHash, initialState, expiresAt);
+
+    if (supabase) {
+      void supabase.from('sessions').upsert({
+        id,
+        token_hash: tokenHash,
+        state: initialState,
+        expires_at: expiresAt,
+      }).then(({ error }) => {
+        if (error) console.error('[Supabase Sync Session Notice]:', error.message);
+      });
+    }
+
     return { token };
   }
   private hash(token: string) {
@@ -39,11 +60,31 @@ export class Store {
     try {
       const state = this.read(id);
       const { value, entityId } = change(state);
-      this.db.prepare('UPDATE sessions SET state = ? WHERE id = ?').run(JSON.stringify(state), id);
+      const updatedStateJson = JSON.stringify(state);
+      const eventId = randomUUID();
+      const createdAt = new Date().toISOString();
+
+      this.db.prepare('UPDATE sessions SET state = ? WHERE id = ?').run(updatedStateJson, id);
       this.db
         .prepare('INSERT INTO events VALUES (?, ?, ?, ?, ?)')
-        .run(randomUUID(), id, kind, entityId, new Date().toISOString());
+        .run(eventId, id, kind, entityId, createdAt);
       this.db.exec('COMMIT');
+
+      if (supabase) {
+        void supabase.from('sessions').update({ state: updatedStateJson }).eq('id', id).then(({ error }) => {
+          if (error) console.error('[Supabase Sync Mutate Notice]:', error.message);
+        });
+        void supabase.from('events').insert({
+          id: eventId,
+          session_id: id,
+          kind,
+          entity_id: entityId,
+          created_at: createdAt,
+        }).then(({ error }) => {
+          if (error) console.error('[Supabase Sync Event Notice]:', error.message);
+        });
+      }
+
       return value;
     } catch (error) {
       this.db.exec('ROLLBACK');

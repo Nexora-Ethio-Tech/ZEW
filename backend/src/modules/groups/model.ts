@@ -85,7 +85,18 @@ export interface PoolState {
   lockedFare?: number;
   driverId?: string;
   targetSeats?: number;
-  history: { id: string; route: string; members: number; fare: number; date: string; demo: true }[];
+  history: {
+    id: string;
+    route: string;
+    members: number;
+    fare: number;
+    date: string;
+    demo: true;
+    driverId?: string;
+    total?: number;
+    fee?: number;
+    driverPayout?: number;
+  }[];
 }
 export function demoRiders(now = Date.now()): PoolRider[] {
   return [
@@ -181,7 +192,7 @@ export function seedPool(now = Date.now()): PoolState {
     riders: demoRiders(now),
     selectedIds: [],
     skippedIds: [],
-    targetSeats: 4,
+    targetSeats: 1,
     status: 'draft',
     history: [
       {

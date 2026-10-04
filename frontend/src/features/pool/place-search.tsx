@@ -69,6 +69,14 @@ export function PlaceSearch({
             }
             autoComplete="off"
             maxLength={150}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                revision.current++;
+                setQuery(value);
+                setStatus('');
+                setResults([]);
+              }
+            }}
             onChange={(event) => {
               revision.current++;
               setQuery(event.target.value);
@@ -76,14 +84,18 @@ export function PlaceSearch({
               setStatus('Press Search, then select a result to confirm.');
             }}
           />
-          <button type="submit" disabled={disabled || searching || query.trim().length < 2}>
+          <button
+            type="submit"
+            aria-label={`Search ${target}`}
+            disabled={disabled || searching || query.trim().length < 2}
+          >
             {searching ? 'Searching…' : 'Search'}
           </button>
         </div>
       </form>
       {status && (
-        <div className="place-results" role="status">
-          <p>{status}</p>
+        <div className="place-results">
+          <p role="status">{status}</p>
           {results.map((place, i) => (
             <button
               type="button"
@@ -105,6 +117,7 @@ export function PlaceSearch({
             className="close-place-results"
             onClick={() => {
               revision.current++;
+              setQuery(value);
               setStatus('');
               setResults([]);
             }}

@@ -52,6 +52,9 @@ export interface Pool {
   lockedFare?: number;
   driverId?: string;
   targetSeats: number;
+  fareOptions: { seats: number; yourFare: number; issue: string | null }[];
+  requestIssue: string | null;
+  driverEarnings: { driverId: string; completedTrips: number; payout: number }[];
   destinations: { id: string; name: string; fare: number; order: number }[];
   pickupZones: { id: string; name: string }[];
   quote: {
@@ -65,7 +68,18 @@ export interface Pool {
     split: 'equal';
   };
   drivers: PoolDriver[];
-  history: { id: string; route: string; members: number; fare: number; date: string; demo: true }[];
+  history: {
+    id: string;
+    route: string;
+    members: number;
+    fare: number;
+    date: string;
+    demo: true;
+    driverId?: string;
+    total?: number;
+    fee?: number;
+    driverPayout?: number;
+  }[];
 }
 export const money = (amount: number) =>
   amount.toLocaleString('en-ET', { maximumFractionDigits: 2 });

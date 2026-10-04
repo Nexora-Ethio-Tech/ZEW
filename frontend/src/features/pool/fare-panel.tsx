@@ -22,13 +22,15 @@ export function FarePanel({
   const expiredMember = members.some((r) => r.readyUntil <= now);
   const locationStale =
     pool.locationSource === 'device' && !!pool.location && now - pool.location.timestamp > 120000;
-  const waitingExpired = pool.status === 'requested' && (pool.requestedUntil ?? 0) <= now;
+  const waitingExpired =
+    ['requested', 'accepted'].includes(pool.status) &&
+    ((pool.requestedUntil ?? 0) <= now || expiredMember || locationStale);
   const status = waitingExpired ? 'expired' : pool.status;
   const finished = ['completed', 'cancelled', 'expired'].includes(status);
   const driver = pool.drivers.find((d) => d.id === pool.driverId);
   return (
     <aside className="fare-column">
-      <section className="group-card">
+      <section className="group-card" aria-label="Your circle and fare">
         <div className="group-card-heading">
           <span className="group-heading-icon">
             <Icon name="people" size={21} />
@@ -87,12 +89,12 @@ export function FarePanel({
             </>
           ) : (
             <span className="solo-hint">
-              Add 2 people and your share is {money(pool.quote.total / 3)} ETB.
+              With 3 people, your example share is {money(pool.fareOptions[2].yourFare)} ETB.
             </span>
           )}
         </div>
         <div className="split-line">
-          <span>Shared trip estimate</span>
+          <span>Example trip total</span>
           <strong>{pool.quote.total} ETB</strong>
         </div>
         <div className="split-line">
@@ -114,9 +116,9 @@ export function FarePanel({
               <span>Just you</span>
               <span>Better together</span>
             </div>
-            {(expiredMember || locationStale || pool.locationIssue) && (
+            {(expiredMember || locationStale || pool.requestIssue) && (
               <p className="group-inline-warning">
-                {pool.locationIssue ||
+                {pool.requestIssue ||
                   (locationStale
                     ? 'Refresh your device location to continue.'
                     : 'A rider’s availability expired. Refresh nearby riders.')}
@@ -124,7 +126,7 @@ export function FarePanel({
             )}
             <button
               className="pool-primary request-group"
-              disabled={busy || expiredMember || locationStale || !!pool.locationIssue}
+              disabled={busy || expiredMember || locationStale || !!pool.requestIssue}
               onClick={() => void action('/request', { version: pool.version })}
             >
               {busy
@@ -134,7 +136,7 @@ export function FarePanel({
                   : 'Request solo ride'}
               <Icon name="arrow" size={18} />
             </button>
-            <p className="request-note">Your price, your choice. Request when it feels right.</p>
+            <p className="request-note">Review your group, then request. No payment required.</p>
           </>
         ) : (
           <div className={`group-status-panel ${status}`} role="status">
@@ -175,7 +177,7 @@ export function FarePanel({
                       : 'Start a fresh group with people who are ready now.'}
             </p>
             {status === 'requested' && (
-              <button className="pool-primary" onClick={driverView}>
+              <button className="pool-primary" disabled={busy} onClick={driverView}>
                 Try the driver view
                 <Icon name="arrow" size={16} />
               </button>
@@ -230,8 +232,8 @@ export function FarePanel({
         </span>
         <div>
           <h3>Close by. Ready to go.</h3>
-          <p>Only people within the 2-minute pickup window can join your circle.</p>
-          <span>No long waits. No extra turns.</span>
+          <p>Try a shared ride with a two-minute demo pickup window.</p>
+          <span>Fictional timings · real possibilities.</span>
         </div>
       </section>
       <section className="pool-together-note">

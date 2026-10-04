@@ -32,10 +32,10 @@ export function RouteMap({
           <Icon name="route" />
           <span>
             <strong>{corridor?.name}</strong>
-            <small>Same direction. Shared journey.</small>
+            <small>Illustrative stop order · not a road route</small>
           </span>
         </div>
-        <span className="schematic">Interactive map</span>
+        <span className="schematic">Demo corridor</span>
       </div>
     </div>
   );
