@@ -34,19 +34,21 @@ export default function LeafletRouteMap({
 
     const tileUrl =
       process.env.NEXT_PUBLIC_MAP_TILE_URL ??
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     const tileAttribution =
       process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ??
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
     const tileLayer = L.tileLayer(tileUrl, {
       maxZoom: 19,
-      subdomains: 'abcd',
+      subdomains: ['a', 'b', 'c'],
       attribution: tileAttribution,
     });
 
     tileLayer.on('tileerror', () => {
-      tileLayer.setUrl('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+      tileLayer.setUrl(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      );
     });
 
     tileLayer.addTo(instance);
@@ -137,8 +139,20 @@ export default function LeafletRouteMap({
   }, [corridor, originId, destinationId]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div ref={node} className="street-map" style={{ borderRadius: '12px' }} />
+    <div style={{ position: 'relative', width: '100%', minHeight: '320px' }}>
+      <div
+        ref={node}
+        className="street-map"
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '320px',
+          minHeight: '320px',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          zIndex: 1,
+        }}
+      />
       {tileError && (
         <p role="status" className="map-load-error">
           Some map tiles could not load. Check your connection.

@@ -43,20 +43,22 @@ export default function StreetMap({
 
     const tileUrl =
       process.env.NEXT_PUBLIC_MAP_TILE_URL ??
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     const tileAttribution =
       process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ??
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
     const tileLayer = L.tileLayer(tileUrl, {
       maxZoom: 19,
-      subdomains: 'abcd',
+      subdomains: ['a', 'b', 'c'],
       attribution: tileAttribution,
     });
 
     tileLayer.on('tileerror', () => {
-      // Automatic fallback if carto domain fails
-      tileLayer.setUrl('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+      // Fallback to Esri World Street Map if OSM rate-limited
+      tileLayer.setUrl(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      );
     });
 
     tileLayer.addTo(instance);
@@ -156,6 +158,16 @@ export default function StreetMap({
       <div
         ref={node}
         className="street-map"
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '350px',
+          minHeight: '350px',
+          background: '#e7ecde',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          zIndex: 1,
+        }}
         aria-label="Street map. Use arrow keys to pan, plus and minus to zoom."
       />
       {tileError && (
