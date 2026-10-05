@@ -428,6 +428,7 @@ export function PoolWorkspace() {
                         pickup={pool.mapPickup}
                         destination={pool.mapDestination}
                         disabled={busy || !draft}
+                        draft={draft}
                         choose={(target, place) => action('/place', { target, place })}
                       />
                       <section className="neighbours" id="nearby-riders">

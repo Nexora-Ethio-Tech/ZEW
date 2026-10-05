@@ -10,11 +10,13 @@ export default function StreetMap({
   pickup,
   destination,
   disabled,
+  draft = true,
   choose,
 }: {
   pickup: Place;
   destination: Place;
   disabled: boolean;
+  draft?: boolean;
   choose: (target: Target, place: Place) => Promise<boolean>;
 }) {
   const node = useRef<HTMLDivElement>(null);
@@ -93,30 +95,44 @@ export default function StreetMap({
   useEffect(() => {
     if (!map.current || !markers.current) return;
     markers.current.clearLayers();
-    for (const [place, letter, color] of [
-      [pickup, 'A', '#315941'],
-      [destination, 'B', '#b96742'],
+    for (const [place, letter, color, targetKey] of [
+      [pickup, 'A', '#1c4d36', 'pickup'],
+      [destination, 'B', '#b96742', 'destination'],
     ] as const) {
-      const label = document.createElement('span');
-      label.textContent = `${letter === 'A' ? 'Pickup' : 'Destination'}: ${place.name}`;
-      L.marker([place.latitude, place.longitude], {
-        title: label.textContent,
+      const label = document.createElement('div');
+      label.className = 'map-marker-popup';
+      label.innerHTML = `<strong>${letter === 'A' ? 'Pickup (Start)' : 'Destination (End)'}</strong><br/>${place.name}<br/><small style="color:#666">Drag pin to reposition</small>`;
+
+      const marker = L.marker([place.latitude, place.longitude], {
+        title: `${letter === 'A' ? 'Pickup' : 'Destination'}: ${place.name}`,
+        draggable: !disabled && draft,
         icon: L.divIcon({
-          className: 'street-pin',
-          html: `<span style="background:${color}">${letter}</span>`,
-          iconSize: [32, 40],
-          iconAnchor: [16, 40],
+          className: `street-pin street-pin-${letter.toLowerCase()}`,
+          html: `<span style="background:${color}; cursor:grab;">${letter}</span>`,
+          iconSize: [36, 44],
+          iconAnchor: [18, 44],
         }),
       })
         .bindPopup(label)
         .addTo(markers.current);
+
+      marker.on('dragend', async (e: L.LeafletEvent) => {
+        const dragMarker = e.target as L.Marker;
+        const pos = dragMarker.getLatLng().wrap();
+        const newPlace: Place = {
+          name: `Map pin (${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)})`,
+          latitude: pos.lat,
+          longitude: pos.lng,
+        };
+        await choose(targetKey, newPlace);
+      });
     }
     map.current.fitBounds(
       [
         [pickup.latitude, pickup.longitude],
         [destination.latitude, destination.longitude],
       ],
-      { padding: [50, 50], maxZoom: 15 },
+      { padding: [60, 60], maxZoom: 15 },
     );
   }, [
     pickup.latitude,
@@ -125,6 +141,9 @@ export default function StreetMap({
     destination.latitude,
     destination.longitude,
     destination.name,
+    disabled,
+    draft,
+    choose,
   ]);
 
   useEffect(() => {
