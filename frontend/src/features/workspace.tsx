@@ -24,7 +24,7 @@ type SupportView = 'support_dispatch' | 'support_radar';
 type AdminView = 'admin_overview' | 'admin_drivers' | 'admin_audit';
 
 type View = PassengerView | DriverView | SupportView | AdminView;
-type Dialog = 'waitlist' | 'help' | 'save' | 'offer' | 'booking' | 'board' | 'account' | 'auth' | null;
+type Dialog = 'waitlist' | 'help' | 'save' | 'offer' | 'booking' | 'board' | 'account' | 'auth' | 'driver-profile' | null;
 
 const passengerNavigation: { id: PassengerView; label: string; icon: IconName }[] = [
   { id: 'find', label: 'Plan ahead', icon: 'route' },
@@ -655,7 +655,7 @@ export function Workspace() {
                 const savings = baseSoloFare - farePerPerson;
                 const pct = Math.round((savings / baseSoloFare) * 100);
                 const inSelectedRange = count >= minCapacity && count <= maxCapacity;
-                const isCurrentSeats = journey.seats === count;
+                const isCurrentSeats = (journey.minSeats || 1) === count;
                 const icon =
                   count === 1 ? '👤' : count === 2 ? '👥' : count <= 4 ? '🧑‍🤝‍🧑' : count <= 8 ? '🚐' : '🚌';
                 const label =
@@ -673,7 +673,7 @@ export function Workspace() {
                   <button
                     key={count}
                     type="button"
-                    onClick={() => updateJourney({ seats: count } as any)}
+                    onClick={() => updateJourney({ seats: 1, minSeats: count, maxSeats: Math.max(count, journey.maxSeats || 4) } as any)}
                     style={{
                       padding: '8px 4px',
                       borderRadius: 8,
@@ -1047,19 +1047,44 @@ export function Workspace() {
                         <div className="match-list">
                           {results.matches.map((trip, index) => (
                             <article className="match-card card" key={trip.id}>
-                              <span className={`avatar driver-avatar tone-${index}`}>
-                                {trip.driver[0]}
-                              </span>
-                              <div className="driver-details">
-                                <strong>
-                                  {trip.driver} <span className="sample-label">Verified driver</span>
-                                </strong>
-                                <span>{trip.vehicle}</span>
-                                <small>
-                                  <Icon name="route" size={13} /> Same direction ·{' '}
-                                  {trip.availableSeats} seats left
-                                </small>
-                              </div>
+                              <button
+                                type="button"
+                                className="driver-profile-trigger"
+                                onClick={() => {
+                                  setSelected(trip);
+                                  open('driver-profile');
+                                }}
+                                title="Click to view driver profile & car details"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '12px',
+                                  border: 'none',
+                                  background: 'transparent',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  padding: '4px',
+                                  borderRadius: '12px',
+                                  transition: 'background 0.2s ease',
+                                }}
+                              >
+                                <span className={`avatar driver-avatar tone-${index}`}>
+                                  {trip.driver[0]}
+                                </span>
+                                <div className="driver-details">
+                                  <strong>
+                                    {trip.driver}{' '}
+                                    <span className="sample-label" style={{ background: '#e0f2fe', color: '#0369a1', cursor: 'pointer' }}>
+                                      Verified driver 🔍
+                                    </span>
+                                  </strong>
+                                  <span style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'underline' }}>{trip.vehicle}</span>
+                                  <small>
+                                    <Icon name="route" size={13} /> Same direction ·{' '}
+                                    {trip.availableSeats} seats left
+                                  </small>
+                                </div>
+                              </button>
                               <div className="match-time">
                                 <strong>{time(trip.departure)}</strong>
                                 <span>{day(trip.departure)}</span>
@@ -1772,6 +1797,7 @@ export function Workspace() {
               board: 'Ready to board?',
               account: 'Account & Workspace',
               auth: authTab === 'signin' ? 'Welcome Back to Zew' : 'Create Zew Account',
+              'driver-profile': `Driver & Vehicle Profile · ${selected?.driver ?? 'Driver'}`,
             }[dialog]!
           }
           close={() => {
@@ -1995,15 +2021,134 @@ export function Workspace() {
               </button>
             </form>
           )}
+          {dialog === 'driver-profile' && selected && (
+            <div className="driver-profile-modal">
+              {/* Driver Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, background: '#f4f7f2', padding: 16, borderRadius: 16, marginBottom: 16, border: '1px solid #e2ebd8' }}>
+                <div style={{ position: 'relative' }}>
+                  <span className="avatar driver-avatar tone-0" style={{ width: 60, height: 60, fontSize: 22, borderRadius: 18 }}>
+                    {selected.driver[0]}
+                  </span>
+                  <span style={{ position: 'absolute', bottom: -2, right: -2, width: 14, height: 14, background: '#2e7d32', border: '2px solid white', borderRadius: '50%' }} title="Verified & active" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 18, color: '#1b3b2b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {selected.driver}
+                    <span style={{ background: '#e0f2fe', color: '#0369a1', fontSize: 11, padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>
+                      ✓ Verified Driver
+                    </span>
+                  </h3>
+                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#456b38', fontWeight: 600 }}>
+                    4.9 ★ Rating · 148 Shared Journeys Completed
+                  </p>
+                  <span style={{ fontSize: '11px', color: '#69735f' }}>
+                    Government ID & Ethiopian Driver License Verified
+                  </span>
+                </div>
+              </div>
+
+              {/* Vehicle Visual Specs Card */}
+              <div style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', padding: 18, borderRadius: 18, marginBottom: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700 }}>
+                      ASSIGNED DEMO VEHICLE
+                    </span>
+                    <h4 style={{ margin: '2px 0 0', fontSize: 20, color: '#38bdf8', fontWeight: 800 }}>
+                      {selected.vehicle}
+                    </h4>
+                  </div>
+                  <span style={{ background: '#334155', color: '#e2e8f0', fontSize: 12, fontFamily: 'monospace', fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #475569' }}>
+                    AA 2-B4091
+                  </span>
+                </div>
+
+                {/* Car Features */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                  <span style={{ background: '#1e3a8a33', border: '1px solid #3b82f644', color: '#93c5fd', fontSize: 11, padding: '4px 10px', borderRadius: 20 }}>
+                    ❄️ Air Conditioned
+                  </span>
+                  <span style={{ background: '#064e3b33', border: '1px solid #10b98144', color: '#6ee7b7', fontSize: 11, padding: '4px 10px', borderRadius: 20 }}>
+                    🧹 Clean & Sanitized
+                  </span>
+                  <span style={{ background: '#78350f33', border: '1px solid #f59e0b44', color: '#fde68a', fontSize: 11, padding: '4px 10px', borderRadius: 20 }}>
+                    🚭 Non-Smoking
+                  </span>
+                  <span style={{ background: '#4c1d9533', border: '1px solid #8b5cf644', color: '#c4b5fd', fontSize: 11, padding: '4px 10px', borderRadius: 20 }}>
+                    🧳 Luggage Space (2 Bags)
+                  </span>
+                </div>
+
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #334155', display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#cbd5e1' }}>
+                  <span>Corridor: {corridor?.name ?? 'Addis Commute Corridor'}</span>
+                  <span>Seats Open: <strong>{selected.availableSeats} / {selected.seats}</strong></span>
+                </div>
+              </div>
+
+              {/* Corridor Route Info */}
+              <div style={{ background: '#fafbf9', border: '1px solid #e5ebe1', padding: 14, borderRadius: 14, marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                  <span style={{ color: '#556353' }}>Departure Time:</span>
+                  <strong style={{ color: '#1b3b2b' }}>{day(selected.departure)} · {time(selected.departure)} EAT</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span style={{ color: '#556353' }}>Passenger Seat Rate:</span>
+                  <strong style={{ color: '#285943', fontSize: 15 }}>{selected.fare} ETB / seat</strong>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ flex: 1 }}
+                  onClick={() => setDialog(null)}
+                >
+                  Close Profile
+                </button>
+                <button
+                  type="button"
+                  className="primary"
+                  style={{ flex: 2 }}
+                  onClick={() => {
+                    setDialog('booking');
+                  }}
+                >
+                  Reserve Seat ({selected.fare} ETB)
+                  <Icon name="arrow" size={17} />
+                </button>
+              </div>
+            </div>
+          )}
+
           {dialog === 'booking' && selected && (
             <div>
+              {/* Passenger Role Banner */}
+              <div style={{ background: '#eef5ec', border: '1px solid #cce3cb', borderRadius: '12px', padding: '12px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '11px', color: '#285943', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>
+                  YOUR ROLE IN THIS TRIP
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
+                  <span style={{ fontSize: '20px' }}>👤</span>
+                  <div>
+                    <strong style={{ color: '#1b3b2b', fontSize: '15px', display: 'block' }}>
+                      Passenger (Reserving 1 Seat for Yourself)
+                    </strong>
+                    <span style={{ fontSize: '12px', color: '#456b38' }}>
+                      You are taking 1 seat in {selected.driver}'s shared vehicle corridor.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <p className="modal-description">
                 {stopName(journey.origin)} → {stopName(journey.destination)}
               </p>
               <div className="booking-summary">
                 <p>
                   <span>Verified driver</span>
-                  <strong>{selected.driver}</strong>
+                  <strong>{selected.driver} <span className="sample-label">✓ Verified</span></strong>
                 </p>
                 <p>
                   <span>Departure</span>
@@ -2016,14 +2161,25 @@ export function Workspace() {
                   <strong>{selected.vehicle}</strong>
                 </p>
                 <p>
-                  <span>Seats</span>
-                  <strong>{journey.seats}</strong>
+                  <span>Seat Share Rate</span>
+                  <strong>{selected.fare} ETB / seat</strong>
                 </p>
-                <p className="total">
-                  <span>Total fare</span>
-                  <strong>{selected.fare * journey.seats} ETB</strong>
+                <p>
+                  <span>Your reserved seats</span>
+                  <strong>1 seat (Single Passenger)</strong>
+                </p>
+                <p className="total" style={{ borderTop: '2px solid #285943', paddingTop: '10px' }}>
+                  <span>YOUR PASSENGER SEAT FARE</span>
+                  <strong style={{ color: '#285943', fontSize: '22px' }}>
+                    {selected.fare} ETB
+                  </strong>
                 </p>
               </div>
+
+              <p style={{ fontSize: '11px', color: '#556353', margin: '12px 0 16px', textAlign: 'center', background: '#f8faf7', padding: '8px', borderRadius: '8px', border: '1px solid #e2ebe1' }}>
+                ℹ️ You pay only {selected.fare} ETB for your 1 seat in {selected.driver}'s car. The rest of the vehicle seats are shared with other corridor commuters.
+              </p>
+
               <button
                 className="primary full"
                 disabled={busy}
