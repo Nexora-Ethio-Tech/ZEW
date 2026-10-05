@@ -1,4 +1,4 @@
-import { routePositions, sampleTripsForTime, type Journey, type State, type Trip } from '../trips/model.js';
+import { corridors, routePositions, sampleTripsForTime, type Journey, type State, type Trip } from '../trips/model.js';
 
 export function availableSeats(state: State, trip: Trip) {
   // Conservative: a booking occupies seats for the whole driver trip, even after completion.
@@ -34,6 +34,27 @@ export function rejectionReason(
   return null;
 }
 
+function calculateSegmentKm(journey: Journey): number {
+  const corridor = corridors.find((c) => c.id === journey.corridorId);
+  if (!corridor) return 4.2;
+  const startStop = corridor.stops.find((s) => s.id === journey.origin);
+  const endStop = corridor.stops.find((s) => s.id === journey.destination);
+  if (!startStop || !endStop) return 4.2;
+
+  const R = 6371;
+  const dLat = ((endStop.latitude - startStop.latitude) * Math.PI) / 180;
+  const dLng = ((endStop.longitude - startStop.longitude) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((startStop.latitude * Math.PI) / 180) *
+      Math.cos((endStop.latitude * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const dist = Math.round(R * c * 10) / 10;
+  return Math.max(1.1, dist);
+}
+
 export function findMatches(state: State, request: Journey) {
   const dynamicSamples = sampleTripsForTime(request.departure);
   const allTripsMap = new Map<string, Trip>();
@@ -48,17 +69,27 @@ export function findMatches(state: State, request: Journey) {
   }
 
   const candidateTrips = Array.from(allTripsMap.values());
+  const segmentKm = calculateSegmentKm(request);
+  const baseSoloFare = Math.max(100, Math.round(segmentKm * 40 + 90));
+  const targetOccupancy = Math.max(1, request.minSeats || 1);
+  const targetPerSeatFare = Math.round(baseSoloFare / targetOccupancy);
 
   const matches = candidateTrips
     .filter((t) => !rejectionReason(state, t, request))
-    .map((t) => ({
-      ...t,
-      totalFare: t.fare * request.seats,
-      availableSeats: availableSeats(state, t),
-      differenceMinutes: Math.round(
-        Math.abs(Date.parse(t.departure) - Date.parse(request.departure)) / 60000,
-      ),
-    }))
+    .map((t) => {
+      const driverOffset = t.id.includes('hana') ? 5 : t.id.includes('dawit') ? -5 : t.id.includes('abebe') ? -10 : 0;
+      const dynamicFare = Math.max(25, targetPerSeatFare + driverOffset);
+
+      return {
+        ...t,
+        fare: dynamicFare,
+        totalFare: dynamicFare * Math.max(1, request.seats),
+        availableSeats: availableSeats(state, t),
+        differenceMinutes: Math.round(
+          Math.abs(Date.parse(t.departure) - Date.parse(request.departure)) / 60000,
+        ),
+      };
+    })
     .sort((a, b) => a.differenceMinutes - b.differenceMinutes || a.fare - b.fare);
 
   const rejected = candidateTrips

@@ -673,7 +673,15 @@ export function Workspace() {
                   <button
                     key={count}
                     type="button"
-                    onClick={() => updateJourney({ seats: 1, minSeats: count, maxSeats: Math.max(count, journey.maxSeats || 4) } as any)}
+                    onClick={() => {
+                      const updated = { ...journey, seats: 1, minSeats: count, maxSeats: Math.max(count, journey.maxSeats || 4) };
+                      updateJourney(updated as any);
+                      if (results) {
+                        void run(async () => {
+                          setResults(await api<Matches>('/matches', 'POST', updated));
+                        });
+                      }
+                    }}
                     style={{
                       padding: '8px 4px',
                       borderRadius: 8,
