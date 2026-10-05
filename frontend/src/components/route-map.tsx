@@ -19,12 +19,12 @@ export function RouteMap({
   destinationId: string;
 }) {
   return (
-    <div className="route-map" style={{ display: 'flex', flexDirection: 'column' }}>
+    <div className="route-map" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '100%' }}>
       <div className="map-caption" style={{ zIndex: 10 }}>
         <span className="live-dot" /> Explore your corridor{' '}
         <span className="map-chip">ADDIS ABABA</span>
       </div>
-      <div style={{ flex: 1, minHeight: '300px', width: '100%' }}>
+      <div style={{ flex: 1, width: '100%', height: '100%', position: 'relative' }}>
         <LeafletRouteMap corridor={corridor} originId={originId} destinationId={destinationId} />
       </div>
       <div className="map-bottom" style={{ zIndex: 10 }}>

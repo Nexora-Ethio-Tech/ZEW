@@ -95,22 +95,38 @@ export default function StreetMap({
   useEffect(() => {
     if (!map.current || !markers.current) return;
     markers.current.clearLayers();
-    for (const [place, letter, color, targetKey] of [
-      [pickup, 'A', '#1c4d36', 'pickup'],
-      [destination, 'B', '#b96742', 'destination'],
+    for (const [place, letter, targetKey] of [
+      [pickup, 'A', 'pickup'],
+      [destination, 'B', 'destination'],
     ] as const) {
+      const isPickup = letter === 'A';
+      const colorGrade = isPickup
+        ? 'linear-gradient(135deg, #10b981 0%, #047857 100%)'
+        : 'linear-gradient(135deg, #f97316 0%, #c2410c 100%)';
+      const pointerColor = isPickup ? '#047857' : '#c2410c';
+      const roleText = isPickup ? 'PICKUP' : 'DESTINATION';
+
       const label = document.createElement('div');
       label.className = 'map-marker-popup';
-      label.innerHTML = `<strong>${letter === 'A' ? 'Pickup (Start)' : 'Destination (End)'}</strong><br/>${place.name}<br/><small style="color:#666">Drag pin to reposition</small>`;
+      label.innerHTML = `<strong>${isPickup ? 'Pickup (Start)' : 'Destination (End)'}</strong><br/>${place.name}<br/><small style="color:#666">Drag pin to reposition</small>`;
 
       const marker = L.marker([place.latitude, place.longitude], {
-        title: `${letter === 'A' ? 'Pickup' : 'Destination'}: ${place.name}`,
+        title: `${isPickup ? 'Pickup' : 'Destination'}: ${place.name}`,
         draggable: !disabled && draft,
         icon: L.divIcon({
           className: `street-pin street-pin-${letter.toLowerCase()}`,
-          html: `<span style="background:${color}; cursor:grab;">${letter}</span>`,
-          iconSize: [36, 44],
-          iconAnchor: [18, 44],
+          html: `
+            <div class="map-custom-pin">
+              <div class="pin-head" style="background: ${colorGrade};">
+                <span class="pin-letter">${letter}</span>
+                <span class="pin-label">${roleText}</span>
+              </div>
+              <div class="pin-pointer" style="border-top-color: ${pointerColor};"></div>
+              <div class="pin-pulse"></div>
+            </div>
+          `,
+          iconSize: [110, 48],
+          iconAnchor: [55, 44],
         }),
       })
         .bindPopup(label)
@@ -180,10 +196,9 @@ export default function StreetMap({
         style={{
           position: 'relative',
           width: '100%',
-          height: '350px',
-          minHeight: '350px',
+          height: '420px',
+          minHeight: '420px',
           background: '#e7ecde',
-          borderRadius: '12px',
           overflow: 'hidden',
           zIndex: 1,
         }}

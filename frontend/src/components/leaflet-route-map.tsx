@@ -103,18 +103,34 @@ export default function LeafletRouteMap({
     const origin = corridor.stops[originIdx];
     const destination = corridor.stops[destIdx];
 
-    for (const [place, letter, color] of [
-      [origin, 'A', '#456b38'],
-      [destination, 'B', '#c77742'],
+    for (const [place, letter] of [
+      [origin, 'A'],
+      [destination, 'B'],
     ] as const) {
+      const isPickup = letter === 'A';
+      const colorGrade = isPickup
+        ? 'linear-gradient(135deg, #10b981 0%, #047857 100%)'
+        : 'linear-gradient(135deg, #f97316 0%, #c2410c 100%)';
+      const pointerColor = isPickup ? '#047857' : '#c2410c';
+      const roleText = isPickup ? 'PICKUP' : 'DESTINATION';
+
       const label = document.createElement('span');
-      label.textContent = `${letter === 'A' ? 'Pickup' : 'Drop-off'}: ${place.name}`;
+      label.textContent = `${isPickup ? 'Pickup' : 'Drop-off'}: ${place.name}`;
       L.marker([place.latitude, place.longitude], {
         icon: L.divIcon({
-          className: 'street-pin',
-          html: `<span style="background:${color}">${letter}</span>`,
-          iconSize: [32, 40],
-          iconAnchor: [16, 40],
+          className: `street-pin street-pin-${letter.toLowerCase()}`,
+          html: `
+            <div class="map-custom-pin">
+              <div class="pin-head" style="background: ${colorGrade};">
+                <span class="pin-letter">${letter}</span>
+                <span class="pin-label">${roleText}</span>
+              </div>
+              <div class="pin-pointer" style="border-top-color: ${pointerColor};"></div>
+              <div class="pin-pulse"></div>
+            </div>
+          `,
+          iconSize: [110, 48],
+          iconAnchor: [55, 44],
         }),
       })
         .bindPopup(label)
@@ -139,16 +155,15 @@ export default function LeafletRouteMap({
   }, [corridor, originId, destinationId]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', minHeight: '320px' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '100%' }}>
       <div
         ref={node}
         className="street-map"
         style={{
           position: 'relative',
           width: '100%',
-          height: '320px',
-          minHeight: '320px',
-          borderRadius: '12px',
+          height: '100%',
+          minHeight: '100%',
           overflow: 'hidden',
           zIndex: 1,
         }}
