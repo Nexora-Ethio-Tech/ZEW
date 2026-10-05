@@ -91,9 +91,40 @@ export function PoolHelp({
               Driver space lets you simulate the other side of your own request. There is no real
               identity verification, dispatch, or payment account connected.
             </p>
-            <button className="pool-secondary" onClick={driverView}>
-              <Icon name="car" size={17} /> Explore driver space
-            </button>
+            <div
+              className="account-actions"
+              style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '16px' }}
+            >
+              <button className="pool-secondary" onClick={driverView}>
+                <Icon name="car" size={17} /> Explore driver space
+              </button>
+              <button
+                type="button"
+                className="pool-secondary logout-btn"
+                style={{
+                  background: '#fef2f2',
+                  color: '#dc2626',
+                  borderColor: '#fca5a5',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+                onClick={async () => {
+                  try {
+                    const { supabase } = await import('@/lib/supabase');
+                    await supabase.auth.signOut();
+                  } catch {
+                    // Non-fatal if Supabase auth is not initialized
+                  }
+                  localStorage.removeItem('zew-demo-session');
+                  window.location.href = '/';
+                }}
+              >
+                <Icon name="close" size={15} /> Log out & return home
+              </button>
+            </div>
           </>
         ) : (
           <>

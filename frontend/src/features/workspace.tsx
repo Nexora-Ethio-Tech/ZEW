@@ -292,10 +292,11 @@ export function Workspace() {
     setBusy(true);
     try {
       await supabase.auth.signOut();
+      localStorage.removeItem('zew-demo-session');
       setAuthUser(null);
       setNotice('Logged out successfully.');
       setDialog(null);
-      navigate('find');
+      window.location.href = '/';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Logout failed');
     } finally {

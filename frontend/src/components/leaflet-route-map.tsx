@@ -20,24 +20,47 @@ export default function LeafletRouteMap({
 
   useEffect(() => {
     if (!node.current) return;
+
+    // Fix default Leaflet icon paths in Next.js
+    delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+
     const instance = L.map(node.current, { scrollWheelZoom: false }).setView([9.01, 38.77], 13);
     map.current = instance;
-    L.tileLayer(
-      process.env.NEXT_PUBLIC_MAP_TILE_URL ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      {
-        maxZoom: 19,
-        attribution:
-          process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ??
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      },
-    )
-      .on('tileerror', () => setTileError(true))
-      .addTo(instance);
+
+    const tileUrl =
+      process.env.NEXT_PUBLIC_MAP_TILE_URL ??
+      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    const tileAttribution =
+      process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ??
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+    const tileLayer = L.tileLayer(tileUrl, {
+      maxZoom: 19,
+      subdomains: 'abcd',
+      attribution: tileAttribution,
+    });
+
+    tileLayer.on('tileerror', () => {
+      tileLayer.setUrl('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+    });
+
+    tileLayer.addTo(instance);
     layers.current = L.layerGroup().addTo(instance);
 
     const observer = new ResizeObserver(() => instance.invalidateSize());
     observer.observe(node.current);
+
+    const t1 = setTimeout(() => instance.invalidateSize(), 100);
+    const t2 = setTimeout(() => instance.invalidateSize(), 400);
+
     return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
       observer.disconnect();
       instance.remove();
       map.current = null;
