@@ -14,13 +14,16 @@ Implemented 2026-10-01 as a private, persistent demo. Every browser session is i
 | --- | --- |
 | Rider | Corridor/stop/time/seat form, ranked sample matches, reservation, boarding code, cancellation, history |
 | Driver | Create/cancel personal demo offers, validate boarding code, complete a simulated journey, payout total |
+| Payments | Telebirr Merchant USSD payment initiation (`/payments/telebirr/initiate`), HMAC-SHA256 signature verification, and webhook callbacks |
+| Routing Engine | OSRM road distance matrix calculations with localized Addis Ababa urban road detour factors and fallback matrix engine |
+| Live Streaming | Server-Sent Events (SSE) stream (`/api/v1/stream`) for live driver radar tick updates and real-time payment status broadcasts |
 | Support Desk | Phone dispatch desk (book on behalf of caller, generate code), live driver radar & fleet monitor |
 | Administrator | System KPIs, revenue tracking, driver verification/approvals, and live API audit stream |
 | Commutes | Save, reuse, remove; maximum 10 per session |
 | Authentication | Supabase Auth (Email Sign Up with email verification, Password Sign In, Sign Out / Logout from Account menu, Instant Demo Login), role-based session state |
 | Persistence | Node 24 built-in SQLite + `migrations/` runner (`npm run migrate`), Supabase database integration support, session-token hashes, 30-day sessions, transactional state changes and event log |
 | Web app | Responsive layout, install manifest and PNG icons, production offline notice |
-| Checks | API tests for matching, transitions, duplicate races, isolation, validation, migrations, and restart persistence; browser acceptance script |
+| Checks | API tests for matching, transitions, duplicate races, isolation, validation, Telebirr webhooks, OSRM routing, SSE streaming, and restart persistence |
 
 ## API
 
@@ -32,6 +35,11 @@ All paths use `/api/v1`. `POST /session` creates a private demo and returns a be
 | POST | /matches | Check a journey against sample trips |
 | POST | /bookings | Revalidate and reserve seats atomically |
 | POST | /bookings/:id/action | `board` with code, `complete`, or `cancel` |
+| POST | /payments/telebirr/initiate | Initiate Telebirr Merchant USSD payment push |
+| POST | /payments/telebirr/webhook | Public webhook callback with HMAC signature verification |
+| GET | /payments/:outTradeNo/status | Query verified payment status |
+| POST | /routing/calculate | Authoritative OSRM road distance, ETA & detour calculation |
+| GET | /stream | Server-Sent Events (SSE) stream for live driver ticks and payment updates |
 | POST / DELETE | /commutes, /commutes/:id | Save/remove a commute |
 | POST | /trips | Save an isolated driver offer |
 | POST | /trips/:id/cancel | Cancel your own offer |

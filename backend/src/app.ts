@@ -8,6 +8,9 @@ import { availableSeats, findMatches, rejectionReason } from './modules/matching
 import { env } from './config/env.js';
 import { groupRoutes } from './modules/groups/routes.js';
 import { placeRoutes } from './modules/groups/places.js';
+import { paymentRoutes } from './modules/payments/routes.js';
+import { routingRoutes } from './modules/routing/routes.js';
+import { streamRoutes } from './modules/stream/routes.js';
 
 class ApiError extends Error {
   constructor(
@@ -101,6 +104,9 @@ export function buildApp({ databasePath = ':memory:', logger = false } = {}) {
       });
       api.register(groupRoutes, { store });
       api.register(placeRoutes);
+      api.register(paymentRoutes, { store });
+      api.register(routingRoutes);
+      api.register(streamRoutes);
       api.get('/dashboard', async (req) => {
         const state = store.read(req.sessionId);
         const completed = state.bookings.filter((booking) => booking.status === 'completed');

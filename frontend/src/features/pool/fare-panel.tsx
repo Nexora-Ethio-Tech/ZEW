@@ -9,6 +9,7 @@ export function FarePanel({
   action,
   driverView,
   explain,
+  onTelebirrPay,
 }: {
   pool: Pool;
   busy: boolean;
@@ -16,6 +17,7 @@ export function FarePanel({
   action: (path: string, body?: unknown) => Promise<boolean>;
   driverView: () => void;
   explain: () => void;
+  onTelebirrPay?: () => void;
 }) {
   const draft = pool.status === 'draft';
   const members = pool.riders.filter((r) => pool.selectedIds.includes(r.id));
@@ -183,34 +185,67 @@ export function FarePanel({
               </button>
             )}
             {status === 'accepted' && (
-              <button
-                className="pool-primary"
-                disabled={busy}
-                onClick={() => void action('/action', { action: 'start' })}
-              >
-                Start demo ride
-                <Icon name="arrow" size={16} />
-              </button>
+              <>
+                <button
+                  className="pool-primary"
+                  disabled={busy}
+                  onClick={() => void action('/action', { action: 'start' })}
+                >
+                  Start demo ride
+                  <Icon name="arrow" size={16} />
+                </button>
+                {onTelebirrPay && (
+                  <button
+                    type="button"
+                    className="telebirr-pay-btn mt-2 w-full rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:from-cyan-500 hover:to-blue-500 transition flex items-center justify-center gap-2"
+                    onClick={onTelebirrPay}
+                  >
+                    <span>tb</span> Pay Share with Telebirr (USSD)
+                  </button>
+                )}
+              </>
             )}
             {status === 'in_progress' && (
-              <button
-                className="pool-primary"
-                disabled={busy}
-                onClick={() => void action('/action', { action: 'complete' })}
-              >
-                Complete demo ride
-                <Icon name="check" size={16} />
-              </button>
+              <>
+                <button
+                  className="pool-primary"
+                  disabled={busy}
+                  onClick={() => void action('/action', { action: 'complete' })}
+                >
+                  Complete demo ride
+                  <Icon name="check" size={16} />
+                </button>
+                {onTelebirrPay && (
+                  <button
+                    type="button"
+                    className="telebirr-pay-btn mt-2 w-full rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:from-cyan-500 hover:to-blue-500 transition flex items-center justify-center gap-2"
+                    onClick={onTelebirrPay}
+                  >
+                    <span>tb</span> Pay Share with Telebirr (USSD)
+                  </button>
+                )}
+              </>
             )}
             {finished && (
-              <button
-                className="pool-primary"
-                disabled={busy}
-                onClick={() => void action('/action', { action: 'new' })}
-              >
-                Build another group
-                <Icon name="plus" size={16} />
-              </button>
+              <>
+                {onTelebirrPay && (
+                  <button
+                    type="button"
+                    className="telebirr-pay-btn mb-2 w-full rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:from-cyan-500 hover:to-blue-500 transition flex items-center justify-center gap-2"
+                    onClick={onTelebirrPay}
+                  >
+                    <span>tb</span> Pay Share with Telebirr (USSD)
+                  </button>
+                )}
+                <button
+                  className="pool-primary"
+                  disabled={busy}
+                  onClick={() => void action('/action', { action: 'new' })}
+                >
+                  Build another group
+                  <Icon name="plus" size={16} />
+                </button>
+              </>
             )}
             {!finished && status !== 'in_progress' && (
               <button

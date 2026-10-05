@@ -10,6 +10,8 @@ import { FarePanel } from './fare-panel';
 import { Avatar } from './avatar';
 import { DriverSpace, PoolHelp, RideHistory, type PoolDialog } from './pool-details';
 import { duration, money, type PoolRider } from './types';
+import { TelebirrModal } from '../payments/telebirr-modal';
+import { useEventStream } from '@/lib/use-event-stream';
 import './pool.css';
 
 const StreetMap = dynamic(() => import('./street-map'), {
@@ -54,7 +56,9 @@ export function PoolWorkspace() {
   const busy = updating || locating || !online;
   const [filter, setFilter] = useState<'ready' | 'all'>('ready');
   const [modal, setModal] = useState<PoolDialog | null>(null);
+  const [telebirrOpen, setTelebirrOpen] = useState(false);
   const [driverId, setDriverId] = useState('hana');
+  const { isConnected: sseConnected } = useEventStream();
   const draft = pool?.status === 'draft';
   const ready =
     pool?.riders.filter(
@@ -574,6 +578,7 @@ export function PoolWorkspace() {
                   action={action}
                   driverView={() => navigate('driver')}
                   explain={() => setModal('fare')}
+                  onTelebirrPay={() => setTelebirrOpen(true)}
                 />
               </div>
             </>
@@ -621,6 +626,18 @@ export function PoolWorkspace() {
           driverView={() => {
             setModal(null);
             navigate('driver');
+          }}
+        />
+      )}
+      {pool && (
+        <TelebirrModal
+          isOpen={telebirrOpen}
+          onClose={() => setTelebirrOpen(false)}
+          groupId={pool.id}
+          amount={pool.lockedFare ?? pool.quote.yourFare}
+          routeLabel={pool.destinations.find((d) => d.id === pool.destination)?.name ?? 'Zew Route'}
+          onSuccess={() => {
+            void action('/refresh');
           }}
         />
       )}

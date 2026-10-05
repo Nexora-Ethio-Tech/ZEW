@@ -58,7 +58,7 @@ export interface Booking extends Journey {
   status: 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
   code: string;
   createdAt: string;
-  payment: 'not_due' | 'simulated';
+  payment: 'not_due' | 'pending_telebirr' | 'paid_telebirr' | 'simulated' | 'failed';
 }
 export interface Commute extends Journey {
   id: string;

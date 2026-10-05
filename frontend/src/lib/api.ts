@@ -29,7 +29,7 @@ export interface Booking extends Journey {
   fare: number;
   status: 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
   code: string;
-  payment: 'not_due' | 'simulated';
+  payment: 'not_due' | 'pending_telebirr' | 'paid_telebirr' | 'simulated' | 'failed';
 }
 export interface Commute extends Journey {
   id: string;
@@ -118,4 +118,35 @@ export const day = (date: string) =>
   });
 export function localDeparture(iso: string) {
   return new Date(new Date(iso).getTime() + 3 * 3600000).toISOString().slice(0, 16);
+}
+
+export async function getAuthToken(): Promise<string> {
+  return token();
+}
+
+export async function initiateTelebirrPayment(input: {
+  phoneNumber: string;
+  amount: number;
+  bookingId?: string;
+  groupId?: string;
+}) {
+  return api<{
+    outTradeNo: string;
+    status: 'pending_telebirr';
+    amount: number;
+    phoneNumber: string;
+    ussdPushNotice: string;
+  }>('/payments/telebirr/initiate', 'POST', input);
+}
+
+export async function calculateRoadRoute(origin: { latitude: number; longitude: number }, destination: { latitude: number; longitude: number }) {
+  return api<{
+    haversineDistanceKm: number;
+    roadDistanceKm: number;
+    etaMinutes: number;
+    detourFactor: number;
+    routeSummary: string;
+    isDirectCorridor: boolean;
+    provider: string;
+  }>('/routing/calculate', 'POST', { origin, destination });
 }

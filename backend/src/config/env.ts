@@ -8,6 +8,7 @@ const envSchema = z.object({
   FRONTEND_ORIGIN: z.string().default('http://localhost:3000'),
   SUPABASE_URL: z.string().optional().default('https://zeicjamnjnjrrlsptdkx.supabase.co'),
   SUPABASE_KEY: z.string().optional().default('sb_publishable_j8i2whERBRe7Nf8RCCmpfA_Dgys3eEE'),
+  OSRM_URL: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
