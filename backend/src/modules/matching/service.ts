@@ -78,7 +78,7 @@ export function findMatches(state: State, request: Journey) {
     .filter((t) => !rejectionReason(state, t, request))
     .map((t) => {
       const driverOffset = t.id.includes('hana') ? 5 : t.id.includes('dawit') ? -5 : t.id.includes('abebe') ? -10 : 0;
-      const dynamicFare = Math.max(25, targetPerSeatFare + driverOffset);
+      const dynamicFare = t.fare > 0 ? t.fare : Math.max(25, targetPerSeatFare + driverOffset);
 
       return {
         ...t,

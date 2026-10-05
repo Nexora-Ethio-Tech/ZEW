@@ -1,19 +1,25 @@
 .pool-app {
-  --pool-green: #315941;
-  --pool-dark: #243c2e;
-  --pool-muted: #687565;
-  --pool-border: #dfe5d8;
-  --pool-lime: #e5edce;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  --pool-green: #1c4d36;
+  --pool-dark: #19271e;
+  --pool-muted: #627265;
+  --pool-border: #e1e7dc;
+  --pool-lime: #d8ee8f;
+  --pool-lime-dark: #2d5528;
+  --pool-card-bg: rgba(255, 255, 255, 0.92);
+  --pool-glass-border: rgba(225, 231, 220, 0.85);
   min-height: 100vh;
   color: var(--pool-dark);
-  background: #f6f7f1;
-  font-family: Arial, Helvetica, sans-serif;
+  background: #f6f7f2;
+  font-family: var(--font-body);
   font-size: 14px;
+  -webkit-font-smoothing: antialiased;
 }
 .pool-app button,
 .pool-app input,
 .pool-app select {
-  font: inherit;
+  font-family: inherit;
 }
 .pool-app button:disabled {
   cursor: not-allowed;
@@ -22,16 +28,22 @@
 .pool-app button:focus-visible,
 .pool-app a:focus-visible,
 .pool-app summary:focus-visible {
-  outline: 3px solid #819f52;
-  outline-offset: 4px;
+  outline: 3px solid #85a95d;
+  outline-offset: 3px;
 }
 .pool-app button,
 .pool-app a {
   touch-action: manipulation;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pool-app button:active:not(:disabled) {
+  transform: scale(0.97);
 }
 .pool-app h1,
 .pool-app h2,
-.pool-app h3 {
+.pool-app h3,
+.pool-app h4 {
+  font-family: var(--font-display);
   text-wrap: balance;
 }
 .pool-app p {
@@ -820,18 +832,29 @@
   gap: 12px;
 }
 .neighbour-card {
-  padding: 17px;
+  padding: 18px;
   border: 1px solid var(--pool-border);
-  border-radius: 12px;
-  background: #fffefa;
+  border-radius: 16px;
+  background: var(--pool-card-bg);
+  backdrop-filter: blur(12px);
   min-width: 0;
+  box-shadow: 0 4px 14px rgba(25, 39, 30, 0.03);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.neighbour-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(25, 39, 30, 0.08);
+  border-color: #bad0a1;
 }
 .neighbour-card.is-selected {
-  background: #f1f5e8;
-  border-color: #9eb785;
+  background: linear-gradient(135deg, #f0f5e6 0%, #e6f0d7 100%);
+  border-color: #89a969;
+  box-shadow: 0 8px 20px rgba(28, 77, 54, 0.09);
 }
 .neighbour-card.is-unavailable {
-  background: #f1f2ec;
+  background: #f3f4ee;
+  opacity: 0.82;
 }
 .neighbour-top {
   display: flex;
@@ -1029,11 +1052,12 @@
   top: 24px;
 }
 .group-card {
-  background: #fffef9;
-  border: 1px solid #d9e2ce;
-  border-radius: 15px;
-  padding: 24px 22px 18px;
-  box-shadow: 0 8px 25px #32482a04;
+  background: rgba(255, 254, 249, 0.94);
+  border: 1px solid var(--pool-glass-border);
+  border-radius: 20px;
+  padding: 24px 22px 20px;
+  box-shadow: 0 12px 32px rgba(27, 45, 34, 0.06), 0 2px 8px rgba(0, 0, 0, 0.02);
+  backdrop-filter: blur(16px);
   scroll-margin-top: 130px;
 }
 .group-card-heading {
@@ -2429,4 +2453,291 @@
     transition: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Animations & Keyframes */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(49, 89, 65, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(49, 89, 65, 0);
+  }
+}
+
+@keyframes ringPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(115, 144, 88, 0.5);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(115, 144, 88, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(115, 144, 88, 0);
+  }
+}
+
+/* Telebirr Payment Modal & Button Styles */
+.telebirr-pay-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #0088cc 0%, #0055aa 100%);
+  color: white;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0, 136, 204, 0.25);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-top: 10px;
+}
+.telebirr-pay-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 136, 204, 0.35);
+  background: linear-gradient(135deg, #0099ee 0%, #0066cc 100%);
+}
+.telebirr-pay-btn span {
+  background: white;
+  color: #0077cb;
+  font-weight: 900;
+  font-size: 11px;
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+
+.telebirr-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(12, 22, 18, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 16px;
+  animation: fadeInOverlay 0.25s ease-out;
+}
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.telebirr-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  border-radius: 24px;
+  border: 1px solid rgba(0, 180, 216, 0.25);
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(20px);
+  padding: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 180, 216, 0.15);
+  color: white;
+  animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.telebirr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 16px;
+}
+.telebirr-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.telebirr-logo-badge {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #00b4d8, #0077b6);
+  font-weight: 800;
+  font-size: 16px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 180, 216, 0.3);
+}
+.telebirr-brand h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+.telebirr-brand p {
+  font-size: 11px;
+  color: #38bdf8;
+  margin-top: 2px;
+}
+.telebirr-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  transition: all 0.2s;
+}
+.telebirr-close-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.telebirr-summary {
+  margin: 16px 0;
+  border-radius: 16px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px;
+}
+.telebirr-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #94a3b8;
+}
+.telebirr-summary-row strong {
+  color: white;
+}
+.telebirr-amount-row {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+.telebirr-amount {
+  font-size: 22px;
+  font-weight: 900;
+  color: #38bdf8;
+}
+
+.telebirr-error {
+  margin-bottom: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(127, 29, 29, 0.3);
+  padding: 12px;
+  font-size: 12px;
+  color: #fca5a5;
+}
+
+.telebirr-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.telebirr-input-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 6px;
+}
+.telebirr-input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  padding: 12px 16px;
+  color: white;
+  font-size: 15px;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.telebirr-input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+  outline: none;
+}
+.telebirr-pin-input {
+  text-align: center;
+  font-size: 24px;
+  letter-spacing: 12px;
+  font-family: monospace;
+}
+
+.telebirr-submit-btn {
+  width: 100%;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #00b4d8, #0077b6);
+  padding: 14px;
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+  box-shadow: 0 4px 16px rgba(0, 180, 216, 0.3);
+  transition: all 0.2s;
+}
+.telebirr-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 180, 216, 0.4);
+}
+.telebirr-confirm-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+}
+.telebirr-confirm-btn:hover:not(:disabled) {
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+}
+
+.telebirr-notice {
+  border-radius: 12px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(12, 74, 110, 0.3);
+  padding: 12px;
+  font-size: 12px;
+  color: #7dd3fc;
+}
+
+.telebirr-success {
+  padding: 24px 0;
+  text-align: center;
+}
+.telebirr-success-icon {
+  margin: 0 auto 16px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.2);
+  border: 2px solid #10b981;
+  color: #34d399;
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.telebirr-success h4 {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+}
+.telebirr-success p {
+  font-size: 13px;
+  color: #cbd5e1;
+  margin-top: 4px;
 }
