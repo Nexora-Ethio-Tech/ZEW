@@ -685,6 +685,106 @@
   border-radius: 50%;
   z-index: -1;
 }
+
+/* Auto-Group Match & Guidance Box Styles */
+.auto-group-box {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(147, 51, 234, 0.08) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.auto-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.auto-group-header strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #1e293b);
+}
+.auto-group-tag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 9999px;
+}
+.auto-group-desc {
+  font-size: 11px;
+  color: var(--text-muted, #64748b);
+  margin-bottom: 12px;
+}
+.auto-group-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.auto-group-btn {
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  background: var(--surface-card, #ffffff);
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.auto-group-btn:hover {
+  border-color: #3b82f6;
+  color: #2563eb;
+  transform: translateY(-1px);
+}
+.auto-group-btn.selected {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-color: #1d4ed8;
+  color: white;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.gathering-guidance-box {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-top: 14px;
+  text-align: left;
+}
+.guidance-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b45309;
+  margin-bottom: 6px;
+}
+.meeting-point {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary, #1e293b);
+  margin-bottom: 4px;
+}
+.guidance-instruction {
+  font-size: 11px;
+  color: var(--text-secondary, #475569);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+.cross-street-warning {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #c2410c;
+  background: rgba(251, 146, 60, 0.15);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
 .map-picker-toolbar {
   display: flex;
   align-items: center;

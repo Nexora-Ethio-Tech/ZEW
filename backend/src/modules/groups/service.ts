@@ -273,6 +273,95 @@ export function setPlace(pool: PoolState, target: 'pickup' | 'destination', plac
   pool.selectedIds = [];
   refreshDemo(pool);
 }
+export function autoMatchGroup(
+  pool: PoolState,
+  options: { targetSeats?: number; maxFare?: number } = {},
+  now = Date.now(),
+) {
+  requireDraft(pool);
+  const requestedSeats = Math.max(1, Math.min(MAX_MEMBERS, options.targetSeats ?? 3));
+  const availableRiders = pool.riders.filter(
+    (r) => !pool.skippedIds.includes(r.id) && !riderIssue(pool, r, now),
+  );
+
+  const selected = availableRiders
+    .slice()
+    .sort((a, b) => a.pickupSeconds - b.pickupSeconds)
+    .slice(0, requestedSeats - 1);
+
+  pool.selectedIds = selected.map((r) => r.id);
+  pool.targetSeats = requestedSeats;
+  pool.version++;
+  return poolView(pool, now);
+}
+
+export function computeGuidance(pool: PoolState, mapPickupName: string) {
+  const members = pool.riders.filter((r) => pool.selectedIds.includes(r.id));
+  if (members.length === 0) {
+    return {
+      meetingPoint: mapPickupName,
+      instruction: 'Stand at your designated pickup spot. Your driver will stop directly at your pin.',
+      walkingMeters: 0,
+      crossStreet: false,
+      estimatedGatherMinutes: 1,
+    };
+  }
+
+  const primarySpot = members[0].pickup;
+  const needCross = members.some(
+    (m) => m.pickup.toLowerCase().includes('opposite') || m.pickup.toLowerCase().includes('across'),
+  );
+  const names = members.map((m) => m.name.split(' ')[0]).join(' & ');
+
+  return {
+    meetingPoint: `Shared Hub: ${primarySpot}`,
+    instruction: needCross
+      ? `Walk ~30m across the zebra crossing to meet ${names} at ${primarySpot}.`
+      : `Walk ~20m along the sidewalk to gather with ${names} at ${primarySpot}.`,
+    walkingMeters: needCross ? 35 : 20,
+    crossStreet: needCross,
+    estimatedGatherMinutes: 2,
+  };
+}
+
+export function computeDriverItinerary(pool: PoolState, mapPickupName: string) {
+  const members = pool.riders.filter((r) => pool.selectedIds.includes(r.id));
+  const driver = demoDrivers.find((d) => d.id === pool.driverId);
+  const quote = fareQuote(pool);
+  const destName = groupDestinations(pool).find((d) => d.id === pool.destination)?.name ?? 'Destination';
+
+  return {
+    groupCode: `ZEW-GRP-${pool.id.slice(0, 6).toUpperCase()}`,
+    driverName: driver?.name ?? 'Assigned Driver',
+    car: driver?.car ?? 'Taxi',
+    plate: driver?.plate ?? 'DEMO',
+    driverPhone: driver?.phone ?? '+251 91 188 9012 (Simulated)',
+    totalSeats: 1 + members.length,
+    payoutPerSeat: quote.otherFare,
+    totalDriverPayout: quote.driverPayout,
+    passengers: [
+      {
+        id: 'you',
+        name: 'You (Group Host)',
+        phone: '+251 91 100 0000 (Simulated)',
+        pickup: mapPickupName,
+        destination: destName,
+        fare: quote.yourFare,
+        status: 'confirmed' as const,
+      },
+      ...members.map((r) => ({
+        id: r.id,
+        name: r.name,
+        phone: r.phone ?? '+251 91 234 5678 (Simulated)',
+        pickup: r.pickup,
+        destination: groupDestinations(pool).find((d) => d.id === r.destination)?.name ?? destName,
+        fare: quote.otherFare,
+        status: 'confirmed' as const,
+      })),
+    ],
+  };
+}
+
 export function poolView(pool: PoolState, now = Date.now()) {
   // Map coordinates are returned only to the owning authenticated session, never other riders.
   const { location, ...publicPool } = pool;
@@ -321,6 +410,8 @@ export function poolView(pool: PoolState, now = Date.now()) {
     destinations: groupDestinations(pool),
     pickupZones: pickupZones.map(({ id, name }) => ({ id, name })),
     quote: fareQuote(pool),
+    guidance: computeGuidance(pool, mapPickup.name),
+    driverItinerary: computeDriverItinerary(pool, mapPickup.name),
     riders: pool.riders.map((r) => ({
       ...r,
       issue: riderIssue(pool, r, now),

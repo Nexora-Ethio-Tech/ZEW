@@ -303,6 +303,73 @@ export function DriverSpace({
           <span>Simulated payout · retained receipts</span>
         </div>
       </div>
+      {['accepted', 'in_progress'].includes(pool.status) && pool.driverItinerary && (
+        <article
+          className="driver-manifest-card"
+          style={{
+            background: 'var(--surface-dark, #18181b)',
+            color: '#fff',
+            borderRadius: '16px',
+            padding: '20px',
+            marginBottom: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 'bold',
+                color: '#38bdf8',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+              }}
+            >
+              ACTIVE GROUP MANIFEST · {pool.driverItinerary.groupCode}
+            </span>
+            <span style={{ fontSize: '13px', color: '#4ade80', fontWeight: '600' }}>
+              Payout: {money(pool.driverItinerary.totalDriverPayout)} ETB
+            </span>
+          </div>
+          <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '12px' }}>
+            Passenger Stops & Contact Details
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {pool.driverItinerary.passengers.map((p) => (
+              <div
+                key={p.id}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                }}
+              >
+                <div>
+                  <strong style={{ fontSize: '14px', color: '#f4f4f5' }}>{p.name}</strong>
+                  <div style={{ fontSize: '12px', color: '#a1a1aa' }}>📞 {p.phone}</div>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '3px' }}>
+                    📍 Pickup: {p.pickup} ➔ Drop-off: {p.destination}
+                  </div>
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#38bdf8' }}>
+                  {money(p.fare)} ETB
+                </span>
+              </div>
+            ))}
+          </div>
+        </article>
+      )}
       {pool.status === 'requested' ? (
         <article className="group-call-card">
           <div className="group-call-heading">

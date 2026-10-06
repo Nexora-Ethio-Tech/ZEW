@@ -18,6 +18,7 @@ export interface PoolRider {
   issue: string | null;
   selected: boolean;
   yourFareIfAdded: number | null;
+  phone?: string;
 }
 export interface PoolDriver {
   id: string;
@@ -28,6 +29,8 @@ export interface PoolDriver {
   etaSeconds: number;
   direction: string;
   issue: string | null;
+  phone?: string;
+  rating?: number;
 }
 export interface Pool {
   id: string;
@@ -57,6 +60,32 @@ export interface Pool {
   driverEarnings: { driverId: string; completedTrips: number; payout: number }[];
   destinations: { id: string; name: string; fare: number; order: number }[];
   pickupZones: { id: string; name: string }[];
+  guidance?: {
+    meetingPoint: string;
+    instruction: string;
+    walkingMeters: number;
+    crossStreet: boolean;
+    estimatedGatherMinutes: number;
+  };
+  driverItinerary?: {
+    groupCode: string;
+    driverName: string;
+    car: string;
+    plate: string;
+    driverPhone: string;
+    totalSeats: number;
+    payoutPerSeat: number;
+    totalDriverPayout: number;
+    passengers: {
+      id: string;
+      name: string;
+      phone: string;
+      pickup: string;
+      destination: string;
+      fare: number;
+      status: 'confirmed' | 'boarded';
+    }[];
+  };
   quote: {
     total: number;
     count: number;

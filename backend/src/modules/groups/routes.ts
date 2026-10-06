@@ -6,6 +6,7 @@ import {
   GroupError,
   acceptGroup,
   addRider,
+  autoMatchGroup,
   fareQuote,
   newGroup,
   poolView,
@@ -141,6 +142,18 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
     return mutate(req.sessionId, 'group.preference_set', (pool) =>
       setTargetPreference(pool, targetSeats),
     );
+  });
+  app.post('/pool/auto-match', async (req) => {
+    const input = z
+      .object({
+        targetSeats: z.number().int().min(1).max(4).optional(),
+        maxFare: z.number().positive().optional(),
+      })
+      .strict()
+      .parse(req.body ?? {});
+    return mutate(req.sessionId, 'group.auto_matched', (pool) => {
+      autoMatchGroup(pool, input);
+    });
   });
   app.post('/pool/refresh', async (req) =>
     mutate(req.sessionId, 'group.demo_availability_refreshed', refreshDemo),

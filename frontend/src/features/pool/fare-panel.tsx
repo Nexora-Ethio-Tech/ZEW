@@ -111,6 +111,26 @@ export function FarePanel({
         </button>
         {draft ? (
           <>
+            <div className="auto-group-box">
+              <div className="auto-group-header">
+                <strong>⚡ Auto-Group Match</strong>
+                <span className="auto-group-tag">RECOMMENDED</span>
+              </div>
+              <p className="auto-group-desc">System assigns compatible neighbours along your corridor</p>
+              <div className="auto-group-buttons">
+                {[2, 3, 4].map((seats) => (
+                  <button
+                    key={seats}
+                    type="button"
+                    className={`auto-group-btn ${pool.quote.count === seats ? 'selected' : ''}`}
+                    disabled={busy}
+                    onClick={() => void action('/auto-match', { targetSeats: seats })}
+                  >
+                    {seats === 2 ? 'Pair (2)' : seats === 3 ? 'Trio (3)' : 'Full (4)'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="fare-progress">
               <div style={{ width: `${pool.quote.count * 25}%` }} />
             </div>
@@ -178,6 +198,21 @@ export function FarePanel({
                       ? 'Demo trip completed. No money was charged.'
                       : 'Start a fresh group with people who are ready now.'}
             </p>
+            {pool.guidance && (
+              <div className="gathering-guidance-box">
+                <div className="guidance-title">
+                  <Icon name="pin" size={15} />
+                  <strong>Gathering Guidance</strong>
+                </div>
+                <p className="meeting-point">{pool.guidance.meetingPoint}</p>
+                <p className="guidance-instruction">{pool.guidance.instruction}</p>
+                {pool.guidance.crossStreet && (
+                  <span className="cross-street-warning">
+                    ⚠️ Zebra crossing required (30m ahead)
+                  </span>
+                )}
+              </div>
+            )}
             {status === 'requested' && (
               <button className="pool-primary" disabled={busy} onClick={driverView}>
                 Try the driver view
