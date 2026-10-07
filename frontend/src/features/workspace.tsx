@@ -527,8 +527,8 @@ export function Workspace() {
             }}
           />
         </div>
-        <div className="form-row" style={{ marginTop: 16 }}>
-          <label className="field" style={{ width: '100%' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+          <label className="field" style={{ width: '100%', marginBottom: 0 }}>
             Departure · Addis time
             <input
               aria-label="Departure time"
@@ -538,110 +538,52 @@ export function Workspace() {
               onChange={(e) => {
                 if (e.target.value) updateJourney({ departure: `${e.target.value}:00+03:00` });
               }}
+              style={{ height: 38, padding: '0 8px', fontSize: 12 }}
             />
           </label>
-        </div>
-
-        {/* DYNAMIC PASSENGER CAPACITY & MONEY DIFFERENCE BREAKDOWN */}
-        <div style={{ marginTop: 18, borderTop: '1px solid #e2e8dc', paddingTop: 14 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 10,
-            }}
-          >
-            <strong style={{ fontSize: 13, color: '#285943', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Icon name="people" size={16} /> Passenger Capacity Range
-            </strong>
-            <span style={{ fontSize: 11, color: '#556b57', fontWeight: 600 }}>
-              {minCapacity} to {maxCapacity} passengers ({vehicleTier})
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#7a8276' }}>
+              Capacity Range ({minCapacity}–{maxCapacity} riders)
             </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-            <div>
-              <label
-                style={{
-                  fontSize: 10,
-                  color: '#657762',
-                  display: 'block',
-                  marginBottom: 5,
-                  fontWeight: 700,
-                  letterSpacing: '0.5px',
-                }}
-              >
-                MIN PASSENGERS
-              </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               <input
                 type="number"
                 min={1}
                 max={maxCapacity}
+                title="Minimum passengers"
                 value={journey.minSeats || 1}
                 onChange={(e) => {
                   const val = Math.max(1, parseInt(e.target.value) || 1);
                   const maxVal = Math.max(journey.maxSeats || 4, val);
                   updateJourney({ minSeats: val, maxSeats: maxVal, seats: val } as any);
                 }}
-                style={{
-                  width: '100%',
-                  padding: '8px 10px',
-                  fontSize: 13,
-                  fontWeight: '600',
-                  borderRadius: 6,
-                  border: '1px solid #d2dccb',
-                  background: '#fff',
-                  color: '#285943',
-                }}
+                style={{ height: 38, padding: '0 6px', fontSize: 12, fontWeight: '700', borderRadius: 6, border: '1px solid #d2dccb', background: '#fff', color: '#285943' }}
               />
-            </div>
-
-            <div>
-              <label
-                style={{
-                  fontSize: 10,
-                  color: '#657762',
-                  display: 'block',
-                  marginBottom: 5,
-                  fontWeight: 700,
-                  letterSpacing: '0.5px',
-                }}
-              >
-                MAX PASSENGERS
-              </label>
               <input
                 type="number"
                 min={minCapacity}
                 max={50}
+                title="Maximum passengers"
                 value={journey.maxSeats || 4}
                 onChange={(e) => {
                   const val = Math.max(1, parseInt(e.target.value) || 1);
                   const minVal = Math.min(journey.minSeats || 1, val);
                   updateJourney({ minSeats: minVal, maxSeats: val } as any);
                 }}
-                style={{
-                  width: '100%',
-                  padding: '8px 10px',
-                  fontSize: 13,
-                  fontWeight: '600',
-                  borderRadius: 6,
-                  border: '1px solid #d2dccb',
-                  background: '#fff',
-                  color: '#285943',
-                }}
+                style={{ height: 38, padding: '0 6px', fontSize: 12, fontWeight: '700', borderRadius: 6, border: '1px solid #d2dccb', background: '#fff', color: '#285943' }}
               />
             </div>
           </div>
+        </div>
 
-          {/* DYNAMIC MONEY DIFFERENCE & FARE COMPARISON MATRIX */}
+        {/* DYNAMIC MONEY DIFFERENCE & FARE COMPARISON MATRIX */}
+        <div style={{ marginTop: 10, borderTop: '1px solid #e2e8dc', paddingTop: 8 }}>
           <div
             style={{
               background: '#f4f8f3',
               border: '1px solid #cfdcc8',
-              borderRadius: 10,
-              padding: 12,
-              marginTop: 10,
+              borderRadius: 8,
+              padding: 8,
             }}
           >
             <div
@@ -867,20 +809,6 @@ export function Workspace() {
                   ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="pilot-card">
-            <span className="small-icon">
-              <Icon name="leaf" />
-            </span>
-            <h3>
-              A little less traffic.
-              <br />A lot more possibility.
-            </h3>
-            <p>Help shape a better commute for Addis.</p>
-            <button onClick={() => open('waitlist')}>
-              {data?.waitlistJoined ? 'Registration saved' : 'Join the pilot'}
-              <Icon name="arrow" size={16} />
-            </button>
-          </div>
           <button className="nav-item help-button" onClick={() => open('help')}>
             <Icon name="help" />
             How Zew works
@@ -891,8 +819,19 @@ export function Workspace() {
       <div className="page-shell">
         <header className="topbar">
           <div className="topbar-left">
-            <span className="timezone">
-              <Icon name="sun" size={16} /> Addis Ababa · UTC+3
+            <span
+              className="topbar-slogan"
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#1c4d36',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <Icon name="sun" size={16} /> Wherever you’re going,{' '}
+              <em style={{ fontStyle: 'italic', color: '#2e7d59', fontWeight: 800 }}>go together.</em>
             </span>
           </div>
           <div className="topbar-right">
@@ -961,48 +900,39 @@ export function Workspace() {
           ) : isPassenger ? (
             /* PASSENGER VIEWS */
             <>
-              <section className="page-heading">
-                <div>
-                  <p className="eyebrow">
-                    <span /> PASSENGER SPACE · ADDIS ABABA
-                  </p>
-                  <h1>
-                    {view === 'find' ? (
-                      <>
-                        Wherever you’re going,
-                        <br />
-                        <em>go together.</em>
-                      </>
-                    ) : view === 'rides' ? (
-                      <>
-                        Every journey,
-                        <br />
-                        <em>in one place.</em>
-                      </>
-                    ) : (
-                      <>
-                        Your usual routes.
-                        <br />
-                        <em>Ready when you are.</em>
-                      </>
-                    )}
-                  </h1>
-                  <p className="heading-description">
-                    {view === 'find'
-                      ? 'Find a seat with someone already heading your way.'
-                      : view === 'rides'
+              {view !== 'find' && (
+                <section className="page-heading">
+                  <div>
+                    <h1>
+                      {view === 'rides' ? (
+                        <>
+                          Every journey,
+                          <br />
+                          <em>in one place.</em>
+                        </>
+                      ) : (
+                        <>
+                          Your usual routes.
+                          <br />
+                          <em>Ready when you are.</em>
+                        </>
+                      )}
+                    </h1>
+                    <p className="heading-description">
+                      {view === 'rides'
                         ? 'Your upcoming rides, boarding details, and trip history.'
                         : 'Keep your favourite commutes close. Find your next ride faster.'}
-                  </p>
-                </div>
-                <div className="heading-note">
-                  <Icon name="leaf" size={29} />
-                  <span>
-                    A shared ride.
-                    <br />A lighter city.
-                  </span>
-                </div>
-              </section>
+                    </p>
+                  </div>
+                  <div className="heading-note">
+                    <Icon name="leaf" size={29} />
+                    <span>
+                      A shared ride.
+                      <br />A lighter city.
+                    </span>
+                  </div>
+                </section>
+              )}
 
               {view === 'find' && (
                 <>
@@ -1024,7 +954,7 @@ export function Workspace() {
                     <div
                       className={`journey-map-wrapper ${mapCollapsed ? 'collapsed' : ''}`}
                       style={{
-                        height: mapCollapsed ? '200px' : '480px',
+                        height: mapCollapsed ? '180px' : '410px',
                         transition: 'height 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
                         overflow: 'hidden',
                         borderRadius: '16px',

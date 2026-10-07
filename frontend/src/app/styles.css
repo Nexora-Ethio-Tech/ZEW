@@ -339,13 +339,13 @@ small {
 main {
   max-width: 1380px;
   margin: auto;
-  padding: 37px 42px 0;
+  padding: 20px 42px 0;
 }
 .page-heading {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 18px;
 }
 .eyebrow {
   font-size: 9px;
@@ -391,8 +391,8 @@ h1 em {
 }
 .journey-grid {
   display: grid;
-  grid-template-columns: 355px minmax(0, 1fr);
-  gap: 19px;
+  grid-template-columns: 390px minmax(0, 1fr);
+  gap: 16px;
 }
 .card {
   border: 1px solid var(--line);
@@ -401,7 +401,7 @@ h1 em {
   box-shadow: 0 2px 3px #20382b02;
 }
 .search-card {
-  padding: 24px;
+  padding: 16px 18px;
 }
 .section-title {
   display: flex;
@@ -410,7 +410,7 @@ h1 em {
   gap: 14px;
 }
 .search-card .section-title {
-  margin-bottom: 22px;
+  margin-bottom: 14px;
 }
 .search-card .section-title svg {
   color: #8b9d78;

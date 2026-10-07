@@ -242,7 +242,7 @@ export function PoolWorkspace() {
       <div className="pool-main-shell">
         <header className="pool-topbar">
           <span>
-            <Icon name="sun" size={17} /> A good day to go together.
+            <Icon name="sun" size={17} /> Wherever you’re going, <em>go together.</em>
           </span>
           <div>
             <button className="top-help" aria-label="How Zew works" onClick={() => setModal('how')}>
