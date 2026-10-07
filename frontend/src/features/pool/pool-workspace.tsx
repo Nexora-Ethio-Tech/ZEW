@@ -245,9 +245,6 @@ export function PoolWorkspace() {
             <Icon name="sun" size={17} /> A good day to go together.
           </span>
           <div>
-            <span className="pool-demo-badge">
-              <i /> INTERACTIVE DEMO
-            </span>
             <button className="top-help" aria-label="How Zew works" onClick={() => setModal('how')}>
               <Icon name="help" size={20} />
             </button>

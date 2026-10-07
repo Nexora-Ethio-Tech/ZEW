@@ -13,19 +13,37 @@ export function RouteMap({
   corridor,
   originId,
   destinationId,
+  collapsed,
+  onToggleCollapse,
 }: {
   corridor?: Corridor;
   originId: string;
   destinationId: string;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
   return (
     <div className="route-map" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '100%' }}>
-      <div className="map-caption" style={{ zIndex: 10 }}>
-        <span className="live-dot" /> Explore your corridor{' '}
-        <span className="map-chip">ADDIS ABABA</span>
-      </div>
       <div style={{ flex: 1, width: '100%', height: '100%', position: 'relative' }}>
         <LeafletRouteMap corridor={corridor} originId={originId} destinationId={destinationId} />
+        <div className="map-overlay-box bottom-right">
+          <div className="legend-item pickup-legend">
+            <i className="legend-dot green-dot" /> <span><strong>Green (A)</strong>: Pickup</span>
+          </div>
+          <div className="legend-item dest-legend">
+            <i className="legend-dot red-dot" /> <span><strong>Red/Orange (B)</strong>: Destination</span>
+          </div>
+          {onToggleCollapse && (
+            <button
+              type="button"
+              className="map-collapse-btn-bordered"
+              onClick={onToggleCollapse}
+              aria-label={collapsed ? 'Expand map' : 'Collapse map'}
+            >
+              {collapsed ? '🗺️ Expand map' : '📐 Collapse map'}
+            </button>
+          )}
+        </div>
       </div>
       <div className="map-bottom" style={{ zIndex: 10 }}>
         <div>

@@ -27,7 +27,33 @@ export const corridors = [
       { id: 'megenagna', name: 'Megenagna', area: 'Yeka', latitude: 9.0223, longitude: 38.8037 },
       { id: 'hayahulet', name: 'Haya Hulet', area: 'Bole', latitude: 9.0163, longitude: 38.7852 },
       { id: 'kazanchis', name: 'Kazanchis', area: 'Kirkos', latitude: 9.0147, longitude: 38.7702 },
+      {
+        id: 'wollosefer',
+        name: 'Wollo Sefer',
+        area: 'Kirkos',
+        latitude: 9.0069,
+        longitude: 38.7709,
+      },
       { id: 'meskel', name: 'Meskel Square', area: 'Kirkos', latitude: 9.0105, longitude: 38.7618 },
+      { id: 'mexico', name: 'Mexico', area: 'Lideta', latitude: 9.0103, longitude: 38.7454 },
+    ],
+  },
+  {
+    id: 'bole-cmc',
+    name: 'Bole / Wollo Sefer → CMC',
+    stops: [
+      { id: 'bole', name: 'Bole · Edna Mall', area: 'Bole', latitude: 8.9982, longitude: 38.7865 },
+      { id: 'atlas', name: 'Atlas', area: 'Bole', latitude: 9.0035, longitude: 38.7798 },
+      {
+        id: 'wollosefer',
+        name: 'Wollo Sefer',
+        area: 'Kirkos',
+        latitude: 9.0069,
+        longitude: 38.7709,
+      },
+      { id: 'hayahulet', name: 'Haya Hulet', area: 'Bole', latitude: 9.0163, longitude: 38.7852 },
+      { id: 'megenagna', name: 'Megenagna', area: 'Yeka', latitude: 9.0223, longitude: 38.8037 },
+      { id: 'cmc', name: 'CMC', area: 'Yeka', latitude: 9.0201, longitude: 38.854 },
     ],
   },
 ] as const;
@@ -72,12 +98,26 @@ export interface State {
   waitlist: { name: string; email: string; role: string; consentAt: string } | null;
 }
 
+export function findCorridorForStops(originId: string, destinationId: string) {
+  const matching = corridors.find(
+    (c) => c.stops.some((s) => s.id === originId) && c.stops.some((s) => s.id === destinationId),
+  );
+  if (matching) return matching;
+  return corridors.find((c) => c.stops.some((s) => s.id === originId)) ?? corridors[0];
+}
+
 export function routePositions(journey: Pick<Journey, 'corridorId' | 'origin' | 'destination'>) {
-  const corridor = corridors.find((c) => c.id === journey.corridorId);
-  return {
-    start: corridor?.stops.findIndex((s) => s.id === journey.origin) ?? -1,
-    end: corridor?.stops.findIndex((s) => s.id === journey.destination) ?? -1,
-  };
+  let corridor = corridors.find((c) => c.id === journey.corridorId);
+  let start = corridor?.stops.findIndex((s) => s.id === journey.origin) ?? -1;
+  let end = corridor?.stops.findIndex((s) => s.id === journey.destination) ?? -1;
+
+  if (start < 0 || end < 0) {
+    const fallback = findCorridorForStops(journey.origin, journey.destination);
+    start = fallback.stops.findIndex((s) => s.id === journey.origin);
+    end = fallback.stops.findIndex((s) => s.id === journey.destination);
+  }
+
+  return { start, end };
 }
 
 export function validRoute(journey: Pick<Journey, 'corridorId' | 'origin' | 'destination'>) {
@@ -230,6 +270,32 @@ export function sampleTripsForTime(referenceTime?: string): Trip[] {
       driver: 'Liya H.',
       vehicle: 'Honda Fit · Green',
       fare: 75,
+      source: 'sample',
+      status: 'open',
+    },
+    {
+      id: 'sample-mahlet',
+      corridorId: 'bole-cmc',
+      origin: 'wollosefer',
+      destination: 'cmc',
+      departure: t(5),
+      seats: 4,
+      driver: 'Mahlet G.',
+      vehicle: 'Nissan March · Blue',
+      fare: 115,
+      source: 'sample',
+      status: 'open',
+    },
+    {
+      id: 'sample-samuel',
+      corridorId: 'bole-cmc',
+      origin: 'bole',
+      destination: 'cmc',
+      departure: t(12),
+      seats: 3,
+      driver: 'Samuel T.',
+      vehicle: 'Toyota Vitz · White',
+      fare: 125,
       source: 'sample',
       status: 'open',
     },

@@ -26,13 +26,20 @@ export default function StreetMap({
   const [target, setTarget] = useState<Target | null>(null);
   const [pin, setPin] = useState<Place | null>(null);
   const [tileError, setTileError] = useState(false);
+  const [collapsed, setCollapsed] = useState(!draft);
   const selection = useRef({ target, disabled });
   selection.current = { target, disabled };
+
+  // Sync collapsed state when draft changes (auto-collapse after finding/requesting ride)
+  useEffect(() => {
+    if (!draft) {
+      setCollapsed(true);
+    }
+  }, [draft]);
 
   useEffect(() => {
     if (!node.current) return;
 
-    // Fix default Leaflet icon paths in Next.js
     delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
     L.Icon.Default.mergeOptions({
       iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -57,7 +64,6 @@ export default function StreetMap({
     });
 
     tileLayer.on('tileerror', () => {
-      // Fallback to Esri World Street Map if OSM rate-limited
       tileLayer.setUrl(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
       );
@@ -100,39 +106,54 @@ export default function StreetMap({
       [destination, 'B', 'destination'],
     ] as const) {
       const isPickup = letter === 'A';
-      const colorGrade = isPickup
-        ? 'linear-gradient(135deg, #10b981 0%, #047857 100%)'
-        : 'linear-gradient(135deg, #f97316 0%, #c2410c 100%)';
-      const pointerColor = isPickup ? '#047857' : '#c2410c';
-      const roleText = isPickup ? 'PICKUP' : 'DESTINATION';
 
       const label = document.createElement('div');
       label.className = 'map-marker-popup';
-      label.innerHTML = `<strong>${isPickup ? 'Pickup (Start)' : 'Destination (End)'}</strong><br/>${place.name}<br/><small style="color:#666">Drag pin to reposition</small>`;
+      label.innerHTML = `<strong>${isPickup ? 'Pickup (Start)' : 'Destination (End)'}</strong><br/>${place.name}<br/><small style="color:#666">Drag raindrop pin to move</small>`;
+
+      const svgHtml = `
+        <div class="raindrop-pin-wrapper raindrop-pin-${letter.toLowerCase()}">
+          <svg class="raindrop-svg" viewBox="0 0 36 50" width="36" height="50">
+            <defs>
+              <linearGradient id="grad-${letter.toLowerCase()}" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="${isPickup ? '#34d399' : '#fb923c'}" />
+                <stop offset="100%" stop-color="${isPickup ? '#059669' : '#ea580c'}" />
+              </linearGradient>
+              <filter id="shadow-${letter.toLowerCase()}" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.4"/>
+              </filter>
+            </defs>
+            <path d="M 18 48 C 12 36, 2 28, 2 18 A 16 16 0 1 1 34 18 C 34 28, 24 36, 18 48 Z"
+                  fill="url(#grad-${letter.toLowerCase()})"
+                  stroke="#ffffff"
+                  stroke-width="2.5"
+                  filter="url(#shadow-${letter.toLowerCase()})" />
+            <circle cx="18" cy="18" r="9" fill="#ffffff" />
+            <text x="18" y="22.5" font-size="12" font-weight="900" font-family="system-ui, sans-serif" text-anchor="middle" fill="${isPickup ? '#047857' : '#c2410c'}">${letter}</text>
+          </svg>
+          <div class="raindrop-shadow-pulse"></div>
+        </div>
+      `;
 
       const marker = L.marker([place.latitude, place.longitude], {
         title: `${isPickup ? 'Pickup' : 'Destination'}: ${place.name}`,
         draggable: !disabled && draft,
         icon: L.divIcon({
           className: `street-pin street-pin-${letter.toLowerCase()}`,
-          html: `
-            <div class="map-custom-pin">
-              <div class="pin-head" style="background: ${colorGrade};">
-                <span class="pin-letter">${letter}</span>
-                <span class="pin-label">${roleText}</span>
-              </div>
-              <div class="pin-pointer" style="border-top-color: ${pointerColor};"></div>
-              <div class="pin-pulse"></div>
-            </div>
-          `,
-          iconSize: [110, 48],
-          iconAnchor: [55, 44],
+          html: svgHtml,
+          iconSize: [36, 70],
+          iconAnchor: [18, 50],
         }),
       })
         .bindPopup(label)
         .addTo(markers.current);
 
+      marker.on('dragstart', () => {
+        if (map.current) map.current.dragging.disable();
+      });
+
       marker.on('dragend', async (e: L.LeafletEvent) => {
+        if (map.current) map.current.dragging.enable();
         const dragMarker = e.target as L.Marker;
         const pos = dragMarker.getLatLng().wrap();
         const newPlace: Place = {
@@ -143,12 +164,13 @@ export default function StreetMap({
         await choose(targetKey, newPlace);
       });
     }
+
     map.current.fitBounds(
       [
         [pickup.latitude, pickup.longitude],
         [destination.latitude, destination.longitude],
       ],
-      { padding: [60, 60], maxZoom: 15 },
+      { padding: [50, 50], maxZoom: 15 },
     );
   }, [
     pickup.latitude,
@@ -161,6 +183,22 @@ export default function StreetMap({
     draft,
     choose,
   ]);
+
+  // Handle map resize & zoom fit when collapsed toggles
+  useEffect(() => {
+    if (!map.current) return;
+    const timer = setTimeout(() => {
+      map.current?.invalidateSize();
+      map.current?.fitBounds(
+        [
+          [pickup.latitude, pickup.longitude],
+          [destination.latitude, destination.longitude],
+        ],
+        { padding: [35, 35], maxZoom: 15 },
+      );
+    }, 320);
+    return () => clearTimeout(timer);
+  }, [collapsed, pickup, destination]);
 
   useEffect(() => {
     preview.current?.remove();
@@ -175,6 +213,7 @@ export default function StreetMap({
       preview.current?.remove();
     };
   }, [pin]);
+
   useEffect(() => {
     if (disabled) {
       setTarget(null);
@@ -183,51 +222,73 @@ export default function StreetMap({
   }, [disabled]);
 
   return (
-    <section className="real-map-card" aria-label="Journey map">
+    <section className={`real-map-card ${collapsed ? 'is-collapsed' : ''}`} aria-label="Journey map">
       <div className="real-map-heading">
         <strong>
           <Icon name="pin" size={16} /> Your journey, on the map
         </strong>
-        <span>REAL STREETS · DEMO RIDES</span>
+        <span className="map-badge-tag">REAL STREETS</span>
       </div>
-      <div
-        ref={node}
-        className="street-map"
-        style={{
-          position: 'relative',
-          width: '100%',
-          height: '420px',
-          minHeight: '420px',
-          background: '#e7ecde',
-          overflow: 'hidden',
-          zIndex: 1,
-        }}
-        aria-label="Street map. Use arrow keys to pan, plus and minus to zoom."
-      />
+      <div style={{ position: 'relative', width: '100%' }}>
+        <div
+          ref={node}
+          className="street-map"
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: collapsed ? '210px' : '420px',
+            minHeight: collapsed ? '210px' : '420px',
+            maxHeight: collapsed ? '210px' : '420px',
+            transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+            background: '#e7ecde',
+            overflow: 'hidden',
+            zIndex: 1,
+          }}
+          aria-label="Street map. Drag A or B raindrop pins to move your route."
+        />
+        <div className="map-overlay-box bottom-right">
+          <div className="legend-item pickup-legend">
+            <i className="legend-dot green-dot" /> <span><strong>Green (A)</strong>: Pickup</span>
+          </div>
+          <div className="legend-item dest-legend">
+            <i className="legend-dot red-dot" /> <span><strong>Red/Orange (B)</strong>: Destination</span>
+          </div>
+          <button
+            type="button"
+            className="map-collapse-btn-bordered"
+            onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? 'Expand map' : 'Collapse map'}
+          >
+            {collapsed ? '🗺️ Expand map' : '📐 Collapse map'}
+          </button>
+        </div>
+      </div>
       {tileError && (
         <p role="status" className="map-load-error">
           Map tiles couldn’t load. Place search and your selected locations still work.
         </p>
       )}
-      <div className="map-picker-toolbar">
-        {(['pickup', 'destination'] as const).map((value) => (
-          <button
-            key={value}
-            disabled={disabled}
-            aria-pressed={target === value}
-            onClick={() => {
-              setTarget(target === value ? null : value);
-              setPin(null);
-            }}
-          >
-            <Icon name="pin" size={14} /> Set {value} on map
-          </button>
-        ))}
-        <span>
-          A · Pickup <i /> B · Destination
-        </span>
-      </div>
-      {target && (
+      {!collapsed && (
+        <div className="map-picker-toolbar">
+          {(['pickup', 'destination'] as const).map((value) => (
+            <button
+              key={value}
+              disabled={disabled}
+              aria-pressed={target === value}
+              onClick={() => {
+                setTarget(target === value ? null : value);
+                setPin(null);
+              }}
+            >
+              <Icon name="pin" size={14} /> Set {value} on map
+            </button>
+          ))}
+          <span>
+            A · Pickup <i /> B · Destination
+          </span>
+        </div>
+      )}
+      {target && !collapsed && (
         <div className="map-pin-confirm" role="status">
           <span>
             {pin
@@ -272,9 +333,11 @@ export default function StreetMap({
           </button>
         </div>
       )}
-      <p className="real-map-note">
-        Selected places only. Road routing and live pickup times are not connected.
-      </p>
+      {!collapsed && (
+        <p className="real-map-note">
+          Drag pins A (Pickup) or B (Destination) anytime to update your location.
+        </p>
+      )}
     </section>
   );
 }

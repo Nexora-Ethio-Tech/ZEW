@@ -108,29 +108,40 @@ export default function LeafletRouteMap({
       [destination, 'B'],
     ] as const) {
       const isPickup = letter === 'A';
-      const colorGrade = isPickup
-        ? 'linear-gradient(135deg, #10b981 0%, #047857 100%)'
-        : 'linear-gradient(135deg, #f97316 0%, #c2410c 100%)';
-      const pointerColor = isPickup ? '#047857' : '#c2410c';
-      const roleText = isPickup ? 'PICKUP' : 'DESTINATION';
 
       const label = document.createElement('span');
       label.textContent = `${isPickup ? 'Pickup' : 'Drop-off'}: ${place.name}`;
+
+      const svgHtml = `
+        <div class="raindrop-pin-wrapper raindrop-pin-${letter.toLowerCase()}">
+          <svg class="raindrop-svg" viewBox="0 0 36 50" width="36" height="50">
+            <defs>
+              <linearGradient id="grad-${letter.toLowerCase()}" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="${isPickup ? '#34d399' : '#fb923c'}" />
+                <stop offset="100%" stop-color="${isPickup ? '#059669' : '#ea580c'}" />
+              </linearGradient>
+              <filter id="shadow-${letter.toLowerCase()}" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.4"/>
+              </filter>
+            </defs>
+            <path d="M 18 48 C 12 36, 2 28, 2 18 A 16 16 0 1 1 34 18 C 34 28, 24 36, 18 48 Z"
+                  fill="url(#grad-${letter.toLowerCase()})"
+                  stroke="#ffffff"
+                  stroke-width="2.5"
+                  filter="url(#shadow-${letter.toLowerCase()})" />
+            <circle cx="18" cy="18" r="9" fill="#ffffff" />
+            <text x="18" y="22.5" font-size="12" font-weight="900" font-family="system-ui, sans-serif" text-anchor="middle" fill="${isPickup ? '#047857' : '#c2410c'}">${letter}</text>
+          </svg>
+          <div class="raindrop-shadow-pulse"></div>
+        </div>
+      `;
+
       L.marker([place.latitude, place.longitude], {
         icon: L.divIcon({
           className: `street-pin street-pin-${letter.toLowerCase()}`,
-          html: `
-            <div class="map-custom-pin">
-              <div class="pin-head" style="background: ${colorGrade};">
-                <span class="pin-letter">${letter}</span>
-                <span class="pin-label">${roleText}</span>
-              </div>
-              <div class="pin-pointer" style="border-top-color: ${pointerColor};"></div>
-              <div class="pin-pulse"></div>
-            </div>
-          `,
-          iconSize: [110, 48],
-          iconAnchor: [55, 44],
+          html: svgHtml,
+          iconSize: [36, 70],
+          iconAnchor: [18, 50],
         }),
       })
         .bindPopup(label)

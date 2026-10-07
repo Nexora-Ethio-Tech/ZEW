@@ -84,6 +84,7 @@ export function Workspace() {
     maxSeats: 4,
   });
   const [results, setResults] = useState<Matches>();
+  const [mapCollapsed, setMapCollapsed] = useState(false);
   const [selected, setSelected] = useState<Trip>();
   const [boarding, setBoarding] = useState<Booking>();
   const [busy, setBusy] = useState(false);
@@ -316,6 +317,7 @@ export function Workspace() {
         setJourney(activeJourney);
       }
       setResults(await api<Matches>('/matches', 'POST', activeJourney));
+      setMapCollapsed(true);
     });
   }
 
@@ -478,17 +480,34 @@ export function Workspace() {
             label="Pickup"
             value={journey.origin}
             onChange={(origin) => {
-              const c = data!.corridors.find((c) => c.stops.some((s) => s.id === origin))!;
-              updateJourney({ origin, corridorId: c.id });
+              const matching =
+                data!.corridors.find(
+                  (c) =>
+                    c.stops.some((s) => s.id === origin) &&
+                    c.stops.some((s) => s.id === journey.destination),
+                ) ||
+                data!.corridors.find((c) => c.stops.some((s) => s.id === origin)) ||
+                data!.corridors[0];
+              updateJourney({ origin, corridorId: matching.id });
             }}
           />
           <button
             type="button"
             className="swap-button"
             aria-label="Swap pickup and destination"
-            onClick={() =>
-              updateJourney({ origin: journey.destination, destination: journey.origin })
-            }
+            onClick={() => {
+              const origin = journey.destination;
+              const destination = journey.origin;
+              const matching =
+                data!.corridors.find(
+                  (c) =>
+                    c.stops.some((s) => s.id === origin) &&
+                    c.stops.some((s) => s.id === destination),
+                ) ||
+                data!.corridors.find((c) => c.stops.some((s) => s.id === origin)) ||
+                data!.corridors[0];
+              updateJourney({ origin, destination, corridorId: matching.id });
+            }}
           >
             <Icon name="swap" size={16} />
           </button>
@@ -496,8 +515,15 @@ export function Workspace() {
             label="Drop-off"
             value={journey.destination}
             onChange={(destination) => {
-              const c = data!.corridors.find((c) => c.stops.some((s) => s.id === destination))!;
-              updateJourney({ destination, corridorId: c.id });
+              const matching =
+                data!.corridors.find(
+                  (c) =>
+                    c.stops.some((s) => s.id === journey.origin) &&
+                    c.stops.some((s) => s.id === destination),
+                ) ||
+                data!.corridors.find((c) => c.stops.some((s) => s.id === destination)) ||
+                data!.corridors[0];
+              updateJourney({ destination, corridorId: matching.id });
             }}
           />
         </div>
@@ -864,52 +890,12 @@ export function Workspace() {
 
       <div className="page-shell">
         <header className="topbar">
-          <span className="breadcrumb">
-            {isDriver
-              ? 'Driver space'
-              : isSupport
-                ? 'Support desk'
-                : isAdmin
-                  ? 'Administrator'
-                  : 'Passenger space'}{' '}
-            <span>/</span>{' '}
-            <strong>
-              {isDriver
-                ? driverNavigation.find((n) => n.id === view)?.label
-                : isSupport
-                  ? supportNavigation.find((n) => n.id === view)?.label
-                  : isAdmin
-                    ? adminNavigation.find((n) => n.id === view)?.label
-                    : passengerNavigation.find((n) => n.id === view)?.label}
-            </strong>
-          </span>
-          <div className="topbar-right">
-            <button
-              className="role-badge-button"
-              onClick={() => open('account')}
-              title="Click to view Account & Role settings"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '5px 12px',
-                borderRadius: 20,
-                border: 'none',
-                background: roleMeta.bg,
-                color: roleMeta.color,
-                fontWeight: 600,
-                fontSize: 12,
-                cursor: 'pointer',
-                marginRight: 12,
-              }}
-            >
-              <span>{roleMeta.icon}</span>
-              <span>{roleMeta.name}</span>
-            </button>
-            <span className="demo-pill">INTERACTIVE DEMO</span>
+          <div className="topbar-left">
             <span className="timezone">
               <Icon name="sun" size={16} /> Addis Ababa · UTC+3
             </span>
+          </div>
+          <div className="topbar-right">
             {authUser ? (
               <button
                 className="topbar-avatar"
@@ -929,7 +915,6 @@ export function Workspace() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginLeft: 16,
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                 }}
               >
@@ -939,7 +924,7 @@ export function Workspace() {
               <button
                 className="primary"
                 onClick={() => open('auth')}
-                style={{ marginLeft: 16, padding: '6px 14px', fontSize: 13 }}
+                style={{ padding: '6px 14px', fontSize: 13 }}
               >
                 Sign In / Sign Up
               </button>
@@ -1036,11 +1021,25 @@ export function Workspace() {
                         <Icon name="bookmark" size={15} /> Save this commute
                       </button>
                     </form>
-                    <RouteMap
-                      corridor={corridor}
-                      originId={journey.origin}
-                      destinationId={journey.destination}
-                    />
+                    <div
+                      className={`journey-map-wrapper ${mapCollapsed ? 'collapsed' : ''}`}
+                      style={{
+                        height: mapCollapsed ? '200px' : '480px',
+                        transition: 'height 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+                        overflow: 'hidden',
+                        borderRadius: '16px',
+                        position: 'relative',
+                        width: '100%',
+                      }}
+                    >
+                      <RouteMap
+                        corridor={corridor}
+                        originId={journey.origin}
+                        destinationId={journey.destination}
+                        collapsed={mapCollapsed}
+                        onToggleCollapse={() => setMapCollapsed(!mapCollapsed)}
+                      />
+                    </div>
                   </section>
                   {results && (
                     <section className="results-section" aria-live="polite">

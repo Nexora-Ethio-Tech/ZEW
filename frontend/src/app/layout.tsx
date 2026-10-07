@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import 'leaflet/dist/leaflet.css';
+import '../features/pool/pool.css';
 import './styles.css';
 import { Pwa } from '@/components/pwa';
 
