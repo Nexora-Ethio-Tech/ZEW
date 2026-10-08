@@ -44,8 +44,8 @@ export function PoolHelp({
               ))}
             </div>
             <p>
-              Shorter drop-offs use the same split. Your share locks when you request; people cannot
-              be added after that. Any rounding remainder goes to the lead rider.
+              The API chooses compatible sample riders when you apply and locks that group's share.
+              Shorter drop-offs use the same split. Any rounding remainder goes to the lead rider.
             </p>
             <small>
               Custom destinations use a 360 ETB example total regardless of distance. This is not a

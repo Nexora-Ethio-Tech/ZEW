@@ -9,12 +9,14 @@ type Target = 'pickup' | 'destination';
 export default function StreetMap({
   pickup,
   destination,
+  demandZones,
   disabled,
   draft = true,
   choose,
 }: {
   pickup: Place;
   destination: Place;
+  demandZones: { id: string; name: string; latitude: number; longitude: number; pickupCount: number; destinationCount: number }[];
   disabled: boolean;
   draft?: boolean;
   choose: (target: Target, place: Place) => Promise<boolean>;
@@ -22,6 +24,7 @@ export default function StreetMap({
   const node = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const markers = useRef<L.LayerGroup | null>(null);
+  const demandLayer = useRef<L.LayerGroup | null>(null);
   const preview = useRef<L.CircleMarker | null>(null);
   const [target, setTarget] = useState<Target | null>(null);
   const [pin, setPin] = useState<Place | null>(null);
@@ -52,6 +55,8 @@ export default function StreetMap({
       zoomAnimation: false,
       fadeAnimation: false,
       markerZoomAnimation: false,
+      maxBounds: [[3.3, 32.9], [15, 48]],
+      maxBoundsViscosity: 1,
     }).setView([9.005, 38.773], 14);
     map.current = instance;
 
@@ -72,6 +77,7 @@ export default function StreetMap({
 
     tileLayer.addTo(instance);
     markers.current = L.layerGroup().addTo(instance);
+    demandLayer.current = L.layerGroup().addTo(instance);
 
     instance.on('click', (event: L.LeafletMouseEvent) => {
       if (!selection.current.target || selection.current.disabled) return;
@@ -97,8 +103,36 @@ export default function StreetMap({
       instance.remove();
       map.current = null;
       markers.current = null;
+      demandLayer.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!demandLayer.current) return;
+    demandLayer.current.clearLayers();
+    for (const zone of demandZones) {
+      // Stable, illustrative scatter around an area centre. No actual rider coordinates.
+      for (const [kind, count, color] of [
+        ['pickup', zone.pickupCount, '#059669'],
+        ['destination', zone.destinationCount, '#dc2626'],
+      ] as const) {
+        for (let index = 0; index < count; index++) {
+          const angle = index * 2.39996;
+          const spread = 0.0006 * Math.sqrt(index);
+          const latitude = zone.latitude + Math.sin(angle) * spread;
+          const longitude = zone.longitude + (kind === 'pickup' ? -0.0012 : 0.0012) + Math.cos(angle) * spread;
+          L.circleMarker([latitude, longitude], {
+            radius: 5,
+            color: '#fff',
+            weight: 1,
+            fillColor: color,
+            fillOpacity: 0.82,
+            interactive: false,
+          }).addTo(demandLayer.current);
+        }
+      }
+    }
+  }, [demandZones]);
 
   useEffect(() => {
     if (!map.current || !markers.current) return;
@@ -128,8 +162,8 @@ export default function StreetMap({
           <svg class="raindrop-svg" viewBox="0 0 36 50" width="36" height="50">
             <defs>
               <linearGradient id="grad-${letter.toLowerCase()}" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="${isPickup ? '#34d399' : '#fb923c'}" />
-                <stop offset="100%" stop-color="${isPickup ? '#059669' : '#ea580c'}" />
+                <stop offset="0%" stop-color="${isPickup ? '#34d399' : '#f87171'}" />
+                <stop offset="100%" stop-color="${isPickup ? '#059669' : '#dc2626'}" />
               </linearGradient>
               <filter id="shadow-${letter.toLowerCase()}" x="-20%" y="-20%" width="140%" height="140%">
                 <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.4"/>
@@ -141,7 +175,7 @@ export default function StreetMap({
                   stroke-width="2.5"
                   filter="url(#shadow-${letter.toLowerCase()})" />
             <circle cx="18" cy="18" r="9" fill="#ffffff" />
-            <text x="18" y="22.5" font-size="12" font-weight="900" font-family="system-ui, sans-serif" text-anchor="middle" fill="${isPickup ? '#047857' : '#c2410c'}">${letter}</text>
+            <text x="18" y="22.5" font-size="12" font-weight="900" font-family="system-ui, sans-serif" text-anchor="middle" fill="${isPickup ? '#047857' : '#991b1b'}">${letter}</text>
           </svg>
           <div class="raindrop-shadow-pulse"></div>
         </div>
@@ -242,7 +276,7 @@ export default function StreetMap({
         <strong>
           <Icon name="pin" size={16} /> Your journey, on the map
         </strong>
-        <span className="map-badge-tag">REAL STREETS</span>
+        <span className="map-badge-tag">REAL STREETS · SIMULATED DEMAND</span>
       </div>
       <div style={{ position: 'relative', width: '100%' }}>
         <div
@@ -262,18 +296,7 @@ export default function StreetMap({
           aria-label="Street map. Drag A or B raindrop pins to move your route."
         />
         <div className="map-overlay-box bottom-right">
-          <div className="legend-item pickup-legend">
-            <i className="legend-dot green-dot" />{' '}
-            <span>
-              <strong>Green (A)</strong>: Pickup
-            </span>
-          </div>
-          <div className="legend-item dest-legend">
-            <i className="legend-dot red-dot" />{' '}
-            <span>
-              <strong>Red/Orange (B)</strong>: Destination
-            </span>
-          </div>
+          <p className="map-legend-note">Simulated locations · no live passengers</p>
           <button
             type="button"
             className="map-collapse-btn-bordered"

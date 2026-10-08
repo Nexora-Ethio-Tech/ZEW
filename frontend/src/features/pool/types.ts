@@ -63,6 +63,7 @@ export interface Pool {
   driverEarnings: { driverId: string; completedTrips: number; payout: number }[];
   destinations: { id: string; name: string; fare: number; order: number }[];
   pickupZones: { id: string; name: string }[];
+  demandZones: { id: string; name: string; latitude: number; longitude: number; pickupCount: number; destinationCount: number }[];
   guidance?: {
     meetingPoint: string;
     instruction: string;

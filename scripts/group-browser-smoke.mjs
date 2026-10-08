@@ -67,6 +67,10 @@ const select = (selector, value) =>
   evaluate(
     `(()=>{const field=document.querySelector(${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(field,${JSON.stringify(value)});field.dispatchEvent(new Event('change',{bubbles:true}));})()`,
   );
+const input = (selector, value) =>
+  evaluate(
+    `(()=>{const field=document.querySelector(${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(field,${JSON.stringify(value)});field.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+  );
 const fare = (value) =>
   wait(
     `document.querySelector('.group-fare strong')?.textContent===${JSON.stringify(String(value))}`,
@@ -96,7 +100,8 @@ try {
   await send('Page.reload');
   await pause(400);
   await wait('!!document.querySelector(".group-card")');
-  await fare(360);
+  await wait('!document.querySelector(".group-fare") && !!document.querySelector("#maximum-fare")');
+  assert.equal(await evaluate('document.querySelector(".group-seats") === null'), true);
   await screenshot('zew-circle-desktop');
   await labelled('Your demo account');
   assert.equal(
@@ -105,33 +110,19 @@ try {
     'Account opens exactly one dialog',
   );
   await labelled('Close dialog');
-  await evaluate('document.querySelector("#fare-tier-4").click()');
-  await fare(90);
-  await evaluate('document.querySelector("#fare-tier-1").click()');
-  await fare(360);
-  await labelled('Add Sara M.');
-  await fare(180);
-  await labelled('Add Bereket A.');
-  await fare(120);
-  await labelled('Add Eden T.');
+  assert.equal(await evaluate('document.body.innerText.includes("SIMULATED DEMAND")'), true);
+  await wait('document.querySelectorAll(".leaflet-overlay-pane path").length >= 5');
+  assert.equal(await evaluate('document.querySelector(".map-overlay-box")?.textContent.includes("Simulated locations")'), true);
+  assert.equal(await evaluate('document.querySelector(".map-overlay-box")?.textContent.includes("Red dots")'), false);
+  await input('#minimum-people', '2');
+  await wait('document.querySelector("#minimum-people")?.value === "2" && !document.querySelector("#minimum-people").disabled');
+  await input('#maximum-people', '6');
+  await wait('document.querySelector("#maximum-people")?.value === "6"');
+  await input('#maximum-fare', '125');
+  await wait('document.querySelector("#maximum-fare")?.value === "125"');
+  await click('Apply for a shared ride');
   await fare(90);
   await screenshot('zew-circle-full');
-  await click('All demo riders');
-  assert.equal(
-    await evaluate(
-      `document.querySelector(${JSON.stringify('[aria-label="Add Nahom G."]')}).disabled`,
-    ),
-    true,
-  );
-  assert.equal(
-    await evaluate(
-      `document.querySelector(${JSON.stringify('[aria-label="Add Meron G."]')}).disabled`,
-    ),
-    true,
-  );
-  await labelled('Remove Eden T.');
-  await fare(120);
-  await click('Request this group');
   await wait('document.body.innerText.includes("Your group is ready to go.")');
   await click('Try the driver view');
   await wait('!!document.querySelector(".group-call-card")');
@@ -147,8 +138,9 @@ try {
   await evaluate('document.querySelectorAll(".pool-sidebar nav button")[1].click()');
   await wait('document.querySelectorAll(".pool-history-card").length===3');
   await click('Build another group');
-  await fare(360);
+  await wait('!document.querySelector(".group-fare") && document.querySelector("#maximum-fare")?.value === "125"');
   await evaluate('document.querySelector(".pool-sidebar nav button").click()');
+  await wait('[...document.querySelectorAll("button")].some(button => button.textContent.trim() === "Use my location" && !button.disabled)');
   // Deterministic device GPS fixtures; never reads the user's real coordinates.
   await send('Browser.setPermission', {
     permission: { name: 'geolocation' },
@@ -165,7 +157,8 @@ try {
   assert.ok(await evaluate('document.body.innerText.includes("accuracy ±15m")'));
   await send('Emulation.setGeolocationOverride', { latitude: 0, longitude: 0, accuracy: 10 });
   await click('Use my location');
-  await wait('document.body.innerText.includes("accuracy ±10m")');
+  await wait('document.body.innerText.includes("Choose a location in Ethiopia")');
+  await labelled('Dismiss error');
   assert.equal(await evaluate('document.querySelector(".request-group").disabled'), false);
   // Search interaction is deterministic by default; opt into the public geocoder with ZEW_LIVE_PLACES=1.
   await evaluate(
@@ -179,6 +172,10 @@ try {
   await wait('!document.querySelector(".place-results")');
   const searchedPickup = await evaluate('document.querySelector("#place-pickup").value');
   assert.notEqual(searchedPickup, 'Your device location');
+  if (await evaluate('document.querySelector(".real-map-card")?.classList.contains("is-collapsed")')) {
+    await evaluate('document.querySelector(".map-collapse-btn-bordered").click()');
+  }
+  await wait('[...document.querySelectorAll("button")].some(button => button.textContent.trim() === "Set destination on map" && !button.disabled)');
   await click('Set destination on map');
   await evaluate('document.querySelector(".street-map").scrollIntoView({block:"center"})');
   const point = await evaluate(
@@ -207,15 +204,11 @@ try {
   await click('Use my location');
   await wait('document.body.innerText.includes("Location permission was declined")');
   await labelled('Dismiss error');
-  await labelled('Skip Sara M.');
-  await wait(`!document.querySelector(${JSON.stringify('[aria-label="Add Sara M."]')})`);
   await click('Refresh demo');
-  await wait(`!!document.querySelector(${JSON.stringify('[aria-label="Add Sara M."]')})`);
-  await labelled('Add Sara M.');
-  await fare(180);
+  await wait('!document.querySelector(".group-fare") && !!document.querySelector(".request-group")');
   await send('Page.reload');
   await pause(400);
-  await fare(180);
+  await wait('!document.querySelector(".group-fare") && !!document.querySelector(".request-group")');
   assert.equal(await evaluate('document.querySelector("#place-pickup").value'), searchedPickup);
   assert.ok(
     await evaluate('document.querySelector("#place-destination").value.startsWith("Map pin")'),
@@ -294,7 +287,7 @@ try {
   );
   assert.deepEqual(errors, [], 'No browser exceptions');
   console.log(
-    'PASS: group fares/tiers/lifecycle, two-minute rules, arbitrary GPS, permission denial, place selection, map pins, persistence, single account dialog, offline recovery, mobile layout and inert map labels. Public tiles stubbed; live search is opt-in.',
+    'PASS: min/max people and fare limit, automatic demo grouping, locked fare, simulated demand overlay, lifecycle, Ethiopia-bounded GPS, permission denial, place selection, map pins, persistence, single account dialog, offline recovery, mobile layout and inert map labels. Public tiles stubbed; live search is opt-in.',
   );
   console.log(
     'Screenshots: /tmp/zew-circle-desktop.png, /tmp/zew-circle-full.png, /tmp/zew-circle-mobile.png, /tmp/zew-circle-mobile-fare.png',

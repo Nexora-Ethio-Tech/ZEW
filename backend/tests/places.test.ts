@@ -30,6 +30,10 @@ test('arbitrary places persist, invalidate groups, preserve rules and complete i
     400,
   );
   assert.equal(
+    (await post('/place', { target: 'pickup', place: { ...pickup, latitude: 51, longitude: 0 } })).statusCode,
+    400,
+  );
+  assert.equal(
     (await post('/place', { target: 'pickup', place: { ...pickup, fare: 1 } })).statusCode,
     400,
   );
@@ -88,6 +92,14 @@ test('place search authenticates, validates, caches, throttles and handles provi
   assert.throws(() =>
     parsePlaces({ features: [{ geometry: { coordinates: [999, 90] }, properties: {} }] }),
   );
+  assert.deepEqual(parsePlaces({ features: [
+    { geometry: { coordinates: [39.27, 8.54] }, properties: { name: 'Adama' } },
+    { geometry: { coordinates: [39.27, 8.54] }, properties: { name: 'Elsewhere', country: 'Kenya' } },
+    { geometry: { coordinates: [39.27, 8.54] }, properties: { name: 'Adama', countrycode: 'ET' } },
+    { geometry: { coordinates: [0, 51] }, properties: { name: 'London', country: 'Ethiopia' } },
+  ] }), [
+    { name: 'Adama', longitude: 39.27, latitude: 8.54 },
+  ]);
   const other = buildApp();
   t.after(() => other.close());
   const otherToken = (await other.inject({ method: 'POST', url: '/api/v1/session' })).json().token;

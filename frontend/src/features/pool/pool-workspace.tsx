@@ -9,7 +9,7 @@ import { PlaceSearch } from './place-search';
 import { FarePanel } from './fare-panel';
 import { Avatar } from './avatar';
 import { DriverSpace, PoolHelp, RideHistory, type PoolDialog } from './pool-details';
-import { duration, money, type PoolRider } from './types';
+import { money } from './types';
 import { TelebirrModal } from '../payments/telebirr-modal';
 import { useEventStream } from '@/lib/use-event-stream';
 import './pool.css';
@@ -28,7 +28,6 @@ const navigation: { id: View; label: string; icon: IconName }[] = [
   { id: 'history', label: 'My rides', icon: 'rides' },
   { id: 'driver', label: 'Driver space', icon: 'car' },
 ];
-const tiers = ['Solo', 'Pair', 'Trio', 'Full car'];
 export function PoolWorkspace() {
   const searchParams = useSearchParams();
   const param = searchParams.get('view');
@@ -54,23 +53,12 @@ export function PoolWorkspace() {
     refresh,
   } = usePool();
   const busy = updating || locating || !online;
-  const [filter, setFilter] = useState<'ready' | 'all'>('ready');
   const [modal, setModal] = useState<PoolDialog | null>(null);
   const [telebirrOpen, setTelebirrOpen] = useState(false);
   const [driverId, setDriverId] = useState('hana');
   const { isConnected: sseConnected } = useEventStream();
   const draft = pool?.status === 'draft';
-  const ready =
-    pool?.riders.filter(
-      (rider) => !rider.issue && rider.readyUntil > now && !pool.skippedIds.includes(rider.id),
-    ) ?? [];
   const members = pool?.riders.filter((rider) => rider.selected) ?? [];
-  const visibleRiders =
-    pool?.riders.filter(
-      (rider) =>
-        !pool.skippedIds.includes(rider.id) &&
-        (rider.selected || (draft && (filter === 'all' || ready.includes(rider)))),
-    ) ?? [];
   const step =
     !pool || draft
       ? 0
@@ -79,97 +67,6 @@ export function PoolWorkspace() {
         : pool.status === 'in_progress' || pool.status === 'completed'
           ? 2
           : 0;
-
-  function memberCard(rider: PoolRider) {
-    const travelling = rider.selected && ['in_progress', 'completed'].includes(pool!.status);
-    const expired = !travelling && rider.readyUntil <= now;
-    const issue = travelling ? null : expired ? 'Availability expired' : rider.issue;
-    const full = pool!.quote.count === 4;
-    return (
-      <article
-        key={rider.id}
-        className={`neighbour-card ${rider.selected ? 'is-selected' : ''} ${issue ? 'is-unavailable' : ''}`}
-      >
-        <div className="neighbour-top">
-          <Avatar name={rider.name} color={rider.color} size={44} />
-          <div>
-            <h3>{rider.name}</h3>
-            <p>
-              <Icon name="pin" size={12} />
-              {pool!.destinations.find((destination) => destination.id === rider.destination)?.name}
-            </p>
-          </div>
-          <span className={`pickup-time ${issue ? 'too-far' : ''}`} title="Simulated pickup time">
-            <Icon name="clock" size={12} />
-            {duration(rider.pickupSeconds)}
-          </span>
-        </div>
-        <div className="neighbour-route">
-          <span className="tiny-route" />
-          <p>
-            {rider.pickup}
-            <small>
-              {issue ||
-                (rider.selected
-                  ? 'In your circle · demo rider'
-                  : 'Same demo direction · ready to share')}
-            </small>
-          </p>
-        </div>
-        {draft && !issue && !rider.selected && rider.yourFareIfAdded !== null && (
-          <div className="neighbour-fare-preview">
-            <span>Your share with {rider.name.split(' ')[0]}</span>
-            <strong>
-              {money(rider.yourFareIfAdded)} <small>ETB</small>
-              <Icon name="leaf" size={12} />
-            </strong>
-          </div>
-        )}
-        <div className="neighbour-footer">
-          <span className="readiness">
-            <i className={issue ? 'not-ready' : ''} />
-            {travelling
-              ? 'Confirmed member'
-              : expired
-                ? 'Window ended'
-                : `${Math.max(0, Math.ceil((rider.readyUntil - now) / 1000))}s availability`}
-          </span>
-          {rider.selected ? (
-            <button
-              className="remove-member"
-              disabled={busy || !draft}
-              aria-label={`Remove ${rider.name}`}
-              onClick={() => void action('/members', { riderId: rider.id, action: 'remove' })}
-            >
-              <Icon name="check" size={14} /> Added {draft && <Icon name="close" size={12} />}
-            </button>
-          ) : (
-            <div className="neighbour-actions">
-              {!issue && (
-                <button
-                  className="skip-rider"
-                  disabled={busy || !draft}
-                  aria-label={`Skip ${rider.name}`}
-                  onClick={() => void action('/members', { riderId: rider.id, action: 'skip' })}
-                >
-                  Skip
-                </button>
-              )}
-              <button
-                className="add-member"
-                disabled={busy || !draft || !!issue || full}
-                aria-label={`Add ${rider.name}`}
-                onClick={() => void action('/members', { riderId: rider.id, action: 'add' })}
-              >
-                {issue ? 'Unavailable' : full ? 'Circle full' : 'Add to group'}
-                {!issue && !full && <Icon name="plus" size={13} />}
-              </button>
-            </div>
-          )}
-        </div>
-      </article>
-    );
-  }
 
   return (
     <div className="pool-app">
@@ -282,7 +179,7 @@ export function PoolWorkspace() {
               </h1>
               <p className="pool-intro">
                 {view === 'discover'
-                  ? 'Start anywhere. Choose your people. See how a shared ride could feel.'
+                  ? 'Choose your journey, group size and fare limit. The demo system forms your group.'
                   : view === 'history'
                     ? 'Your completed demo rides, with every share accounted for.'
                     : 'Explore the driver experience in your private demo.'}
@@ -334,7 +231,7 @@ export function PoolWorkspace() {
             <>
               {view === 'discover' && (
                 <ol className="journey-steps" aria-label="Ride progress">
-                  {['Build your circle', 'Meet your demo driver', 'Go together'].map(
+                  {['Apply for a ride', 'Meet your demo driver', 'Go together'].map(
                     (label, index) => (
                       <li
                         key={label}
@@ -424,6 +321,7 @@ export function PoolWorkspace() {
                       <StreetMap
                         pickup={pool.mapPickup}
                         destination={pool.mapDestination}
+                        demandZones={pool.demandZones}
                         disabled={busy || !draft}
                         draft={draft}
                         choose={(target, place) => action('/place', { target, place })}
@@ -432,15 +330,11 @@ export function PoolWorkspace() {
                         <div className="neighbours-heading">
                           <div>
                             <p className="section-eyebrow">02 / AUTOMATED RIDE CIRCLE</p>
-                            <h2>
-                              {draft
-                                ? 'Your demo ride circle'
-                                : 'Your people, your shared journey.'}
-                            </h2>
+                            <h2>{draft ? 'Apply, then we group you' : 'Your matched demo group'}</h2>
                             <p>
                               {draft
-                                ? 'Try a group size and fare preference with sample riders. Availability, matching and pickup times are simulated.'
-                                : 'Your group and fare stay locked for this request.'}
+                                ? 'Choose your group-size and fare limits in the panel, then apply. The API checks direction, readiness, seats and demo pickup times before forming your group.'
+                                : 'The system selected this group and locked its example fare. These people and times are simulated.'}
                             </p>
                           </div>
                           <button
@@ -453,91 +347,15 @@ export function PoolWorkspace() {
                             Refresh demo
                           </button>
                         </div>
-                        <div className="fare-tier-grid" aria-label="Choose circle size">
-                          {pool.fareOptions.map((option) => (
-                            <button
-                              key={option.seats}
-                              id={`fare-tier-${option.seats}`}
-                              className={`fare-tier-card ${pool.quote.count === option.seats ? 'is-active' : ''}`}
-                              aria-pressed={pool.quote.count === option.seats}
-                              disabled={busy || !draft || !!option.issue}
-                              title={option.issue ?? `Build a ${option.seats}-person circle`}
-                              onClick={() =>
-                                void action('/preference', { targetSeats: option.seats })
-                              }
-                            >
-                              <span className="tier-people" aria-hidden="true">
-                                {Array.from({ length: option.seats }, (_, index) => (
-                                  <i key={index} />
-                                ))}
-                              </span>
-                              <strong className="tier-label">{tiers[option.seats - 1]}</strong>
-                              <span className="tier-sublabel">
-                                {option.seats === 1 ? 'Just you' : `You + ${option.seats - 1}`}
-                              </span>
-                              <span className="tier-fare">
-                                <strong>{money(option.yourFare)}</strong>
-                                <small> ETB / you</small>
-                              </span>
-                              <span className="tier-availability">
-                                {option.issue
-                                  ? 'Unavailable now'
-                                  : pool.quote.count === option.seats
-                                    ? 'Your current circle'
-                                    : 'Fill these seats'}
-                              </span>
-                            </button>
-                          ))}
+                        <div className="pool-empty" role="status">
+                          <Icon name="people" size={32} />
+                          <h3>{draft ? 'Your application is ready' : `${pool.quote.count} in your demo group`}</h3>
+                          <p>{draft
+                            ? 'No need to choose other passengers. Apply from the fare panel and the system will select compatible sample riders.'
+                            : members.length
+                              ? `Matched with ${members.map((rider) => rider.name.split(' ')[0]).join(', ')}. Your example share is ${money(pool.lockedFare ?? pool.quote.yourFare)} ETB.`
+                              : 'No compatible sample rider was available for this journey, so this demo request is for one person.'}</p>
                         </div>
-                        {draft && (
-                          <div className="neighbour-filters" aria-label="Filter demo riders">
-                            <button
-                              className={filter === 'ready' ? 'active' : ''}
-                              aria-pressed={filter === 'ready'}
-                              onClick={() => setFilter('ready')}
-                            >
-                              Ready to share <span>{ready.length}</span>
-                            </button>
-                            <button
-                              className={filter === 'all' ? 'active' : ''}
-                              aria-pressed={filter === 'all'}
-                              onClick={() => setFilter('all')}
-                            >
-                              All demo riders
-                            </button>
-                            <span>FICTIONAL PROFILES</span>
-                          </div>
-                        )}
-                        <div className="neighbour-grid">{visibleRiders.map(memberCard)}</div>
-                        {!visibleRiders.length && (
-                          <div className="pool-empty">
-                            <Icon name="people" size={32} />
-                            <h3>
-                              {draft ? 'A fresh circle is one tap away.' : 'Just you this time.'}
-                            </h3>
-                            <p>
-                              {draft
-                                ? 'The demo availability window has ended. Refresh to bring riders back, or request a solo ride.'
-                                : 'Your solo demo request is ready in the fare panel.'}
-                            </p>
-                            {draft && (
-                              <button
-                                className="pool-secondary"
-                                disabled={busy}
-                                onClick={() => void action('/refresh')}
-                              >
-                                Refresh availability <Icon name="arrow" size={16} />
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        {pool.skippedIds.length > 0 && (
-                          <p className="skipped-message">
-                            {pool.skippedIds.length}{' '}
-                            {pool.skippedIds.length === 1 ? 'rider' : 'riders'} skipped. Refresh
-                            demo to show them again.
-                          </p>
-                        )}
                         <div className="pickup-limit-note">
                           <span>
                             02<span>MIN</span>

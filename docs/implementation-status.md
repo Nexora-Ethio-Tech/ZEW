@@ -6,7 +6,8 @@ Updated 2026-10-08. Zew is a private, persistent ride demo with deployment tooli
 | --- | --- |
 | Landing | Responsive city illustration, interactive example fare calculator, local fonts, light/dark themes, English/Amharic/Oromo selection |
 | Demo routes | `/demo` for circles; `/planned` for legacy planned rides; homepage for public introduction and optional verified accounts |
-| Circles | Sample riders, two-minute readiness, direction/capacity checks, arbitrary coordinates, locked quote, simulated driver acceptance, completion and receipts |
+| Circles | Rider-entered positive min/max group size and fare ceiling, server-selected sample group on application within four-seat demo vehicle capacity, two-minute readiness, direction/capacity checks, Ethiopia-bounded coordinates, locked quote, simulated driver acceptance, completion and receipts |
+| Demand map | Seventeen fixed, approximate Addis example areas rendered as 138 pickup and 95 destination dots; no cross-session or individual location data |
 | Planned rides | Server-side matching, transactional reservation, duplicate protection, boarding codes, cancellation/completion, saved commutes |
 | Authentication | Optional Supabase email/password sign-in; server verifies provider token and confirmed email before issuing an API session; no local password login or role escalation |
 | Seed data | Relative future Addis departures, explicit illustrative rider/history fixtures; no seeded password accounts or password-reset migration |

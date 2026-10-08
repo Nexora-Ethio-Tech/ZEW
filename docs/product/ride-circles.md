@@ -5,9 +5,9 @@ Implemented from the founder's updated direction on 2026-10-01. The main page is
 ## Rider journey
 
 1. Search for a pickup by street, landmark or city; choose a result. Or confirm a map pin, or tap **Use my location**. Browser permission is requested only on that tap. The initial locations are examples, not limits.
-2. Choose any destination the same way. See fictional riders illustrating a same-direction group. These are not actual nearby people.
-3. Preview your fare with each rider; add, remove, or skip them. Groups contain one to four passengers including you.
-4. Submit when you are happy with your share, even if travelling alone. The request locks the group and displayed fare.
+2. Choose any destination the same way. The map shows illustrative pickup and destination dots generated around fixed area centres. These are not live people or exact rider locations.
+3. Choose a minimum and maximum group size, including yourself, and a maximum fare. The UI shows the server-calculated example share for every group size in that range. Tap **Apply for a shared ride**. The API selects eligible sample riders within the limits and locks the example fare in one transaction. Riders do not choose each other.
+4. Review the matched group and share. If the chosen minimum is one, the private demo can create a solo request when no sample rider is eligible. Its sample riders represent the Bole corridor only; journeys outside those example landmarks need a one-person minimum or the application returns no match.
 5. In Driver space, select a demo driver and accept the entire group if its seats and pickup timing fit. Start/complete the simulated journey, or cancel before departure.
 
 ## The two-minute rule
@@ -29,17 +29,17 @@ Each destination has a fixed total: Wollo Sefer 300 ETB, Meskel Square 360 ETB, 
 
 Custom destinations use a **360 ETB illustrative total**, regardless of distance. This is a scenario for testing fare splits, not a real road-based quote. Demo riders adopt the custom destination; their ETA fixtures remain simulated. No fake rider pins or invented route geometry are drawn over the real map.
 
-This equal split is a provisional demo rule, including for shorter drop-offs. The UI states it in the fare explanation. The backend computes both per-candidate previews and final quotes; a request carries only a quote version, never a trusted client price. A 10% fee is included in the total, not added on top. No payment is collected.
+This equal split is a provisional demo rule, including for shorter drop-offs. The UI states it in the fare explanation. The backend computes the final quote; an application carries only the current state version, never a trusted client price or passenger list. A 10% fee is included in the total, not added on top. No payment is collected.
 
 ## Device location
 
 Use `navigator.geolocation.getCurrentPosition` with a fresh reading, ten-second timeout and high accuracy. No background tracking or third-party reverse-geocoding request is made. The location is sent to the local API, scoped to the user's session. The owning session receives its pickup coordinates for the real map; other sessions cannot access them.
 
-Device pickups work anywhere, with accuracy at most 100 metres and freshness at most two minutes. Poor accuracy, permission denial and timeout offer search/map-pin alternatives. Selecting a manual pickup removes the device reading. Session retention remains the existing local-demo policy. Legacy anchor IDs are retained for backward compatibility only; they no longer restrict eligibility.
+Device pickups work inside the coarse Ethiopia demo area, with accuracy at most 100 metres and freshness at most two minutes. Poor accuracy, permission denial and timeout offer search/map-pin alternatives. Selecting a manual pickup removes the device reading. Session retention remains the existing local-demo policy. Legacy anchor IDs are retained for backward compatibility only; they no longer restrict eligibility.
 
 ## Real maps and place search
 
-The homepage uses Leaflet with real OpenStreetMap tiles. Users can pan/zoom and explicitly select/confirm pickup or destination pins. Search is a submit-and-select Photon geocoder, not a fixed dropdown. The API validates provider coordinates, caches 200 searches for up to one day and limits uncached provider calls to one per second per process. No location bias or device coordinates are sent to Photon; only search text is shared. The tile provider receives the viewed area and browser request metadata. Errors are visible; offline maps are not provided.
+The homepage uses Leaflet with real OpenStreetMap tiles. Users can pan/zoom and explicitly select/confirm pickup or destination pins. Search is a submit-and-select Photon geocoder, not a fixed dropdown. The API asks Photon for results within an Ethiopia bounding box, biases ranking toward Addis Ababa, and accepts only results tagged as Ethiopia and inside that box. Map pins and device locations are restricted to the same coarse box; it is not an exact national border or a road-serviceability check. The API validates provider coordinates, caches 200 searches for up to one day and limits uncached provider calls to one per second per process. Device coordinates are not sent to Photon; search text and an Addis Ababa ranking point are shared. The tile provider receives the viewed area and browser request metadata. Errors are visible; offline maps are not provided.
 
 Use `PHOTON_URL` for a production/self-hosted geocoder and `NEXT_PUBLIC_MAP_TILE_URL` plus provider attribution for another map service. Public providers have no availability guarantee. See [Photon's demo-server restrictions](https://github.com/komoot/photon#demo-server), [OSM tile usage requirements](https://operations.osmfoundation.org/policies/tiles/) and [Leaflet API](https://leafletjs.com/reference.html). No prefetching, bulk/offline tile downloads or headless tile sweeps. Browser tests intercept tile requests; search verification uses an explicit low-volume query.
 
@@ -53,9 +53,10 @@ Authenticated, session-owned endpoints under `/api/v1/pool`:
 - `GET /`: current group, fare, candidate previews, eligibility and history.
 - `POST /location`, `/destination`: update pickup/destination while drafting; clear prior membership.
 - `POST /place`: arbitrary validated `{target: "pickup" | "destination", place: {name, latitude, longitude}}`; resets membership and demo availability. Locked groups cannot change endpoints. History preserves the selected names.
-- `POST /members`: add, remove, or skip a demo rider.
+- `POST /criteria`: save any positive min/max total people and maximum acceptable fare. These are preferences, not a client quote. Actual matching respects the four-seat capacity of current demo vehicles.
+- `POST /apply`: receive those preferences and select eligible sample riders within them in one transaction, then submit the request. The client cannot choose people or supply the final fare.
 - `POST /refresh`: explicitly refresh the fictional availability window.
-- `POST /request`: submit the current quote version.
+- Legacy demo routes `/members`, `/preference`, `/auto-match`, and `/request` remain for existing scripted flows; the rider UI uses `/apply` only.
 - `POST /accept`: a demo driver accepts that group ID after revalidation.
 - `POST /action`: cancel, start, complete, or create a new group after a terminal state.
 

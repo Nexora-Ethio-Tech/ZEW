@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Icon } from '@/components/icon';
 import { Avatar } from './avatar';
 import { money, type Pool } from './types';
@@ -30,6 +31,33 @@ export function FarePanel({
   const status = waitingExpired ? 'expired' : pool.status;
   const finished = ['completed', 'cancelled', 'expired'].includes(status);
   const driver = pool.drivers.find((d) => d.id === pool.driverId);
+  const [minimumInput, setMinimumInput] = useState(String(pool.minSeats ?? 1));
+  const [maximumInput, setMaximumInput] = useState(String(pool.maxSeats ?? 4));
+  const [fareInput, setFareInput] = useState(String(pool.maxFare ?? pool.quote.total));
+  useEffect(() => {
+    setMinimumInput(String(pool.minSeats ?? 1));
+    setMaximumInput(String(pool.maxSeats ?? 4));
+    setFareInput(String(pool.maxFare ?? pool.quote.total));
+  }, [pool.id, pool.minSeats, pool.maxSeats, pool.maxFare, pool.quote.total]);
+  const minSeats = Number(minimumInput);
+  const maxSeats = Number(maximumInput);
+  const maxFare = Number(fareInput);
+  const validLimits = minimumInput.trim() !== '' && maximumInput.trim() !== '' && fareInput.trim() !== '' &&
+    Number.isSafeInteger(minSeats) && minSeats > 0 && Number.isSafeInteger(maxSeats) &&
+    maxSeats >= minSeats && Number.isFinite(maxFare) && maxFare > 0;
+  const pricedOptions = pool.fareOptions.filter(
+    (option) => option.seats >= minSeats && option.seats <= maxSeats,
+  );
+  const affordableOptions = (validLimits ? pricedOptions : []).filter(
+    (option) => option.yourFare <= maxFare && !option.issue,
+  );
+  const withinBudget = validLimits && affordableOptions.length > 0;
+  const lowestShare = affordableOptions.length
+    ? Math.min(...affordableOptions.map((option) => option.yourFare))
+    : null;
+  const highestShare = affordableOptions.length
+    ? Math.max(...affordableOptions.map((option) => option.yourFare))
+    : null;
   return (
     <aside className="fare-column">
       <section className="group-card" aria-label="Your circle and fare">
@@ -38,73 +66,51 @@ export function FarePanel({
             <Icon name="people" size={21} />
           </span>
           <h2>Your ride circle</h2>
-          <span>{pool.quote.count}/4</span>
+          {!draft && <span>{pool.quote.count}/4</span>}
         </div>
-        <p className="group-subtitle">A few good neighbours. One shared way.</p>
-        <div className="group-seats">
-          <div>
-            <Avatar name="You" color="green" size={48} />
-            <span>You</span>
-          </div>
-          {members.map((r) => (
-            <div key={r.id} className="occupied-seat">
-              <Avatar name={r.name} color={r.color} size={48} />
-              {draft && (
-                <button
-                  disabled={busy}
-                  aria-label={`Remove ${r.name}`}
-                  onClick={() => void action('/members', { riderId: r.id, action: 'remove' })}
-                >
-                  <Icon name="close" size={10} />
-                </button>
+        {!draft && (
+          <>
+            <div className="group-seats">
+              <div><Avatar name="You" color="green" size={48} /><span>You</span></div>
+              {members.map((r) => (
+                <div key={r.id} className="occupied-seat">
+                  <Avatar name={r.name} color={r.color} size={48} />
+                  <span>{r.name.split(' ')[0]}</span>
+                </div>
+              ))}
+              {Array.from({ length: 4 - pool.quote.count }, (_, i) => (
+                <div key={i}>
+                  <span className="empty-seat"><Icon name="plus" size={19} /></span>
+                  <span>Open seat</span>
+                </div>
+              ))}
+            </div>
+            <div className="fare-divider" />
+            <p className="fare-eyebrow">YOUR MATCHED DEMO SHARE</p>
+            {pool.destination === 'custom' && (
+              <p className="custom-fare-note">360 ETB example total. Not a road-distance quote.</p>
+            )}
+            <div className="group-fare" aria-live="polite">
+              <strong>{money(pool.lockedFare ?? pool.quote.yourFare)}</strong>
+              <span>ETB <small>/ person</small></span>
+            </div>
+            <div className="fare-saving">
+              {pool.quote.count > 1 ? (
+                <>
+                  <span className="saving-tag"><Icon name="leaf" size={13} /> Save {money(pool.quote.savings)} ETB</span>
+                  <s>{money(pool.quote.total)} ETB alone</s>
+                </>
+              ) : (
+                <span className="solo-hint">With 3 people, your example share is {money(pool.fareOptions[2].yourFare)} ETB.</span>
               )}
-              <span>{r.name.split(' ')[0]}</span>
             </div>
-          ))}
-          {Array.from({ length: 4 - pool.quote.count }, (_, i) => (
-            <div key={i}>
-              <span className="empty-seat">
-                <Icon name="plus" size={19} />
-              </span>
-              <span>Open seat</span>
+            <div className="split-line"><span>Example trip total</span><strong>{pool.quote.total} ETB</strong></div>
+            <div className="split-line">
+              <span>Split between</span>
+              <strong>{pool.quote.count} {pool.quote.count === 1 ? 'person' : 'people'}</strong>
             </div>
-          ))}
-        </div>
-        <div className="fare-divider" />
-        <p className="fare-eyebrow">YOUR DEMO SHARE</p>
-        {pool.destination === 'custom' && (
-          <p className="custom-fare-note">360 ETB example total. Not a road-distance quote.</p>
+          </>
         )}
-        <div className="group-fare" aria-live="polite">
-          <strong key={pool.quote.yourFare}>{money(pool.lockedFare ?? pool.quote.yourFare)}</strong>
-          <span>
-            ETB <small>/ person</small>
-          </span>
-        </div>
-        <div className="fare-saving">
-          {pool.quote.count > 1 ? (
-            <>
-              <span className="saving-tag">
-                <Icon name="leaf" size={13} /> Save {money(pool.quote.savings)} ETB
-              </span>
-              <s>{money(pool.quote.total)} ETB alone</s>
-            </>
-          ) : (
-            <span className="solo-hint">
-              With 3 people, your example share is {money(pool.fareOptions[2].yourFare)} ETB.
-            </span>
-          )}
-        </div>
-        <div className="split-line">
-          <span>Example trip total</span>
-          <strong>{pool.quote.total} ETB</strong>
-        </div>
-        <div className="split-line">
-          <span>Split between</span>
-          <strong>
-            {pool.quote.count} {pool.quote.count === 1 ? 'person' : 'people'}
-          </strong>
-        </div>
         <button className="fare-explain" onClick={explain}>
           How is my fare calculated?
           <Icon name="help" size={13} />
@@ -113,87 +119,64 @@ export function FarePanel({
           <>
             <div className="auto-group-box">
               <div className="auto-group-header">
-                <strong>Find your demo circle</strong>
+                <strong>System matching</strong>
                 <span className="auto-group-tag">SIMULATED</span>
               </div>
               <p className="auto-group-desc">
-                Try a group size and budget with simulated riders. Review the result before
-                requesting.
+                Choose how many people you are comfortable sharing with and your maximum fare.
+                The API chooses eligible sample riders when you apply.
               </p>
-
               <div className="auto-group-controls">
                 <div className="control-group">
-                  <label>Min People:</label>
-                  <select
-                    value={pool.minSeats ?? 2}
+                  <label htmlFor="minimum-people">Minimum people, including you</label>
+                  <input
+                    id="minimum-people"
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="numeric"
+                    value={minimumInput}
                     disabled={busy}
-                    onChange={(e) =>
-                      void action('/auto-match', {
-                        minSeats: Number(e.target.value),
-                        maxSeats: Math.max(Number(e.target.value), pool.maxSeats ?? 4),
-                        maxFare: pool.maxFare ?? 360,
-                      })
-                    }
-                  >
-                    {[1, 2, 3, 4].map((n) => (
-                      <option key={n} value={n}>
-                        {n} {n === 1 ? 'person' : 'people'}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(event) => setMinimumInput(event.target.value)}
+                  />
                 </div>
                 <div className="control-group">
-                  <label>Max People:</label>
-                  <select
-                    value={pool.maxSeats ?? 4}
+                  <label htmlFor="maximum-people">Maximum people, including you</label>
+                  <input
+                    id="maximum-people"
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="numeric"
+                    value={maximumInput}
                     disabled={busy}
-                    onChange={(e) =>
-                      void action('/auto-match', {
-                        minSeats: Math.min(Number(e.target.value), pool.minSeats ?? 2),
-                        maxSeats: Number(e.target.value),
-                        maxFare: pool.maxFare ?? 360,
-                      })
-                    }
-                  >
-                    {[1, 2, 3, 4].map((n) => (
-                      <option key={n} value={n}>
-                        {n} {n === 1 ? 'person' : 'people'}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(event) => setMaximumInput(event.target.value)}
+                  />
                 </div>
               </div>
-
+              <div className="criteria-price-list" aria-label="Example fares by group size">
+                {pricedOptions.map((option) => (
+                  <div key={option.seats}>
+                    <span>{option.seats} {option.seats === 1 ? 'person' : 'people'}</span>
+                    <strong>{money(option.yourFare)} ETB / you{option.issue ? ' · unavailable' : ''}</strong>
+                  </div>
+                ))}
+              </div>
               <div className="control-group budget-group">
-                <label>Max Fare / Person:</label>
-                <div className="fare-budget-options">
-                  {[120, 180, 240, 360].map((amount) => (
-                    <button
-                      key={amount}
-                      type="button"
-                      className={`budget-btn ${(pool.maxFare ?? 360) === amount ? 'selected' : ''}`}
-                      disabled={busy}
-                      onClick={() =>
-                        void action('/auto-match', {
-                          minSeats: pool.minSeats ?? 2,
-                          maxSeats: pool.maxSeats ?? 4,
-                          maxFare: amount,
-                        })
-                      }
-                    >
-                      {amount} ETB
-                    </button>
-                  ))}
-                </div>
+                <label htmlFor="maximum-fare">Maximum fare you would pay (ETB)</label>
+                <input id="maximum-fare" type="number" min="0.01" step="0.01" inputMode="decimal"
+                  value={fareInput} disabled={busy} onChange={(event) => setFareInput(event.target.value)} />
               </div>
+              <p className="criteria-price-note">
+                {withinBudget
+                  ? `Possible share: ${money(lowestShare!)}${lowestShare === highestShare ? '' : `–${money(highestShare!)}`} ETB. Final fare depends on the matched group.`
+                  : !validLimits ? 'Enter a valid minimum, maximum, and fare limit.'
+                    : minSeats > pool.fareOptions.length ? 'No sample vehicle has that many passenger seats.'
+                    : 'No currently available group fits these limits.'}
+              </p>
+              <p className="criteria-price-note">Current demo vehicles have up to {pool.fareOptions.length} passenger seats.</p>
             </div>
-            <div className="fare-progress">
-              <div style={{ width: `${pool.quote.count * 25}%` }} />
-            </div>
-            <div className="fare-stages">
-              <span>Just you</span>
-              <span>System Grouped ({pool.quote.count}/4)</span>
-            </div>
+            {!withinBudget && <p className="group-inline-warning">Adjust your group size or fare limit to apply.</p>}
             {(expiredMember || locationStale || pool.requestIssue) && (
               <p className="group-inline-warning">
                 {pool.requestIssue ||
@@ -204,17 +187,13 @@ export function FarePanel({
             )}
             <button
               className="pool-primary request-group"
-              disabled={busy || expiredMember || locationStale || !!pool.requestIssue}
-              onClick={() => void action('/request', { version: pool.version })}
+              disabled={busy || expiredMember || locationStale || !!pool.requestIssue || !withinBudget}
+              onClick={() => void action('/apply', { version: pool.version, minSeats, maxSeats, maxFare })}
             >
-              {busy
-                ? 'Updating…'
-                : pool.quote.count > 1
-                  ? 'Request this group'
-                  : 'Request a solo demo'}
+              {busy ? 'Matching…' : 'Apply for a shared ride'}
               <Icon name="arrow" size={18} />
             </button>
-            <p className="request-note">Review your demo group. No real ride or payment.</p>
+            <p className="request-note">The demo matches sample riders only. No real ride or payment.</p>
           </>
         ) : (
           <div className={`group-status-panel ${status}`} role="status">

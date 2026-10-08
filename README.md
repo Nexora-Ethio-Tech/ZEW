@@ -22,11 +22,11 @@ The frontend runs on port 3000 and the API on port 4000. Stop both with Ctrl+C. 
 ## Try a ride circle
 
 1. Open `/demo`. Choose a pickup and destination by search, map pin or one-time device location, or keep the example Bole → Meskel Square journey.
-2. Add Sara, Bereket and Eden. Your illustrative share changes **360 → 180 → 120 → 90 ETB**. Try the group-size and budget controls or remove a person.
-3. Request the group, open driver space, and let the sample driver Hana accept it.
+2. Enter a positive minimum and maximum number of people you would share with, including yourself, and any positive maximum fare in ETB. Review the server-calculated example prices for each available group size, then apply. The API chooses compatible simulated riders within those limits and locks the illustrative fare. Current demo vehicles have at most four passenger seats, so a higher maximum preference does not create a larger vehicle. A four-person Meskel Square example costs **90 ETB per person**; a solo example costs **360 ETB**.
+3. Open driver space and let the sample driver Hana accept the matched group.
 4. Start and complete the demo ride. My rides shows the simulated receipt and two labeled seeded examples.
 
-Riders have a two-minute readiness window. Refresh demo restarts simulated availability. Distant, wrong-way and expired riders are rejected; driver acceptance also checks capacity and arrival before readiness ends. These checks do not verify actual roads, traffic, safe boarding points or legal pickup reachability. Custom journeys use a fixed illustrative 360 ETB total.
+Riders have a two-minute readiness window. Refresh demo restarts simulated availability. Distant, wrong-way and expired riders are rejected; driver acceptance also checks capacity and arrival before readiness ends. Sample rider matches are limited to journeys near the Bole demo landmarks; other Ethiopia journeys can apply but receive a solo demo result. The map shows illustrative demand areas, not live or exact passenger locations. These checks do not verify actual roads, traffic, safe boarding points or legal pickup reachability. Custom journeys use a fixed illustrative 360 ETB total.
 
 ## Planned commutes
 
@@ -63,7 +63,7 @@ Set `ZEW_BASE_URL` to override the frontend origin. Screenshots are written to `
 
 ## Maps and providers
 
-The demo uses Leaflet with configurable OpenStreetMap tiles and a Photon search proxy. Network access is required. Photon is a low-volume public demo service; production needs a suitable managed or self-hosted provider. Set `PHOTON_URL`, `NEXT_PUBLIC_MAP_TILE_URL` and `NEXT_PUBLIC_MAP_ATTRIBUTION` to configure providers. Respect [Photon limits](https://github.com/komoot/photon#demo-server) and the [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/): visible attribution, normal caching, no prefetch/offline tile downloading. Search text reaches Photon; the viewed map area reaches the tile provider. Device GPS is not reverse-geocoded.
+The demo uses Leaflet with configurable OpenStreetMap tiles and a Photon search proxy. Search results must be tagged as Ethiopia; map pins and device locations are limited to a coarse Ethiopia bounding box, which does not establish the exact border or road reachability. Network access is required. Photon is a low-volume public demo service; production needs a suitable managed or self-hosted provider. Set `PHOTON_URL`, `NEXT_PUBLIC_MAP_TILE_URL` and `NEXT_PUBLIC_MAP_ATTRIBUTION` to configure providers. Respect [Photon limits](https://github.com/komoot/photon#demo-server) and the [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/): visible attribution, normal caching, no prefetch/offline tile downloading. Search text and an Addis Ababa ranking point reach Photon; the viewed map area reaches the tile provider. Device GPS is not reverse-geocoded.
 
 Fonts and marker icons are served locally. Tile errors are shown without silently changing providers or attribution. Optional OSRM routing has an illustrative fallback; neither indicates verified road safety. Real-payment endpoints return 501 until a provider and durable ledger are integrated. Zew never collects a payment PIN.
 

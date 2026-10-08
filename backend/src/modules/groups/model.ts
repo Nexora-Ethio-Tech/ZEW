@@ -13,6 +13,26 @@ export const destinations = [
   { id: 'meskel', name: 'Meskel Square', fare: 360, order: 4 },
   { id: 'mexico', name: 'Mexico', fare: 420, order: 5 },
 ] as const;
+// Illustrative pickup and destination totals, not live riders or individual GPS positions.
+export const demoDemandZones = [
+  { id: 'bole', name: 'Bole', latitude: 8.998, longitude: 38.785, pickupCount: 16, destinationCount: 5 },
+  { id: 'edna', name: 'Edna Mall area', latitude: 8.999, longitude: 38.788, pickupCount: 13, destinationCount: 4 },
+  { id: 'atlas', name: 'Atlas area', latitude: 9.004, longitude: 38.779, pickupCount: 12, destinationCount: 6 },
+  { id: 'bole-medhanialem', name: 'Bole Medhanialem area', latitude: 8.997, longitude: 38.793, pickupCount: 10, destinationCount: 5 },
+  { id: 'wollo-sefer', name: 'Wollo Sefer', latitude: 8.991, longitude: 38.771, pickupCount: 11, destinationCount: 8 },
+  { id: 'meskel', name: 'Meskel Square area', latitude: 9.011, longitude: 38.762, pickupCount: 13, destinationCount: 14 },
+  { id: 'olympia', name: 'Olympia area', latitude: 9.003, longitude: 38.767, pickupCount: 8, destinationCount: 7 },
+  { id: 'gerji', name: 'Gerji area', latitude: 9.014, longitude: 38.807, pickupCount: 9, destinationCount: 4 },
+  { id: 'megenagna', name: 'Megenagna area', latitude: 9.029, longitude: 38.801, pickupCount: 10, destinationCount: 7 },
+  { id: 'cmc', name: 'CMC area', latitude: 9.042, longitude: 38.839, pickupCount: 7, destinationCount: 3 },
+  { id: 'kazanchis', name: 'Kazanchis area', latitude: 9.02, longitude: 38.767, pickupCount: 6, destinationCount: 5 },
+  { id: 'mexico', name: 'Mexico Square area', latitude: 9.01, longitude: 38.745, pickupCount: 5, destinationCount: 10 },
+  { id: 'gotera', name: 'Gotera area', latitude: 8.976, longitude: 38.758, pickupCount: 4, destinationCount: 4 },
+  { id: 'lideta', name: 'Lideta area', latitude: 9.014, longitude: 38.733, pickupCount: 4, destinationCount: 3 },
+  { id: 'sarbet', name: 'Sarbet area', latitude: 8.993, longitude: 38.731, pickupCount: 3, destinationCount: 2 },
+  { id: 'piassa', name: 'Piassa area', latitude: 9.033, longitude: 38.752, pickupCount: 5, destinationCount: 6 },
+  { id: 'tor-hailoch', name: 'Tor Hailoch area', latitude: 9.003, longitude: 38.707, pickupCount: 2, destinationCount: 2 },
+] as const;
 export const demoDrivers = [
   {
     id: 'hana',

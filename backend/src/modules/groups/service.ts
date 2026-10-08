@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { withinEthiopiaBounds } from './ethiopia.js';
 import {
   MAX_LOCATION_AGE_MS,
   MAX_MEMBERS,
   MAX_PICKUP_SECONDS,
   demoDrivers,
+  demoDemandZones,
   demoRiders,
   destinations,
   pickupZones,
@@ -134,10 +136,28 @@ function preferencePreview(pool: PoolState, seats: number, now: number) {
     selectedIds: candidate.selectedIds,
     issue:
       locationIssue(pool, now) ||
+      (seats > 1 && !nearDemoCorridor(pool)
+        ? 'Sample riders are only available near the Bole demo landmarks.'
+        : null) ||
       (candidate.selectedIds.length !== seats - 1
         ? 'Not enough ready demo riders. Refresh availability or choose a smaller circle.'
         : null),
   };
+}
+function nearDemoCorridor(pool: PoolState) {
+  const demoPickup = pool.pickupPlace ?? pickupZones.find((zone) => zone.id === pool.zoneId);
+  const destinationAnchor = pool.destinationPlace
+    ? [
+        { latitude: 8.9905, longitude: 38.7713 },
+        { latitude: 9.0108, longitude: 38.7615 },
+        { latitude: 9.0104, longitude: 38.7453 },
+      ].some((stop) => distanceMeters(pool.destinationPlace!, stop) <= 1000)
+    : true;
+  return Boolean(
+    demoPickup &&
+    pickupZones.some((zone) => distanceMeters(demoPickup, zone) <= 1000) &&
+    destinationAnchor,
+  );
 }
 export function driverIssue(pool: PoolState, id: string, now = Date.now()) {
   const driver = demoDrivers.find((d) => d.id === id);
@@ -186,6 +206,49 @@ export function requestGroup(pool: PoolState, version: number, now = Date.now())
   );
   pool.version++;
 }
+export function applyForGroup(pool: PoolState, version: number, now = Date.now()) {
+  syncExpiry(pool, now);
+  requireDraft(pool);
+  if (pool.version !== version)
+    throw new GroupError('Your journey changed. Review it and apply again.');
+  const issue = locationIssue(pool, now);
+  if (issue) throw new GroupError(issue);
+
+  // Seed riders describe the Bole corridor only. Other journeys may apply, but
+  // the demo must not claim these fictional people are near a distant pickup.
+  const minSeats = pool.minSeats ?? 1;
+  const maxSeats = pool.maxSeats ?? MAX_MEMBERS;
+  const maxFare = pool.maxFare ?? fareQuote(pool, 1).yourFare;
+  for (let seats = Math.min(maxSeats, MAX_MEMBERS); seats >= minSeats; seats--) {
+    const preview = preferencePreview(pool, seats, now);
+    if (preview.issue || preview.yourFare > maxFare) continue;
+    pool.selectedIds = preview.selectedIds;
+    pool.targetSeats = seats;
+    requestGroup(pool, version, now);
+    return;
+  }
+  throw new GroupError('No demo group meets your people and fare limits right now. Adjust them or refresh demo availability.');
+}
+export function setGroupCriteria(
+  pool: PoolState,
+  input: { minSeats: number; maxSeats: number; maxFare: number },
+) {
+  requireDraft(pool);
+  if (
+    !Number.isSafeInteger(input.minSeats) ||
+    !Number.isSafeInteger(input.maxSeats) ||
+    input.minSeats < 1 ||
+    input.maxSeats < 1 ||
+    input.minSeats > input.maxSeats ||
+    !Number.isFinite(input.maxFare) ||
+    input.maxFare <= 0
+  ) throw new GroupError('Choose a valid group size and fare limit.', 400);
+  pool.minSeats = input.minSeats;
+  pool.maxSeats = input.maxSeats;
+  pool.maxFare = input.maxFare;
+  pool.selectedIds = [];
+  pool.version++;
+}
 export function acceptGroup(pool: PoolState, driverId: string, now = Date.now()) {
   syncExpiry(pool, now);
   if (pool.status !== 'requested') throw new GroupError('This group request is no longer open.');
@@ -197,6 +260,8 @@ export function acceptGroup(pool: PoolState, driverId: string, now = Date.now())
 }
 export function setDeviceLocation(pool: PoolState, location: DeviceLocation, now = Date.now()) {
   requireDraft(pool);
+  if (!withinEthiopiaBounds(location))
+    throw new GroupError('Choose a location in Ethiopia for this demo.', 400);
   if (location.timestamp > now + 5000 || location.timestamp < now - MAX_LOCATION_AGE_MS)
     throw new GroupError('That location is stale. Please try again.', 400);
   const nearest = pickupZones
@@ -261,6 +326,8 @@ export function groupDestinations(pool: PoolState) {
 }
 export function setPlace(pool: PoolState, target: 'pickup' | 'destination', place: Place) {
   requireDraft(pool);
+  if (!withinEthiopiaBounds(place))
+    throw new GroupError('Choose a place in Ethiopia for this demo.', 400);
   if (target === 'pickup') {
     pool.pickupPlace = place;
     pool.locationSource = 'place';
@@ -437,9 +504,9 @@ export function poolView(pool: PoolState, now = Date.now()) {
     },
     locationIssue: locationIssue(pool, now),
     targetSeats: pool.targetSeats ?? 1,
-    minSeats: pool.minSeats ?? 2,
+    minSeats: pool.minSeats ?? 1,
     maxSeats: pool.maxSeats ?? 4,
-    maxFare: pool.maxFare ?? 360,
+    maxFare: pool.maxFare ?? fareQuote(pool, 1).yourFare,
     fareOptions: Array.from({ length: MAX_MEMBERS }, (_, i) => {
       const { selectedIds: _selected, ...preview } = preferencePreview(pool, i + 1, now);
       return preview;
@@ -461,6 +528,7 @@ export function poolView(pool: PoolState, now = Date.now()) {
     }),
     destinations: groupDestinations(pool),
     pickupZones: pickupZones.map(({ id, name }) => ({ id, name })),
+    demandZones: demoDemandZones,
     quote: fareQuote(pool),
     guidance: computeGuidance(pool, mapPickup.name),
     driverItinerary: computeDriverItinerary(pool, mapPickup.name),

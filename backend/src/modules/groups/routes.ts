@@ -5,6 +5,7 @@ import { seedPool, type PoolState } from './model.js';
 import {
   GroupError,
   acceptGroup,
+  applyForGroup,
   addRider,
   autoMatchGroup,
   fareQuote,
@@ -17,6 +18,7 @@ import {
   syncExpiry,
   setPlace,
   setTargetPreference,
+  setGroupCriteria,
   groupDestinations,
 } from './service.js';
 
@@ -163,6 +165,35 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
   app.post('/pool/request', async (req) => {
     const { version } = z.object({ version: z.number().int().positive() }).strict().parse(req.body);
     return mutate(req.sessionId, 'group.requested', (pool) => requestGroup(pool, version));
+  });
+  app.post('/pool/apply', async (req) => {
+    const input = z.object({
+      version: z.number().int().positive(),
+      minSeats: z.number().int().positive().safe().optional(),
+      maxSeats: z.number().int().positive().safe().optional(),
+      maxFare: z.number().finite().positive().optional(),
+    }).strict().parse(req.body);
+    return mutate(req.sessionId, 'group.applied', (pool) => {
+      if (pool.version !== input.version) throw new GroupError('Your journey changed. Review it and apply again.');
+      if (input.minSeats !== undefined && input.maxSeats !== undefined && input.maxFare !== undefined) {
+        setGroupCriteria(pool, { minSeats: input.minSeats, maxSeats: input.maxSeats, maxFare: input.maxFare });
+      } else if (input.minSeats !== undefined || input.maxSeats !== undefined || input.maxFare !== undefined) {
+        throw new GroupError('Provide all group and fare limits together.', 400);
+      }
+      applyForGroup(pool, pool.version);
+    });
+  });
+  app.post('/pool/criteria', async (req) => {
+    const input = z.object({
+      version: z.number().int().positive(),
+      minSeats: z.number().int().positive().safe(),
+      maxSeats: z.number().int().positive().safe(),
+      maxFare: z.number().finite().positive(),
+    }).strict().parse(req.body);
+    return mutate(req.sessionId, 'group.criteria_updated', (pool) => {
+      if (pool.version !== input.version) throw new GroupError('Your journey changed. Review your preferences and try again.');
+      setGroupCriteria(pool, input);
+    });
   });
   app.post('/pool/accept', async (req) => {
     const { groupId, driverId } = z

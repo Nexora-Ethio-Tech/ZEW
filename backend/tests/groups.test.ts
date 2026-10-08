@@ -13,6 +13,7 @@ import {
   setDeviceLocation,
   setTargetPreference,
   poolView,
+  applyForGroup,
 } from '../src/modules/groups/service.js';
 
 test('group adds only same-direction riders within the full 120-second pickup span', () => {
@@ -90,9 +91,8 @@ test('expired ready windows and locations fail closed, including arrival before 
     () => setDeviceLocation(pool, { ...location, timestamp: now - 121000 }, now),
     /stale/,
   );
-  setDeviceLocation(pool, { ...location, latitude: 0, longitude: 0 }, now);
-  assert.equal(pool.zoneId, null);
-  assert.equal(pool.pickupPlace?.latitude, 0);
+  assert.throws(() => setDeviceLocation(pool, { ...location, latitude: 0, longitude: 0 }, now), /Ethiopia/);
+  assert.equal(pool.pickupPlace?.latitude, location.latitude);
   assert.equal(pool.locationSource, 'device');
   setDeviceLocation(pool, { ...location, accuracy: 500 }, now);
   assert.throws(() => requestGroup(pool, pool.version, now), /approximate/);
@@ -132,6 +132,113 @@ test('API group lifecycle, tampering protection, duplicate acceptance and new-gr
   const fresh = (await request('/action', { action: 'new' })).json();
   assert.notEqual(fresh.id, group.id);
   assert.equal(fresh.history.length, 3);
+});
+
+test('application forms and locks a group without client-selected passengers or fare', async (t) => {
+  const { app, request } = await setup();
+  t.after(() => app.close());
+  const initial = (await request('', undefined, 'GET')).json();
+  assert.equal(initial.quote.count, 1);
+  assert.equal(initial.demandZones.length, 17);
+  assert.ok(initial.demandZones.reduce((total: number, zone: { pickupCount: number }) => total + zone.pickupCount, 0) >= 100);
+  assert.ok(initial.demandZones.reduce((total: number, zone: { destinationCount: number }) => total + zone.destinationCount, 0) >= 90);
+  assert.ok(initial.demandZones.every((zone: { pickupCount: number; destinationCount: number }) => zone.pickupCount > 0 && zone.destinationCount > 0));
+  assert.equal((await request('/apply', { version: initial.version, riderIds: ['nahom'] })).statusCode, 400);
+  assert.equal((await request('/apply', { version: initial.version, fare: 1 })).statusCode, 400);
+  const refreshed = (await request('/refresh')).json();
+  assert.equal((await request('/apply', { version: initial.version })).statusCode, 409);
+  const applied = (await request('/apply', { version: refreshed.version })).json();
+  assert.equal(applied.status, 'requested');
+  assert.equal(applied.quote.count, 4);
+  assert.equal(applied.lockedFare, 90);
+  assert.deepEqual(applied.selectedIds, ['sara', 'bereket', 'eden']);
+  assert.equal((await request('/apply', { version: applied.version })).statusCode, 409);
+});
+
+test('group size and fare limits control automatic matching without selecting riders', async (t) => {
+  const { app, request } = await setup();
+  t.after(() => app.close());
+  const initial = (await request('', undefined, 'GET')).json();
+  assert.equal((await request('/criteria', { version: initial.version, minSeats: 4, maxSeats: 2, maxFare: 120 })).statusCode, 400);
+  assert.equal((await request('/criteria', { version: initial.version, minSeats: 2, maxSeats: 3, maxFare: 120, fare: 1 })).statusCode, 400);
+  const criteria = (await request('/criteria', {
+    version: initial.version,
+    minSeats: 2,
+    maxSeats: 3,
+    maxFare: 120,
+  })).json();
+  assert.equal(criteria.minSeats, 2);
+  assert.equal(criteria.maxSeats, 3);
+  assert.equal(criteria.maxFare, 120);
+  assert.equal((await request('/criteria', { version: initial.version, minSeats: 1, maxSeats: 4, maxFare: 360 })).statusCode, 409);
+  const applied = (await request('/apply', { version: criteria.version })).json();
+  assert.equal(applied.status, 'requested');
+  assert.equal(applied.quote.count, 3);
+  assert.equal(applied.lockedFare, 120);
+  assert.deepEqual(applied.selectedIds, ['sara', 'bereket']);
+});
+
+test('application leaves a draft unchanged when no group meets its limits', async (t) => {
+  const { app, request } = await setup();
+  t.after(() => app.close());
+  const initial = (await request('', undefined, 'GET')).json();
+  const criteria = (await request('/criteria', {
+    version: initial.version,
+    minSeats: 2,
+    maxSeats: 2,
+    maxFare: 120,
+  })).json();
+  assert.equal((await request('/apply', { version: criteria.version })).statusCode, 409);
+  const unchanged = (await request('', undefined, 'GET')).json();
+  assert.equal(unchanged.status, 'draft');
+  assert.equal(unchanged.version, criteria.version);
+  assert.deepEqual(unchanged.selectedIds, []);
+});
+
+test('arbitrary group maximum and fare ceiling remain preferences while matching respects vehicle seats', async (t) => {
+  const { app, request } = await setup();
+  t.after(() => app.close());
+  const initial = (await request('', undefined, 'GET')).json();
+  const appliedResponse = await request('/apply', {
+    version: initial.version, minSeats: 2, maxSeats: 1000000, maxFare: 125.75,
+  });
+  assert.equal(appliedResponse.statusCode, 200);
+  const applied = appliedResponse.json();
+  assert.equal(applied.maxSeats, 1000000);
+  assert.equal(applied.maxFare, 125.75);
+  assert.equal(applied.quote.count, 4);
+  assert.equal(applied.lockedFare, 90);
+
+  await request('/action', { action: 'cancel' });
+  const second = (await request('/action', { action: 'new' })).json();
+  assert.equal((await request('/apply', {
+    version: second.version, minSeats: 5, maxSeats: 1000000, maxFare: 1000000,
+  })).statusCode, 409);
+  const unchanged = (await request('', undefined, 'GET')).json();
+  assert.equal(unchanged.status, 'draft');
+  assert.equal(unchanged.version, second.version);
+});
+
+test('application falls back to a solo demo when sample riders are unavailable', () => {
+  const now = Date.now();
+  const pool = seedPool(now);
+  pool.riders.forEach((rider) => { rider.optedIn = false; });
+  applyForGroup(pool, pool.version, now);
+  assert.equal(pool.status, 'requested');
+  assert.deepEqual(pool.selectedIds, []);
+  assert.equal(pool.lockedFare, 360);
+});
+
+test('application does not match Bole sample riders to an Adama journey', () => {
+  const now = Date.now();
+  const pool = seedPool(now);
+  pool.pickupPlace = { name: 'Adama station', latitude: 8.54, longitude: 39.27 };
+  pool.destinationPlace = { name: 'Adama university', latitude: 8.56, longitude: 39.29 };
+  pool.destination = 'custom';
+  assert.match(poolView(pool, now).fareOptions[1].issue!, /Bole demo landmarks/);
+  applyForGroup(pool, pool.version, now);
+  assert.deepEqual(pool.selectedIds, []);
+  assert.equal(pool.lockedFare, 360);
 });
 
 test('device coordinates are private, fallback clears them, and other sessions cannot accept a group', async (t) => {

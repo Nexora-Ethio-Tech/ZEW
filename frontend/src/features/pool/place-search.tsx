@@ -43,8 +43,8 @@ export function PlaceSearch({
       setResults(data.places);
       setStatus(
         data.places.length
-          ? 'Choose a result to confirm this place.'
-          : 'No places found. Add a city or choose a pin on the map.',
+          ? 'Select an Ethiopia place below to use it for your journey.'
+          : 'No places found in Ethiopia. Try a nearby city or choose a pin on the map.',
       );
     } catch (error) {
       if (request === revision.current)
@@ -81,7 +81,7 @@ export function PlaceSearch({
               revision.current++;
               setQuery(event.target.value);
               setResults([]);
-              setStatus('Press Search, then select a result to confirm.');
+              setStatus('Search for an Ethiopia place, then select a result below.');
             }}
           />
           <button

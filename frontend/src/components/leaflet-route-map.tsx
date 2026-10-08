@@ -132,8 +132,8 @@ export default function LeafletRouteMap({
           <svg class="raindrop-svg" viewBox="0 0 36 50" width="36" height="50">
             <defs>
               <linearGradient id="grad-${letter.toLowerCase()}" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="${isPickup ? '#34d399' : '#fb923c'}" />
-                <stop offset="100%" stop-color="${isPickup ? '#059669' : '#ea580c'}" />
+                <stop offset="0%" stop-color="${isPickup ? '#34d399' : '#f87171'}" />
+                <stop offset="100%" stop-color="${isPickup ? '#059669' : '#dc2626'}" />
               </linearGradient>
               <filter id="shadow-${letter.toLowerCase()}" x="-20%" y="-20%" width="140%" height="140%">
                 <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.4"/>
@@ -145,7 +145,7 @@ export default function LeafletRouteMap({
                   stroke-width="2.5"
                   filter="url(#shadow-${letter.toLowerCase()})" />
             <circle cx="18" cy="18" r="9" fill="#ffffff" />
-            <text x="18" y="22.5" font-size="12" font-weight="900" font-family="system-ui, sans-serif" text-anchor="middle" fill="${isPickup ? '#047857' : '#c2410c'}">${letter}</text>
+            <text x="18" y="22.5" font-size="12" font-weight="900" font-family="system-ui, sans-serif" text-anchor="middle" fill="${isPickup ? '#047857' : '#991b1b'}">${letter}</text>
           </svg>
           <div class="raindrop-shadow-pulse"></div>
         </div>
