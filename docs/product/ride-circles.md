@@ -5,9 +5,9 @@ Implemented from the founder's updated direction on 2026-10-01. The main page is
 ## Rider journey
 
 1. Search for a pickup by street, landmark or city; choose a result. Or confirm a map pin, or tap **Use my location**. Browser permission is requested only on that tap. The initial locations are examples, not limits.
-2. Choose any destination the same way. The map shows illustrative pickup and destination dots generated around fixed area centres. These are not live people or exact rider locations.
+2. Choose any destination the same way. Behind the form, 13 example journey pairs have 14 fictional applicants each. The map shows illustrative pickup and destination dots generated from these application totals around approximate area centres. These are not live people or exact rider locations.
 3. Choose a minimum and maximum group size, including yourself, and a maximum fare. The UI shows the server-calculated example share for every group size in that range. Tap **Apply for a shared ride**. The API selects eligible sample riders within the limits and locks the example fare in one transaction. Riders do not choose each other.
-4. Review the matched group and share. If the chosen minimum is one, the private demo can create a solo request when no sample rider is eligible. Its sample riders represent the Bole corridor only; journeys outside those example landmarks need a one-person minimum or the application returns no match.
+4. Review the matched group and share. If the chosen minimum is one, the private demo can create a solo request when no sample rider is eligible. Sample applicants match only when the selected pickup and destination are near the same displayed example pair; other Ethiopia journeys need a one-person minimum or the application returns no match.
 5. In Driver space, select a demo driver and accept the entire group if its seats and pickup timing fit. Start/complete the simulated journey, or cancel before departure.
 
 ## The two-minute rule
@@ -27,9 +27,9 @@ The ETA values are explicit fictional fixtures in `backend/src/modules/groups/mo
 
 Each destination has a fixed total: Wollo Sefer 300 ETB, Meskel Square 360 ETB, Mexico 420 ETB. Divide that total equally among selected passengers. At Meskel Square the sequence is **360 → 180 → 120 → 90 ETB** as a group grows from one to four people.
 
-Custom destinations use a **360 ETB illustrative total**, regardless of distance. This is a scenario for testing fare splits, not a real road-based quote. Demo riders adopt the custom destination; their ETA fixtures remain simulated. No fake rider pins or invented route geometry are drawn over the real map.
+Custom destinations use a **360 ETB illustrative total**, regardless of distance. This is a scenario for testing fare splits, not a real road-based quote. Demo riders adopt the custom destination; their ETA fixtures remain simulated. Approximate demand dots are not individual rider pins, and no invented route geometry is drawn over the real map.
 
-This equal split is a provisional demo rule, including for shorter drop-offs. The UI states it in the fare explanation. The backend computes the final quote; an application carries only the current state version, never a trusted client price or passenger list. A 10% fee is included in the total, not added on top. No payment is collected.
+This equal split is a provisional demo rule, including for shorter drop-offs. The UI states it in the fare explanation. The backend computes the final quote; an application carries the current state version and rider preferences, never a trusted client price or passenger list. A 10% fee is included in the total, not added on top. No payment is collected.
 
 ## Device location
 
@@ -53,6 +53,7 @@ Authenticated, session-owned endpoints under `/api/v1/pool`:
 - `GET /`: current group, fare, candidate previews, eligibility and history.
 - `POST /location`, `/destination`: update pickup/destination while drafting; clear prior membership.
 - `POST /place`: arbitrary validated `{target: "pickup" | "destination", place: {name, latitude, longitude}}`; resets membership and demo availability. Locked groups cannot change endpoints. History preserves the selected names.
+- `POST /demo-route`: select one of the schematic example pairs and refresh its fictional applicants atomically. The route ID does not assert actual road connectivity.
 - `POST /criteria`: save any positive min/max total people and maximum acceptable fare. These are preferences, not a client quote. Actual matching respects the four-seat capacity of current demo vehicles.
 - `POST /apply`: receive those preferences and select eligible sample riders within them in one transaction, then submit the request. The client cannot choose people or supply the final fare.
 - `POST /refresh`: explicitly refresh the fictional availability window.

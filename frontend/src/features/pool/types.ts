@@ -64,6 +64,7 @@ export interface Pool {
   destinations: { id: string; name: string; fare: number; order: number }[];
   pickupZones: { id: string; name: string }[];
   demandZones: { id: string; name: string; latitude: number; longitude: number; pickupCount: number; destinationCount: number }[];
+  sampleRoutes: { id: string; pickup: string; destination: string; sampleApplicants: number }[];
   guidance?: {
     meetingPoint: string;
     instruction: string;

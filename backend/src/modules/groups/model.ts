@@ -13,26 +13,52 @@ export const destinations = [
   { id: 'meskel', name: 'Meskel Square', fare: 360, order: 4 },
   { id: 'mexico', name: 'Mexico', fare: 420, order: 5 },
 ] as const;
-// Illustrative pickup and destination totals, not live riders or individual GPS positions.
-export const demoDemandZones = [
-  { id: 'bole', name: 'Bole', latitude: 8.998, longitude: 38.785, pickupCount: 16, destinationCount: 5 },
-  { id: 'edna', name: 'Edna Mall area', latitude: 8.999, longitude: 38.788, pickupCount: 13, destinationCount: 4 },
-  { id: 'atlas', name: 'Atlas area', latitude: 9.004, longitude: 38.779, pickupCount: 12, destinationCount: 6 },
-  { id: 'bole-medhanialem', name: 'Bole Medhanialem area', latitude: 8.997, longitude: 38.793, pickupCount: 10, destinationCount: 5 },
-  { id: 'wollo-sefer', name: 'Wollo Sefer', latitude: 8.991, longitude: 38.771, pickupCount: 11, destinationCount: 8 },
-  { id: 'meskel', name: 'Meskel Square area', latitude: 9.011, longitude: 38.762, pickupCount: 13, destinationCount: 14 },
-  { id: 'olympia', name: 'Olympia area', latitude: 9.003, longitude: 38.767, pickupCount: 8, destinationCount: 7 },
-  { id: 'gerji', name: 'Gerji area', latitude: 9.014, longitude: 38.807, pickupCount: 9, destinationCount: 4 },
-  { id: 'megenagna', name: 'Megenagna area', latitude: 9.029, longitude: 38.801, pickupCount: 10, destinationCount: 7 },
-  { id: 'cmc', name: 'CMC area', latitude: 9.042, longitude: 38.839, pickupCount: 7, destinationCount: 3 },
-  { id: 'kazanchis', name: 'Kazanchis area', latitude: 9.02, longitude: 38.767, pickupCount: 6, destinationCount: 5 },
-  { id: 'mexico', name: 'Mexico Square area', latitude: 9.01, longitude: 38.745, pickupCount: 5, destinationCount: 10 },
-  { id: 'gotera', name: 'Gotera area', latitude: 8.976, longitude: 38.758, pickupCount: 4, destinationCount: 4 },
-  { id: 'lideta', name: 'Lideta area', latitude: 9.014, longitude: 38.733, pickupCount: 4, destinationCount: 3 },
-  { id: 'sarbet', name: 'Sarbet area', latitude: 8.993, longitude: 38.731, pickupCount: 3, destinationCount: 2 },
-  { id: 'piassa', name: 'Piassa area', latitude: 9.033, longitude: 38.752, pickupCount: 5, destinationCount: 6 },
-  { id: 'tor-hailoch', name: 'Tor Hailoch area', latitude: 9.003, longitude: 38.707, pickupCount: 2, destinationCount: 2 },
+// Schematic example pairs for this private demo. Coordinates identify approximate
+// areas, not verified stops, road routes, or live passenger positions.
+export const demoRoutePlaces = {
+  edna: { name: 'Edna Mall, Bole', latitude: 8.9982, longitude: 38.7865 },
+  atlas: { name: 'Atlas, Bole', latitude: 9.0035, longitude: 38.7798 },
+  wollosefer: { name: 'Wollo Sefer', latitude: 8.9905, longitude: 38.7713 },
+  meskel: { name: 'Meskel Square', latitude: 9.0108, longitude: 38.7615 },
+  mexico: { name: 'Mexico Square', latitude: 9.0104, longitude: 38.7453 },
+  gerji: { name: 'Gerji', latitude: 9.014, longitude: 38.807 },
+  megenagna: { name: 'Megenagna', latitude: 9.029, longitude: 38.801 },
+  cmc: { name: 'CMC', latitude: 9.042, longitude: 38.839 },
+  kazanchis: { name: 'Kazanchis', latitude: 9.02, longitude: 38.767 },
+  piassa: { name: 'Piassa', latitude: 9.033, longitude: 38.752 },
+  lideta: { name: 'Lideta', latitude: 9.014, longitude: 38.733 },
+  sarbet: { name: 'Sarbet', latitude: 8.993, longitude: 38.731 },
+  gotera: { name: 'Gotera', latitude: 8.976, longitude: 38.758 },
+  torhailoch: { name: 'Tor Hailoch', latitude: 9.003, longitude: 38.707 },
+  adamaStation: { name: 'Adama station area', latitude: 8.54, longitude: 39.27 },
+  adamaUniversity: { name: 'Adama university area', latitude: 8.56, longitude: 39.29 },
+} as const;
+export const demoRoutes = [
+  { id: 'edna-meskel', from: 'edna', to: 'meskel' },
+  { id: 'edna-mexico', from: 'edna', to: 'mexico' },
+  { id: 'atlas-wollosefer', from: 'atlas', to: 'wollosefer' },
+  { id: 'gerji-megenagna', from: 'gerji', to: 'megenagna' },
+  { id: 'megenagna-kazanchis', from: 'megenagna', to: 'kazanchis' },
+  { id: 'cmc-megenagna', from: 'cmc', to: 'megenagna' },
+  { id: 'wollosefer-mexico', from: 'wollosefer', to: 'mexico' },
+  { id: 'meskel-mexico', from: 'meskel', to: 'mexico' },
+  { id: 'piassa-kazanchis', from: 'piassa', to: 'kazanchis' },
+  { id: 'lideta-sarbet', from: 'lideta', to: 'sarbet' },
+  { id: 'gotera-meskel', from: 'gotera', to: 'meskel' },
+  { id: 'torhailoch-mexico', from: 'torhailoch', to: 'mexico' },
+  { id: 'adama-station-university', from: 'adamaStation', to: 'adamaUniversity' },
 ] as const;
+export const DEMO_APPLICANTS_PER_ROUTE = 14;
+// Dot totals are derived from seeded applications, then scattered around each
+// area for display. They are not individual locations or live demand.
+export const demoDemandZones = Object.entries(demoRoutePlaces).map(([id, place]) => ({
+  id,
+  name: place.name,
+  latitude: place.latitude,
+  longitude: place.longitude,
+  pickupCount: demoRoutes.filter((route) => route.from === id).length * DEMO_APPLICANTS_PER_ROUTE,
+  destinationCount: demoRoutes.filter((route) => route.to === id).length * DEMO_APPLICANTS_PER_ROUTE,
+}));
 export const demoDrivers = [
   {
     id: 'hana',
@@ -92,6 +118,7 @@ export interface PoolRider {
   locationAt: number;
   optedIn: boolean;
   phone?: string;
+  corridorId?: string;
 }
 export type GroupStatus =
   'draft' | 'requested' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'expired';
@@ -129,7 +156,7 @@ export interface PoolState {
   }[];
 }
 export function demoRiders(now = Date.now()): PoolRider[] {
-  return [
+  const legacy = [
     {
       id: 'sara',
       name: 'Sara M.',
@@ -318,6 +345,29 @@ export function demoRiders(now = Date.now()): PoolRider[] {
       direction: 'forward' as const,
     },
   ].map((r) => ({ ...r, readyUntil: now + 120000, locationAt: now, optedIn: true }));
+  const names = ['Mekdes', 'Abel', 'Liya', 'Samuel', 'Hana', 'Biruk', 'Rahel', 'Nahom', 'Selam', 'Yared', 'Tigist', 'Dawit', 'Saron', 'Kalkidan'];
+  const colors = ['peach', 'lavender', 'blue', 'mint', 'sand', 'pink'];
+  const applicants = demoRoutes.flatMap((route, routeIndex) =>
+    Array.from({ length: DEMO_APPLICANTS_PER_ROUTE }, (_, index) => {
+      const from = demoRoutePlaces[route.from];
+      const name = names[(index + routeIndex * 3) % names.length];
+      return {
+        id: `${route.id}-${index + 1}`,
+        name: `${name} ${String.fromCharCode(65 + (index + routeIndex) % 26)}.`,
+        initials: `${name[0]}${String.fromCharCode(65 + (index + routeIndex) % 26)}`,
+        color: colors[(index + routeIndex) % colors.length],
+        pickup: `${from.name} demo area`,
+        pickupSeconds: 25 + (index % 8) * 7,
+        destination: 'custom',
+        direction: 'forward' as const,
+        readyUntil: now + 120000,
+        locationAt: now,
+        optedIn: true,
+        corridorId: route.id,
+      };
+    }),
+  );
+  return [...legacy, ...applicants];
 }
 export function seedPool(now = Date.now()): PoolState {
   return {

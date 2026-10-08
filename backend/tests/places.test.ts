@@ -38,7 +38,8 @@ test('arbitrary places persist, invalidate groups, preserve rules and complete i
     400,
   );
   assert.equal((await post('/members', { action: 'add', riderId: 'nahom' })).statusCode, 409);
-  pool = (await post('/members', { action: 'add', riderId: 'sara' })).json();
+  assert.equal((await post('/members', { action: 'add', riderId: 'sara' })).statusCode, 409);
+  pool = (await post('/members', { action: 'add', riderId: 'adama-station-university-1' })).json();
   assert.equal(pool.quote.yourFare, 180);
   assert.equal((await post('/request', { version: pool.version })).json().status, 'requested');
   assert.equal((await post('/place', { target: 'pickup', place: pickup })).statusCode, 409);

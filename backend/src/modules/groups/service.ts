@@ -4,8 +4,11 @@ import {
   MAX_LOCATION_AGE_MS,
   MAX_MEMBERS,
   MAX_PICKUP_SECONDS,
+  DEMO_APPLICANTS_PER_ROUTE,
   demoDrivers,
   demoDemandZones,
+  demoRoutePlaces,
+  demoRoutes,
   demoRiders,
   destinations,
   pickupZones,
@@ -42,6 +45,26 @@ export function riderIssue(pool: PoolState, rider: PoolRider, now = Date.now()):
   if (rider.readyUntil <= now || now - rider.locationAt > MAX_LOCATION_AGE_MS)
     return 'Availability expired';
   if (rider.direction !== 'forward') return 'Other side of the road';
+  if (rider.corridorId) {
+    const route = demoRoutes.find((item) => item.id === rider.corridorId);
+    const pickup = pool.pickupPlace ?? pickupZones.find((zone) => zone.id === pool.zoneId);
+    const destination = pool.destinationPlace ?? {
+      wollosefer: demoRoutePlaces.wollosefer,
+      meskel: demoRoutePlaces.meskel,
+      mexico: demoRoutePlaces.mexico,
+    }[pool.destination as 'wollosefer' | 'meskel' | 'mexico'];
+    if (!route || !pickup || !destination ||
+      distanceMeters(pickup, demoRoutePlaces[route.from]) > 650 ||
+      distanceMeters(destination, demoRoutePlaces[route.to]) > 650)
+      return 'This sample application is for another example journey.';
+  } else if (!nearDemoCorridor(pool)) {
+    return 'Sample riders are only available near the Bole demo landmarks.';
+  }
+  if (rider.corridorId) {
+    const span = Math.max(0, rider.pickupSeconds,
+      ...pool.riders.filter((r) => pool.selectedIds.includes(r.id)).map((r) => r.pickupSeconds));
+    return rider.pickupSeconds < 0 || span > MAX_PICKUP_SECONDS ? 'More than 2 minutes away' : null;
+  }
   const ends = groupDestinations(pool);
   const end = ends.find((d) => d.id === pool.destination)!;
   const riderEnd = ends.find((d) => d.id === rider.destination)!;
@@ -136,11 +159,8 @@ function preferencePreview(pool: PoolState, seats: number, now: number) {
     selectedIds: candidate.selectedIds,
     issue:
       locationIssue(pool, now) ||
-      (seats > 1 && !nearDemoCorridor(pool)
-        ? 'Sample riders are only available near the Bole demo landmarks.'
-        : null) ||
       (candidate.selectedIds.length !== seats - 1
-        ? 'Not enough ready demo riders. Refresh availability or choose a smaller circle.'
+        ? 'Not enough ready demo riders for this example journey. Refresh availability or choose another route.'
         : null),
   };
 }
@@ -214,8 +234,7 @@ export function applyForGroup(pool: PoolState, version: number, now = Date.now()
   const issue = locationIssue(pool, now);
   if (issue) throw new GroupError(issue);
 
-  // Seed riders describe the Bole corridor only. Other journeys may apply, but
-  // the demo must not claim these fictional people are near a distant pickup.
+  // Match only fictional applicants seeded for the selected example journey.
   const minSeats = pool.minSeats ?? 1;
   const maxSeats = pool.maxSeats ?? MAX_MEMBERS;
   const maxFare = pool.maxFare ?? fareQuote(pool, 1).yourFare;
@@ -337,6 +356,19 @@ export function setPlace(pool: PoolState, target: 'pickup' | 'destination', plac
     pool.destinationPlace = place;
     pool.destination = 'custom';
   }
+  pool.selectedIds = [];
+  refreshDemo(pool);
+}
+export function setDemoRoute(pool: PoolState, routeId: string) {
+  requireDraft(pool);
+  const route = demoRoutes.find((item) => item.id === routeId);
+  if (!route) throw new GroupError('Example journey not found.', 404);
+  pool.pickupPlace = demoRoutePlaces[route.from];
+  pool.destinationPlace = demoRoutePlaces[route.to];
+  pool.destination = 'custom';
+  pool.locationSource = 'place';
+  pool.location = undefined;
+  pool.zoneId = null;
   pool.selectedIds = [];
   refreshDemo(pool);
 }
@@ -529,6 +561,12 @@ export function poolView(pool: PoolState, now = Date.now()) {
     destinations: groupDestinations(pool),
     pickupZones: pickupZones.map(({ id, name }) => ({ id, name })),
     demandZones: demoDemandZones,
+    sampleRoutes: demoRoutes.map((route) => ({
+      id: route.id,
+      pickup: demoRoutePlaces[route.from].name,
+      destination: demoRoutePlaces[route.to].name,
+      sampleApplicants: DEMO_APPLICANTS_PER_ROUTE,
+    })),
     quote: fareQuote(pool),
     guidance: computeGuidance(pool, mapPickup.name),
     driverItinerary: computeDriverItinerary(pool, mapPickup.name),

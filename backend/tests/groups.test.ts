@@ -14,7 +14,9 @@ import {
   setTargetPreference,
   poolView,
   applyForGroup,
+  setDemoRoute,
 } from '../src/modules/groups/service.js';
+import { DEMO_APPLICANTS_PER_ROUTE, demoRoutes } from '../src/modules/groups/model.js';
 
 test('group adds only same-direction riders within the full 120-second pickup span', () => {
   const now = Date.now(),
@@ -139,10 +141,10 @@ test('application forms and locks a group without client-selected passengers or 
   t.after(() => app.close());
   const initial = (await request('', undefined, 'GET')).json();
   assert.equal(initial.quote.count, 1);
-  assert.equal(initial.demandZones.length, 17);
-  assert.ok(initial.demandZones.reduce((total: number, zone: { pickupCount: number }) => total + zone.pickupCount, 0) >= 100);
-  assert.ok(initial.demandZones.reduce((total: number, zone: { destinationCount: number }) => total + zone.destinationCount, 0) >= 90);
-  assert.ok(initial.demandZones.every((zone: { pickupCount: number; destinationCount: number }) => zone.pickupCount > 0 && zone.destinationCount > 0));
+  assert.equal(initial.sampleRoutes.length, demoRoutes.length);
+  assert.equal(initial.demandZones.reduce((total: number, zone: { pickupCount: number }) => total + zone.pickupCount, 0), demoRoutes.length * DEMO_APPLICANTS_PER_ROUTE);
+  assert.equal(initial.demandZones.reduce((total: number, zone: { destinationCount: number }) => total + zone.destinationCount, 0), demoRoutes.length * DEMO_APPLICANTS_PER_ROUTE);
+  assert.equal(initial.riders.filter((r: { corridorId?: string }) => r.corridorId).length, demoRoutes.length * DEMO_APPLICANTS_PER_ROUTE);
   assert.equal((await request('/apply', { version: initial.version, riderIds: ['nahom'] })).statusCode, 400);
   assert.equal((await request('/apply', { version: initial.version, fare: 1 })).statusCode, 400);
   const refreshed = (await request('/refresh')).json();
@@ -229,16 +231,62 @@ test('application falls back to a solo demo when sample riders are unavailable',
   assert.equal(pool.lockedFare, 360);
 });
 
-test('application does not match Bole sample riders to an Adama journey', () => {
+test('Adama example journey matches its own applicants, never Bole applicants', () => {
   const now = Date.now();
   const pool = seedPool(now);
   pool.pickupPlace = { name: 'Adama station', latitude: 8.54, longitude: 39.27 };
   pool.destinationPlace = { name: 'Adama university', latitude: 8.56, longitude: 39.29 };
   pool.destination = 'custom';
-  assert.match(poolView(pool, now).fareOptions[1].issue!, /Bole demo landmarks/);
+  assert.match(riderIssue(pool, pool.riders[0], now)!, /Bole demo landmarks/);
+  assert.equal(poolView(pool, now).fareOptions[3].issue, null);
   applyForGroup(pool, pool.version, now);
-  assert.deepEqual(pool.selectedIds, []);
-  assert.equal(pool.lockedFare, 360);
+  assert.equal(pool.selectedIds.length, 3);
+  assert.ok(pool.selectedIds.every((id) => id.startsWith('adama-station-university-')));
+  assert.equal(pool.lockedFare, 90);
+});
+
+test('all example journeys form four-seat demo groups', () => {
+  const now = Date.now();
+  for (const route of demoRoutes) {
+    const pool = seedPool(now);
+    setDemoRoute(pool, route.id);
+    assert.equal(poolView(pool, now).sampleRoutes.find((item) => item.id === route.id)?.sampleApplicants, DEMO_APPLICANTS_PER_ROUTE);
+    applyForGroup(pool, pool.version, now);
+    assert.equal(pool.status, 'requested', route.id);
+    assert.equal(poolView(pool, now).quote.count, 4, route.id);
+  }
+});
+
+test('an example applicant cannot match an unrelated destination', () => {
+  const now = Date.now();
+  const pool = seedPool(now);
+  setDemoRoute(pool, 'gerji-megenagna');
+  pool.destinationPlace = { name: 'Kazanchis', latitude: 9.02, longitude: 38.767 };
+  assert.match(riderIssue(pool, pool.riders.find((r) => r.id === 'gerji-megenagna-1')!, now)!, /another example journey/);
+  assert.ok(poolView(pool, now).fareOptions[1].issue);
+  pool.minSeats = 2;
+  assert.throws(() => applyForGroup(pool, pool.version, now), /No demo group meets/);
+});
+
+test('selecting an example journey refreshes its applicants and applies atomically', async (t) => {
+  const { app, request } = await setup();
+  t.after(() => app.close());
+  assert.equal((await request('/demo-route', { routeId: 'unknown' })).statusCode, 404);
+  assert.equal((await request('/demo-route', { routeId: 'edna-meskel', fare: 1 })).statusCode, 400);
+  const selectedResponse = await request('/demo-route', { routeId: 'adama-station-university' });
+  assert.equal(selectedResponse.statusCode, 200);
+  const selected = selectedResponse.json();
+  assert.equal(selected.mapPickup.name, 'Adama station area');
+  assert.equal(selected.mapDestination.name, 'Adama university area');
+  assert.equal(selected.fareOptions[3].issue, null);
+  const appliedResponse = await request('/apply', {
+    version: selected.version, minSeats: 3, maxSeats: 8, maxFare: 100,
+  });
+  assert.equal(appliedResponse.statusCode, 200);
+  const applied = appliedResponse.json();
+  assert.equal(applied.quote.count, 4);
+  assert.equal(applied.lockedFare, 90);
+  assert.ok(applied.selectedIds.every((id: string) => id.startsWith('adama-station-university-')));
 });
 
 test('device coordinates are private, fallback clears them, and other sessions cannot accept a group', async (t) => {

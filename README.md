@@ -21,12 +21,12 @@ The frontend runs on port 3000 and the API on port 4000. Stop both with Ctrl+C. 
 
 ## Try a ride circle
 
-1. Open `/demo`. Choose a pickup and destination by search, map pin or one-time device location, or keep the example Bole → Meskel Square journey.
+1. Open `/demo`. Choose a pickup and destination by search, map pin or one-time device location, or keep the example Bole → Meskel Square journey. Fictional applicants are seeded around 13 example pairs, but the journey form does not display a route list.
 2. Enter a positive minimum and maximum number of people you would share with, including yourself, and any positive maximum fare in ETB. Review the server-calculated example prices for each available group size, then apply. The API chooses compatible simulated riders within those limits and locks the illustrative fare. Current demo vehicles have at most four passenger seats, so a higher maximum preference does not create a larger vehicle. A four-person Meskel Square example costs **90 ETB per person**; a solo example costs **360 ETB**.
 3. Open driver space and let the sample driver Hana accept the matched group.
 4. Start and complete the demo ride. My rides shows the simulated receipt and two labeled seeded examples.
 
-Riders have a two-minute readiness window. Refresh demo restarts simulated availability. Distant, wrong-way and expired riders are rejected; driver acceptance also checks capacity and arrival before readiness ends. Sample rider matches are limited to journeys near the Bole demo landmarks; other Ethiopia journeys can apply but receive a solo demo result. The map shows illustrative demand areas, not live or exact passenger locations. These checks do not verify actual roads, traffic, safe boarding points or legal pickup reachability. Custom journeys use a fixed illustrative 360 ETB total.
+Riders have a two-minute readiness window. Refresh demo restarts simulated availability. Distant, wrong-way and expired riders are rejected; driver acceptance also checks capacity and arrival before readiness ends. Sample rider matches are available near the displayed pickup and destination pairs; other Ethiopia journeys can apply but may receive a solo demo result. The map shows approximate dots derived from fictional application totals, not live or exact passenger locations. These checks do not verify actual roads, traffic, safe boarding points or legal pickup reachability. Custom journeys use a fixed illustrative 360 ETB total.
 
 ## Planned commutes
 

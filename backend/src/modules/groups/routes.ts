@@ -19,6 +19,7 @@ import {
   setPlace,
   setTargetPreference,
   setGroupCriteria,
+  setDemoRoute,
   groupDestinations,
 } from './service.js';
 
@@ -119,6 +120,10 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
       .strict()
       .parse(req.body);
     return mutate(req.sessionId, 'group.place_updated', (pool) => setPlace(pool, target, place));
+  });
+  app.post('/pool/demo-route', async (req) => {
+    const { routeId } = z.object({ routeId: z.string().min(1).max(80) }).strict().parse(req.body);
+    return mutate(req.sessionId, 'group.demo_route_selected', (pool) => setDemoRoute(pool, routeId));
   });
   app.post('/pool/members', async (req) => {
     const { riderId, action } = z
