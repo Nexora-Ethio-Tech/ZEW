@@ -17,6 +17,15 @@ const feature = z.object({
 export function parsePlaces(data: unknown) {
   const result = z.object({ features: z.array(feature) }).parse(data);
   return result.features
+    .filter(({ geometry, properties: p }) => {
+      const lon = geometry.coordinates[0];
+      const lat = geometry.coordinates[1];
+      if (!p.name && !p.street && !p.city) return false;
+      // Strict Ethiopia Coordinate Bounding Box (Long 32.9..48.0, Lat 3.3..15.0)
+      const inEthiopiaBounds = lon >= 32.9 && lon <= 48.0 && lat >= 3.3 && lat <= 15.0;
+      const matchesCountry = !p.country || p.country.toLowerCase().includes('ethiopia');
+      return inEthiopiaBounds && matchesCountry;
+    })
     .slice(0, 6)
     .map(({ geometry, properties: p }) => ({
       name: [...new Set([p.name, p.street, p.city, p.state, p.country].filter(Boolean))]
@@ -24,8 +33,7 @@ export function parsePlaces(data: unknown) {
         .slice(0, 300),
       longitude: geometry.coordinates[0],
       latitude: geometry.coordinates[1],
-    }))
-    .filter((p) => p.name);
+    }));
 }
 
 // Explicit searches only: bounded cache and one upstream request per second per API process.
@@ -47,7 +55,11 @@ export async function placeRoutes(app: FastifyInstance) {
     nextRequest = Date.now() + 1000;
     const url = new URL(process.env.PHOTON_URL ?? 'https://photon.komoot.io/api/');
     url.searchParams.set('q', query);
-    url.searchParams.set('limit', '6');
+    // Ground search strictly to Ethiopia bounding box & Addis Ababa center bias
+    url.searchParams.set('bbox', '32.9,3.3,48.0,15.0');
+    url.searchParams.set('lat', '9.01');
+    url.searchParams.set('lon', '38.77');
+    url.searchParams.set('limit', '10');
     try {
       const response = await fetch(url, {
         signal: AbortSignal.timeout(8000),
