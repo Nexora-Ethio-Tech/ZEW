@@ -3,7 +3,6 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { seedState, type State } from '../modules/trips/model.js';
-import { supabase } from './supabase.js';
 import { runMigrations } from './migrate.js';
 
 export class Store {
@@ -29,54 +28,13 @@ export class Store {
       .prepare('INSERT INTO sessions VALUES (?, ?, ?, ?)')
       .run(id, tokenHash, initialState, expiresAt);
 
-    if (supabase) {
-      void supabase.from('sessions').upsert({
-        id,
-        token_hash: tokenHash,
-        state: initialState,
-        expires_at: expiresAt,
-      }).then(({ error }) => {
-        if (error) console.error('[Supabase Sync Session Notice]:', error.message);
-      });
-    }
-
     return { token };
   }
-  hashPassword(password: string) {
-    return createHash('sha256').update(password).digest('hex');
-  }
-
-  findUserByEmail(email: string) {
-    try {
-      const row = this.db
-        .prepare('SELECT id, email, name, password_hash AS passwordHash, role, created_at AS createdAt FROM users WHERE LOWER(email) = LOWER(?)')
-        .get(email) as { id: string; email: string; name: string; passwordHash: string; role: string; createdAt: string } | undefined;
-      return row;
-    } catch {
-      return undefined;
-    }
-  }
-
-  createUser(input: { email: string; name: string; password: string; role?: string }) {
-    const existing = this.findUserByEmail(input.email);
-    if (existing) throw new Error('An account with this email already exists.');
-    const id = `user-${randomUUID().slice(0, 8)}`;
-    const passwordHash = this.hashPassword(input.password);
-    const role = input.role || 'rider';
-    const createdAt = new Date().toISOString();
-
-    this.db
-      .prepare('INSERT INTO users (id, email, name, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(id, input.email.toLowerCase(), input.name, passwordHash, role, createdAt);
-
-    return { id, email: input.email.toLowerCase(), name: input.name, role, createdAt };
-  }
-
   createSessionForUser(user: { id: string; email: string; name: string; role: string }) {
     const res = this.create();
     const sessionId = this.session(res.token)!;
     this.mutate(sessionId, 'auth.login', (state) => {
-      (state as any).user = user;
+      state.user = user;
       return { value: true, entityId: user.id };
     });
     return { token: res.token, user };
@@ -110,21 +68,6 @@ export class Store {
         .run(eventId, id, kind, entityId, createdAt);
       this.db.exec('COMMIT');
 
-      if (supabase) {
-        void supabase.from('sessions').update({ state: updatedStateJson }).eq('id', id).then(({ error }) => {
-          if (error) console.error('[Supabase Sync Mutate Notice]:', error.message);
-        });
-        void supabase.from('events').insert({
-          id: eventId,
-          session_id: id,
-          kind,
-          entity_id: entityId,
-          created_at: createdAt,
-        }).then(({ error }) => {
-          if (error) console.error('[Supabase Sync Event Notice]:', error.message);
-        });
-      }
-
       return value;
     } catch (error) {
       this.db.exec('ROLLBACK');
@@ -137,6 +80,19 @@ export class Store {
         'SELECT kind, entity_id AS entityId, created_at AS createdAt FROM events WHERE session_id = ? ORDER BY rowid DESC LIMIT 30',
       )
       .all(id);
+  }
+  revoke(token: string) {
+    const id = this.session(token);
+    if (!id) return;
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      this.db.prepare('DELETE FROM events WHERE session_id = ?').run(id);
+      this.db.prepare('DELETE FROM sessions WHERE id = ?').run(id);
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
   }
   close() {
     this.db.close();

@@ -81,7 +81,7 @@ test('expired ready windows and locations fail closed, including arrival before 
   pool.riders[1].optedIn = false;
   assert.throws(() => addRider(pool, 'bereket', now), /No longer/);
   addRider(pool, 'eden', now);
-  pool.riders[2].readyUntil = now + 99000;
+  pool.riders[2].readyUntil = now + 84000;
   assert.equal(driverIssue(pool, 'hana', now), 'Rider availability ends before pickup');
   const location = { latitude: 8.9982, longitude: 38.7865, accuracy: 20, timestamp: now };
   setDeviceLocation(pool, location, now);
@@ -177,7 +177,7 @@ test('fare options agree with selected groups and unavailable preferences preser
   setTargetPreference(pool, 4, now);
   assert.deepEqual(pool.selectedIds, ['sara', 'bereket', 'eden']);
   assert.equal(fareQuote(pool).yourFare, poolView(pool, now).fareOptions[3].yourFare);
-  pool.skippedIds = ['sara', 'bereket', 'yonas', 'kalkidan'];
+  pool.skippedIds = pool.riders.filter((r) => r.id !== 'eden').map((r) => r.id);
   const before = structuredClone(pool);
   assert.throws(() => setTargetPreference(pool, 4, now), /Not enough ready/);
   assert.deepEqual(pool, before, 'A rejected preference must not replace the current group');

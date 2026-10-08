@@ -1,7 +1,7 @@
 // Uses the dedicated Chrome demo profile on debugging port 9235.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
-const origin = process.env.ZEW_BASE_URL || 'http://127.0.0.1:3000';
+const origin = process.env.ZEW_BASE_URL || 'http://localhost:3000';
 const tab = await fetch('http://127.0.0.1:9235/json/new?about:blank', { method: 'PUT' }).then((r) =>
   r.json(),
 );
@@ -55,7 +55,7 @@ async function wait(expression) {
     if (await evaluate(expression)) return;
     await pause(150);
   }
-  throw new Error(`Timed out: ${expression}\n${await evaluate('document.body.innerText')}`);
+  throw new Error(`Timed out: ${expression}`);
 }
 const click = (text) =>
   evaluate(
@@ -84,7 +84,7 @@ try {
       ...(process.env.ZEW_LIVE_PLACES === '1' ? [] : [{ urlPattern: '*/api/v1/places/search' }]),
     ],
   });
-  await send('Page.navigate', { url: origin });
+  await send('Page.navigate', { url: `${origin}/demo` });
   await send('Emulation.setDeviceMetricsOverride', {
     width: 1440,
     height: 1080,
@@ -125,7 +125,7 @@ try {
   );
   assert.equal(
     await evaluate(
-      `document.querySelector(${JSON.stringify('[aria-label="Add Meron H."]')}).disabled`,
+      `document.querySelector(${JSON.stringify('[aria-label="Add Meron G."]')}).disabled`,
     ),
     true,
   );
@@ -274,9 +274,27 @@ try {
     true,
     'No narrow mobile overflow',
   );
+  // Provider/user place labels must remain inert text inside Leaflet popups.
+  await evaluate(
+    `fetch('/api/v1/pool/place', {method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+localStorage.getItem('zew-demo-session')},body:JSON.stringify({target:'pickup',place:{name:'<img src=x onerror="window.__zewInjected=true">',latitude:8.54,longitude:39.27}})}).then(r=>{if(!r.ok)throw new Error('Could not create text-only map fixture');})`,
+  );
+  await send('Page.reload');
+  await wait('!!document.querySelector(".leaflet-marker-icon")');
+  await evaluate('document.querySelector(".leaflet-marker-icon").click()');
+  await wait('!!document.querySelector(".map-marker-popup")');
+  assert.equal(
+    await evaluate('!!document.querySelector(".map-marker-popup img")'),
+    false,
+    'Map names are text, never HTML',
+  );
+  assert.equal(
+    await evaluate('window.__zewInjected === true'),
+    false,
+    'Map labels cannot execute scripts',
+  );
   assert.deepEqual(errors, [], 'No browser exceptions');
   console.log(
-    'PASS: group fares/tiers/lifecycle, two-minute rules, arbitrary GPS, permission denial, place selection, map pins, persistence, single account dialog, offline recovery and mobile layout. Public tiles stubbed; live search is opt-in.',
+    'PASS: group fares/tiers/lifecycle, two-minute rules, arbitrary GPS, permission denial, place selection, map pins, persistence, single account dialog, offline recovery, mobile layout and inert map labels. Public tiles stubbed; live search is opt-in.',
   );
   console.log(
     'Screenshots: /tmp/zew-circle-desktop.png, /tmp/zew-circle-full.png, /tmp/zew-circle-mobile.png, /tmp/zew-circle-mobile-fare.png',

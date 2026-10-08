@@ -1,6 +1,9 @@
 :root {
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  --font-body:
+    'Plus Jakarta Sans Variable', 'Noto Sans Ethiopic Variable', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, sans-serif;
+  --font-display:
+    'Outfit Variable', 'Plus Jakarta Sans Variable', 'Noto Sans Ethiopic Variable', sans-serif;
   --ink: #19271e;
   --green: #1c4d36;
   --green-hover: #153c29;
@@ -1965,7 +1968,7 @@ footer {
 }
 
 /* Global System Dark Theme Overrides */
-[data-theme="dark"],
+[data-theme='dark'],
 .dark-theme {
   --ink: #f8fafc;
   --cream: #0f172a;
@@ -1978,58 +1981,58 @@ footer {
   color: #f8fafc !important;
 }
 
-[data-theme="dark"] body,
+[data-theme='dark'] body,
 .dark-theme body {
   background-color: #0f172a !important;
   color: #f8fafc !important;
 }
 
 /* Sidebar Dark Mode */
-[data-theme="dark"] .sidebar,
+[data-theme='dark'] .sidebar,
 .dark-theme .sidebar {
   background: #0f172a !important;
   border-right-color: #1e293b !important;
 }
 
-[data-theme="dark"] .brand,
+[data-theme='dark'] .brand,
 .dark-theme .brand {
   color: #ffffff !important;
 }
 
-[data-theme="dark"] .brand-dot,
+[data-theme='dark'] .brand-dot,
 .dark-theme .brand-dot {
   color: #10b981 !important;
 }
 
-[data-theme="dark"] .city-label,
+[data-theme='dark'] .city-label,
 .dark-theme .city-label {
   color: #94a3b8 !important;
 }
 
-[data-theme="dark"] .nav-heading,
+[data-theme='dark'] .nav-heading,
 .dark-theme .nav-heading {
   color: #64748b !important;
 }
 
-[data-theme="dark"] .nav-item,
+[data-theme='dark'] .nav-item,
 .dark-theme .nav-item {
   color: #cbd5e1 !important;
 }
 
-[data-theme="dark"] .nav-item:hover,
+[data-theme='dark'] .nav-item:hover,
 .dark-theme .nav-item:hover {
   background: #1e293b !important;
   color: #ffffff !important;
 }
 
-[data-theme="dark"] .nav-item.selected,
+[data-theme='dark'] .nav-item.selected,
 .dark-theme .nav-item.selected {
   background: #1e293b !important;
   color: #10b981 !important;
   border-left: 3px solid #10b981 !important;
 }
 
-[data-theme="dark"] .pilot-card,
+[data-theme='dark'] .pilot-card,
 .dark-theme .pilot-card {
   background: #1e293b !important;
   border-color: #334155 !important;
@@ -2037,41 +2040,41 @@ footer {
 }
 
 /* Topbar Dark Mode */
-[data-theme="dark"] .topbar,
+[data-theme='dark'] .topbar,
 .dark-theme .topbar {
   background: rgba(15, 23, 42, 0.95) !important;
   border-bottom-color: #1e293b !important;
 }
 
-[data-theme="dark"] .topbar-slogan,
+[data-theme='dark'] .topbar-slogan,
 .dark-theme .topbar-slogan {
   color: #f8fafc !important;
 }
 
-[data-theme="dark"] .topbar-slogan em,
+[data-theme='dark'] .topbar-slogan em,
 .dark-theme .topbar-slogan em {
   color: #10b981 !important;
 }
 
 /* Page Shell & Main Content */
-[data-theme="dark"] .page-shell,
+[data-theme='dark'] .page-shell,
 .dark-theme .page-shell {
   background: #0f172a !important;
 }
 
-[data-theme="dark"] .card,
+[data-theme='dark'] .card,
 .dark-theme .card,
-[data-theme="dark"] .panel,
+[data-theme='dark'] .panel,
 .dark-theme .panel,
-[data-theme="dark"] .journey-card,
+[data-theme='dark'] .journey-card,
 .dark-theme .journey-card,
-[data-theme="dark"] .group-card,
+[data-theme='dark'] .group-card,
 .dark-theme .group-card,
-[data-theme="dark"] .match-card,
+[data-theme='dark'] .match-card,
 .dark-theme .match-card,
-[data-theme="dark"] .driver-card,
+[data-theme='dark'] .driver-card,
 .dark-theme .driver-card,
-[data-theme="dark"] .fare-breakdown,
+[data-theme='dark'] .fare-breakdown,
 .dark-theme .fare-breakdown {
   background: #1e293b !important;
   border-color: #334155 !important;
@@ -2079,40 +2082,40 @@ footer {
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
 }
 
-[data-theme="dark"] h1,
+[data-theme='dark'] h1,
 .dark-theme h1,
-[data-theme="dark"] h2,
+[data-theme='dark'] h2,
 .dark-theme h2,
-[data-theme="dark"] h3,
+[data-theme='dark'] h3,
 .dark-theme h3,
-[data-theme="dark"] h4,
+[data-theme='dark'] h4,
 .dark-theme h4,
-[data-theme="dark"] strong,
+[data-theme='dark'] strong,
 .dark-theme strong {
   color: #f8fafc !important;
 }
 
-[data-theme="dark"] p,
+[data-theme='dark'] p,
 .dark-theme p,
-[data-theme="dark"] label,
+[data-theme='dark'] label,
 .dark-theme label {
   color: #cbd5e1 !important;
 }
 
-[data-theme="dark"] input,
+[data-theme='dark'] input,
 .dark-theme input,
-[data-theme="dark"] select,
+[data-theme='dark'] select,
 .dark-theme select,
-[data-theme="dark"] textarea,
+[data-theme='dark'] textarea,
 .dark-theme textarea {
   background-color: #0f172a !important;
   border-color: #334155 !important;
   color: #f8fafc !important;
 }
 
-[data-theme="dark"] .map-overlay-box,
+[data-theme='dark'] .map-overlay-box,
 .dark-theme .map-overlay-box,
-[data-theme="dark"] .map-bottom,
+[data-theme='dark'] .map-bottom,
 .dark-theme .map-bottom {
   background: rgba(15, 23, 42, 0.9) !important;
   border-color: #334155 !important;
@@ -2120,48 +2123,68 @@ footer {
   backdrop-filter: blur(8px) !important;
 }
 
-[data-theme="dark"] .legend-item span,
+[data-theme='dark'] .legend-item span,
 .dark-theme .legend-item span {
   color: #cbd5e1 !important;
 }
 
 /* Map Tile Dark Filter */
-[data-theme="dark"] .leaflet-container,
+[data-theme='dark'] .leaflet-container,
 .dark-theme .leaflet-container {
   filter: brightness(0.75) contrast(1.25) invert(0.9) hue-rotate(190deg) !important;
   background: #0f172a !important;
 }
 
 /* Fare Breakdown & Savings Banner Dark Overrides */
-[data-theme="dark"] .fare-breakdown,
+[data-theme='dark'] .fare-breakdown,
 .dark-theme .fare-breakdown,
-[data-theme="dark"] div[style*="background: '#f4f8f3'"],
+[data-theme='dark'] div[style*="background: '#f4f8f3'"],
 .dark-theme div[style*="background: '#f4f8f3'"],
-[data-theme="dark"] div[style*="background: '#eaf0df'"],
+[data-theme='dark'] div[style*="background: '#eaf0df'"],
 .dark-theme div[style*="background: '#eaf0df'"] {
   background-color: #1e293b !important;
   border-color: #334155 !important;
   color: #f8fafc !important;
 }
 
-[data-theme="dark"] .fare-card,
+[data-theme='dark'] .fare-card,
 .dark-theme .fare-card {
   background-color: #0f172a !important;
   border-color: #334155 !important;
   color: #f8fafc !important;
 }
 
-[data-theme="dark"] .fare-card.selected,
+[data-theme='dark'] .fare-card.selected,
 .dark-theme .fare-card.selected {
   background-color: #064e3b !important;
   border-color: #10b981 !important;
 }
 
-[data-theme="dark"] div[style*="background: '#f8f8ee'"],
+[data-theme='dark'] div[style*="background: '#f8f8ee'"],
 .dark-theme div[style*="background: '#f8f8ee'"],
-[data-theme="dark"] div[style*="background: '#f8faf7'"],
+[data-theme='dark'] div[style*="background: '#f8faf7'"],
 .dark-theme div[style*="background: '#f8faf7'"] {
   background-color: #1e293b !important;
   border-color: #334155 !important;
   color: #cbd5e1 !important;
+}
+
+.sidebar-demo-label {
+  font-size: 9px;
+  line-height: 1.8;
+  letter-spacing: 0.6px;
+  color: #758265;
+  margin: 14px 0 0;
+}
+.payment-demo-notice {
+  display: grid;
+  gap: 16px;
+  line-height: 1.8;
+}
+.payment-demo-notice h3 {
+  font-size: 22px;
+}
+.payment-demo-notice p {
+  margin: 0;
+  color: #627265;
 }

@@ -91,6 +91,7 @@ export interface Commute extends Journey {
   name: string;
 }
 export interface State {
+  user?: { id: string; email: string; name: string; role: string };
   pool?: PoolState;
   trips: Trip[];
   bookings: Booking[];

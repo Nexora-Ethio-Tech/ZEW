@@ -42,17 +42,21 @@ export default function StreetMap({
 
     delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
     L.Icon.Default.mergeOptions({
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      iconUrl: '/map/marker-icon.png',
+      iconRetinaUrl: '/map/marker-icon-2x.png',
+      shadowUrl: '/map/marker-shadow.png',
     });
 
-    const instance = L.map(node.current, { scrollWheelZoom: false }).setView([9.005, 38.773], 14);
+    const instance = L.map(node.current, {
+      scrollWheelZoom: false,
+      zoomAnimation: false,
+      fadeAnimation: false,
+      markerZoomAnimation: false,
+    }).setView([9.005, 38.773], 14);
     map.current = instance;
 
     const tileUrl =
-      process.env.NEXT_PUBLIC_MAP_TILE_URL ??
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      process.env.NEXT_PUBLIC_MAP_TILE_URL ?? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     const tileAttribution =
       process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ??
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
@@ -63,11 +67,8 @@ export default function StreetMap({
       attribution: tileAttribution,
     });
 
-    tileLayer.on('tileerror', () => {
-      tileLayer.setUrl(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-      );
-    });
+    tileLayer.on('tileerror', () => setTileError(true));
+    tileLayer.on('tileload', () => setTileError(false));
 
     tileLayer.addTo(instance);
     markers.current = L.layerGroup().addTo(instance);
@@ -92,6 +93,7 @@ export default function StreetMap({
       clearTimeout(t1);
       clearTimeout(t2);
       observer.disconnect();
+      instance.stop();
       instance.remove();
       map.current = null;
       markers.current = null;
@@ -109,7 +111,17 @@ export default function StreetMap({
 
       const label = document.createElement('div');
       label.className = 'map-marker-popup';
-      label.innerHTML = `<strong>${isPickup ? 'Pickup (Start)' : 'Destination (End)'}</strong><br/>${place.name}<br/><small style="color:#666">Drag raindrop pin to move</small>`;
+      const heading = document.createElement('strong');
+      heading.textContent = isPickup ? 'Pickup (Start)' : 'Destination (End)';
+      const hint = document.createElement('small');
+      hint.textContent = 'Drag the pin to move';
+      label.append(
+        heading,
+        document.createElement('br'),
+        document.createTextNode(place.name),
+        document.createElement('br'),
+        hint,
+      );
 
       const svgHtml = `
         <div class="raindrop-pin-wrapper raindrop-pin-${letter.toLowerCase()}">
@@ -222,7 +234,10 @@ export default function StreetMap({
   }, [disabled]);
 
   return (
-    <section className={`real-map-card ${collapsed ? 'is-collapsed' : ''}`} aria-label="Journey map">
+    <section
+      className={`real-map-card ${collapsed ? 'is-collapsed' : ''}`}
+      aria-label="Journey map"
+    >
       <div className="real-map-heading">
         <strong>
           <Icon name="pin" size={16} /> Your journey, on the map
@@ -248,10 +263,16 @@ export default function StreetMap({
         />
         <div className="map-overlay-box bottom-right">
           <div className="legend-item pickup-legend">
-            <i className="legend-dot green-dot" /> <span><strong>Green (A)</strong>: Pickup</span>
+            <i className="legend-dot green-dot" />{' '}
+            <span>
+              <strong>Green (A)</strong>: Pickup
+            </span>
           </div>
           <div className="legend-item dest-legend">
-            <i className="legend-dot red-dot" /> <span><strong>Red/Orange (B)</strong>: Destination</span>
+            <i className="legend-dot red-dot" />{' '}
+            <span>
+              <strong>Red/Orange (B)</strong>: Destination
+            </span>
           </div>
           <button
             type="button"

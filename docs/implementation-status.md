@@ -1,68 +1,40 @@
 # Implementation status
 
-## Latest: ride circles
+Updated 2026-10-08. Zew is a private, persistent ride demo with deployment tooling. It is not a live transport service or a production payments system.
 
-Updated: arbitrary pickup/destination selection via real Photon place search, confirmed map pins and device GPS. Leaflet displays real OpenStreetMap streets on the homepage. Fixed stops no longer constrain the main ride flow. No actual road route, live riders or live pickup ETAs are claimed; the group engine still runs explicitly simulated fixtures. Custom route totals are illustrative 360 ETB. Provider configuration and usage limits are in README.
-
-The main experience now builds a group before requesting a driver. It includes seeded demo people/history, optional browser geolocation, per-candidate fare previews, add/remove/skip, two-minute readiness and pickup limits, quote locking, driver group acceptance and completion. See [ride-circle rules](product/ride-circles.md) for exact timing, pricing, privacy and demo limits. The earlier planned-commute experience below is preserved at `/planned`.
-
-Implemented 2026-10-01 as a private, persistent demo. Every browser session is isolated. Driver space simulates the other side of that session's bookings; it is **not** production driver or operator authorization.
-
-## Working today
-
-| Area | Implementation |
+| Area | Current behavior |
 | --- | --- |
-| Rider | Corridor/stop/time/seat form, ranked sample matches, reservation, boarding code, cancellation, history |
-| Driver | Create/cancel personal demo offers, validate boarding code, complete a simulated journey, payout total |
-| Payments | Telebirr Merchant USSD payment initiation (`/payments/telebirr/initiate`), HMAC-SHA256 signature verification, and webhook callbacks |
-| Routing Engine | OSRM road distance matrix calculations with localized Addis Ababa urban road detour factors and fallback matrix engine |
-| Live Streaming | Server-Sent Events (SSE) stream (`/api/v1/stream`) for live driver radar tick updates and real-time payment status broadcasts |
-| Support Desk | Phone dispatch desk (book on behalf of caller, generate code), live driver radar & fleet monitor |
-| Administrator | System KPIs, revenue tracking, driver verification/approvals, and live API audit stream |
-| Commutes | Save, reuse, remove; maximum 10 per session |
-| Authentication | Supabase Auth (Email Sign Up with email verification, Password Sign In, Sign Out / Logout from Account menu, Instant Demo Login), role-based session state |
-| Persistence | Node 24 built-in SQLite + `migrations/` runner (`npm run migrate`), Supabase database integration support, session-token hashes, 30-day sessions, transactional state changes and event log |
-| Web app | Responsive layout, install manifest and PNG icons, production offline notice |
-| Checks | API tests for matching, transitions, duplicate races, isolation, validation, Telebirr webhooks, OSRM routing, SSE streaming, and restart persistence |
+| Landing | Responsive city illustration, interactive example fare calculator, local fonts, light/dark themes, English/Amharic/Oromo selection |
+| Demo routes | `/demo` for circles; `/planned` for legacy planned rides; homepage for public introduction and optional verified accounts |
+| Circles | Sample riders, two-minute readiness, direction/capacity checks, arbitrary coordinates, locked quote, simulated driver acceptance, completion and receipts |
+| Planned rides | Server-side matching, transactional reservation, duplicate protection, boarding codes, cancellation/completion, saved commutes |
+| Authentication | Optional Supabase email/password sign-in; server verifies provider token and confirmed email before issuing an API session; no local password login or role escalation |
+| Seed data | Relative future Addis departures, explicit illustrative rider/history fixtures; no seeded password accounts or password-reset migration |
+| Persistence | Authoritative local SQLite session documents and transactional activity records; guest demos retained across restarts; logout revokes API token |
+| Payments | No real provider integration; initiation, webhook and status routes fail closed with 501; no phone/PIN collection in the payment screen; completion creates a simulated receipt |
+| Routing | Optional OSRM call; illustrative local distance/ETA fallback, not road verification |
+| Streaming | Authenticated bearer-header SSE with simulated driver ticks; no session tokens in URLs; idle timer does not keep tests alive |
+| Driver/support/admin controls | Private demo views, not verified roles, dispatch operations or driver approval workflows |
+| Offline | Production service worker caches only an offline notice; no API, auth, trip or payment caching |
+| Deployment | Vercel frontend configuration, HTTPS backend-origin validation, backend Dockerfile, optional Render blueprint and deployment guide |
 
-## API
+The old browser sign-up bypass and fake email-checked continuation have been removed. Sign-up errors are surfaced; no API session is created before confirmed provider identity. Existing local identities and associated sessions are retired by migration 005. A public key no longer attempts asynchronous database mirroring.
 
-All paths use `/api/v1`. `POST /session` creates a private demo and returns a bearer token. Other than `/health`, all endpoints below require `Authorization: Bearer <token>`.
+All validation commands must be rerun after changes. `npm run check` includes both type checks and API tests; `npm run build` builds both apps. Browser scripts cover landing/auth boundaries, circles, planned reservations, receipts, persistence, mobile layouts, and the production offline fallback. Tile requests are stubbed; circle place-search is mocked unless explicitly opted into live provider testing. Supabase email delivery and real deployment need configured provider accounts and live verification.
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | /dashboard | Session-owned trips, bookings, commutes and activity |
-| POST | /matches | Check a journey against sample trips |
-| POST | /bookings | Revalidate and reserve seats atomically |
-| POST | /bookings/:id/action | `board` with code, `complete`, or `cancel` |
-| POST | /payments/telebirr/initiate | Initiate Telebirr Merchant USSD payment push |
-| POST | /payments/telebirr/webhook | Public webhook callback with HMAC signature verification |
-| GET | /payments/:outTradeNo/status | Query verified payment status |
-| POST | /routing/calculate | Authoritative OSRM road distance, ETA & detour calculation |
-| GET | /stream | Server-Sent Events (SSE) stream for live driver ticks and payment updates |
-| POST / DELETE | /commutes, /commutes/:id | Save/remove a commute |
-| POST | /trips | Save an isolated driver offer |
-| POST | /trips/:id/cancel | Cancel your own offer |
-| POST | /waitlist | Persist a consented demo registration |
+## API boundaries
 
-Journey input is `{ corridorId, origin, destination, departure, seats }`. Departure uses ISO 8601 with an explicit offset. The UI labels all times as Addis time (UTC+3). Fare is computed server-side; the client cannot supply it.
+All paths use `/api/v1`. `/health`, `/session`, and `/auth/*` have their own authentication rules. Domain operations require a session bearer header. A guest session owns only its private demo state.
 
-## Rules and limits
+- `POST /auth/session`: exchange a server-verified, email-confirmed Supabase access token for a private rider session.
+- `GET /auth/me`: return the stored verified account for a valid API session; guest sessions receive 401.
+- `POST /auth/logout`: revoke the API session.
+- Legacy `POST /auth/login` and `/auth/signup`: return 410. Passwords are handled only by the provider.
+- `/payments/telebirr/*` and payment-status endpoints: require a demo session and return 501 until an actual provider integration exists.
+- `/stream`: authenticated fetch stream using an authorization header. Query tokens are not accepted.
 
-- The legacy `/planned` flow checks ordered stops and retains an illustrative map. The homepage displays real streets and selected coordinates, but demo matching does not verify actual carriageway, traffic or legal pickup reachability. There are no navigation/routing requests yet.
-- Requests must be within the next 30 days. Sample departures match within ±30 minutes. Reversed and outside-route requests are rejected.
-- Each booking reserves seats for the entire trip. Completed bookings continue to consume that trip's seats; cancelled bookings release them. Segment-level capacity is future work.
-- Booking transitions: `confirmed → in_progress → completed`, or `confirmed → cancelled`. A boarding code is required before starting. Completion records a simulated payment only.
-- Own driver offers cannot be booked. Offers remain private to your demo. Real rider/driver interaction and operations approval require an authenticated data model.
-- SQLite session documents are a demo simplification for one small local server. Sessions expire after 30 days; expired records are not automatically purged yet.
-- Rate limits are in-process and IP-based. Production needs durable limits, separate session-creation limits, retention/deletion tools, and real identity/authorization.
-- The service worker caches only the offline page. It never stores API responses or queues ride/payment actions while offline.
+Client-supplied session IDs, prices, payment outcomes and status transitions do not authorize operations. Group and booking rules stay in the API.
 
-## Next implementation milestones
+## Before a real pilot
 
-1. Connect phone verification; replace demo sessions with rider/driver/operator permissions and verification workflows.
-2. Add a PostgreSQL/PostGIS repository with migrations, approved boarding points and a real routing provider. Validate local road data before enabling automated matches.
-3. Add operations approval, driver acceptance/expiry, notifications, incident handling, and a pilot dashboard.
-4. Integrate a selected payment provider in sandbox, verify webhooks, reconcile the ledger, then evaluate real transactions.
-
-These milestones need provider accounts and product decisions; none are represented as connected by the current UI.
+SQLite requires one persistent API instance and backups. A real pilot needs a durable multi-user repository, approved rider/driver/operator permissions, verified boarding points, operations approval and incident workflows, durable rate limits, retention/deletion tooling, notifications, and reconciled provider sandbox payments. None of those capabilities are implied by the polished UI or account confirmation.

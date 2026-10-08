@@ -113,10 +113,11 @@ export function PoolHelp({
                 }}
                 onClick={async () => {
                   try {
-                    const { supabase } = await import('@/lib/supabase');
-                    await supabase.auth.signOut();
+                    const { signOut } = await import('@/lib/auth');
+                    await signOut();
                   } catch {
-                    // Non-fatal if Supabase auth is not initialized
+                    alert('Could not sign out. Please try again.');
+                    return;
                   }
                   localStorage.removeItem('zew-demo-session');
                   window.location.href = '/';

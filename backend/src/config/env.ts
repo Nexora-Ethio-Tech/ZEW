@@ -6,8 +6,8 @@ const envSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
   DATABASE_PATH: z.string().default('./data/zew.sqlite'),
   FRONTEND_ORIGIN: z.string().default('http://localhost:3000'),
-  SUPABASE_URL: z.string().optional().default('https://zeicjamnjnjrrlsptdkx.supabase.co'),
-  SUPABASE_KEY: z.string().optional().default('sb_publishable_j8i2whERBRe7Nf8RCCmpfA_Dgys3eEE'),
+  SUPABASE_URL: z.string().default(''),
+  SUPABASE_KEY: z.string().default(''),
   OSRM_URL: z.string().optional(),
 });
 

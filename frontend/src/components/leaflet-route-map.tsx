@@ -24,18 +24,23 @@ export default function LeafletRouteMap({
     // Fix default Leaflet icon paths in Next.js
     delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
     L.Icon.Default.mergeOptions({
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      iconUrl: '/map/marker-icon.png',
+      iconRetinaUrl: '/map/marker-icon-2x.png',
+      shadowUrl: '/map/marker-shadow.png',
     });
 
-    const instance = L.map(node.current, { scrollWheelZoom: false }).setView([9.01, 38.77], 13);
+    const instance = L.map(node.current, {
+      scrollWheelZoom: false,
+      zoomAnimation: false,
+      fadeAnimation: false,
+      markerZoomAnimation: false,
+    }).setView([9.01, 38.77], 13);
     map.current = instance;
 
-    const isDark = typeof document !== 'undefined' && (
-      document.documentElement.getAttribute('data-theme') === 'dark' ||
-      document.documentElement.classList.contains('dark-theme')
-    );
+    const isDark =
+      typeof document !== 'undefined' &&
+      (document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.documentElement.classList.contains('dark-theme'));
 
     const defaultTileUrl = isDark
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
@@ -52,13 +57,8 @@ export default function LeafletRouteMap({
       attribution: tileAttribution,
     });
 
-    tileLayer.on('tileerror', () => {
-      tileLayer.setUrl(
-        isDark
-          ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-          : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-      );
-    });
+    tileLayer.on('tileerror', () => setTileError(true));
+    tileLayer.on('tileload', () => setTileError(false));
 
     tileLayer.addTo(instance);
     layers.current = L.layerGroup().addTo(instance);
@@ -73,6 +73,7 @@ export default function LeafletRouteMap({
       clearTimeout(t1);
       clearTimeout(t2);
       observer.disconnect();
+      instance.stop();
       instance.remove();
       map.current = null;
       layers.current = null;
@@ -83,10 +84,10 @@ export default function LeafletRouteMap({
     if (!map.current || !layers.current || !corridor) return;
     layers.current.clearLayers();
 
-    const isDark = typeof document !== 'undefined' && (
-      document.documentElement.getAttribute('data-theme') === 'dark' ||
-      document.documentElement.classList.contains('dark-theme')
-    );
+    const isDark =
+      typeof document !== 'undefined' &&
+      (document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.documentElement.classList.contains('dark-theme'));
 
     const originIdx = corridor.stops.findIndex((s) => s.id === originId);
     const destIdx = corridor.stops.findIndex((s) => s.id === destinationId);
@@ -176,7 +177,7 @@ export default function LeafletRouteMap({
       }
     }
 
-    map.current.fitBounds(allLatLngs, { padding: [30, 30] });
+    map.current.fitBounds(allLatLngs, { padding: [30, 30], animate: false });
   }, [corridor, originId, destinationId]);
 
   return (

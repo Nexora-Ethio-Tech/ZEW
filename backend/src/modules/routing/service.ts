@@ -50,7 +50,7 @@ export async function calculateRoadRoute(
             roadDistanceKm,
             etaMinutes,
             detourFactor: Math.round((roadDistanceKm / Math.max(0.1, directKm)) * 100) / 100,
-            routeSummary: 'Via OSRM Verified Road Route',
+            routeSummary: 'Road route from OSRM',
             isDirectCorridor: true,
             provider: 'osrm_live',
           };
@@ -69,9 +69,9 @@ export async function calculateRoadRoute(
 
   // Determine localized corridor label based on coordinates
   let routeSummary = 'Via Addis Urban Corridor';
-  if (origin.longitude > 38.77 && destination.longitude < 38.76) {
+  if (origin.longitude > 38.77 && destination.longitude < 38.77) {
     routeSummary = 'Via Bole Road & Meskel Square Interchange';
-  } else if (origin.longitude > 38.80 && destination.longitude < 38.77) {
+  } else if (origin.longitude > 38.8 && destination.longitude < 38.77) {
     routeSummary = 'Via CMC Road & Megenagna Expressway';
   }
 

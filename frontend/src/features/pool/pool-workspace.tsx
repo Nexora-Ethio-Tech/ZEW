@@ -434,12 +434,12 @@ export function PoolWorkspace() {
                             <p className="section-eyebrow">02 / AUTOMATED RIDE CIRCLE</p>
                             <h2>
                               {draft
-                                ? 'System-Matched Ride Circle'
+                                ? 'Your demo ride circle'
                                 : 'Your people, your shared journey.'}
                             </h2>
                             <p>
                               {draft
-                                ? 'The system automatically matches compatible passengers traveling your way based on your group size & fare preferences.'
+                                ? 'Try a group size and fare preference with sample riders. Availability, matching and pickup times are simulated.'
                                 : 'Your group and fare stay locked for this request.'}
                             </p>
                           </div>

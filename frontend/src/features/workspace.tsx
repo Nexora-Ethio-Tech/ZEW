@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Icon, type IconName } from '@/components/icon';
 import { RouteMap } from '@/components/route-map';
 import { Modal } from '@/components/modal';
-import { supabase } from '@/lib/supabase';
+import { signOut } from '@/lib/auth';
+import { AuthModal } from './auth/auth-modal';
 import {
   api,
   day,
@@ -26,9 +27,24 @@ type SupportView = 'support_dispatch' | 'support_radar';
 type AdminView = 'admin_overview' | 'admin_drivers' | 'admin_audit';
 
 type View = PassengerView | DriverView | SupportView | AdminView;
-type Dialog = 'waitlist' | 'help' | 'save' | 'offer' | 'booking' | 'board' | 'account' | 'auth' | 'driver-profile' | null;
+type Dialog =
+  | 'waitlist'
+  | 'help'
+  | 'save'
+  | 'offer'
+  | 'booking'
+  | 'board'
+  | 'account'
+  | 'auth'
+  | 'driver-profile'
+  | null;
 
-const passengerNavigation: { id: PassengerView; labelKey: string; label: string; icon: IconName }[] = [
+const passengerNavigation: {
+  id: PassengerView;
+  labelKey: string;
+  label: string;
+  icon: IconName;
+}[] = [
   { id: 'find', labelKey: 'planAhead', label: 'Plan ahead', icon: 'route' },
   { id: 'rides', labelKey: 'myRides', label: 'My rides', icon: 'rides' },
   { id: 'saved', labelKey: 'savedCommutes', label: 'Saved commutes', icon: 'bookmark' },
@@ -36,17 +52,27 @@ const passengerNavigation: { id: PassengerView; labelKey: string; label: string;
 
 const driverNavigation: { id: DriverView; labelKey: string; label: string; icon: IconName }[] = [
   { id: 'driver_groups', labelKey: 'passengerRequests', label: 'Passenger requests', icon: 'car' },
-  { id: 'driver_earnings', labelKey: 'earningsPayouts', label: 'Earnings & Payouts', icon: 'wallet' },
+  {
+    id: 'driver_earnings',
+    labelKey: 'earningsPayouts',
+    label: 'Earnings & Payouts',
+    icon: 'wallet',
+  },
 ];
 
 const supportNavigation: { id: SupportView; labelKey: string; label: string; icon: IconName }[] = [
   { id: 'support_dispatch', labelKey: 'phoneDispatch', label: 'Phone Dispatch Desk', icon: 'help' },
-  { id: 'support_radar', labelKey: 'liveRadar', label: 'Live Driver Radar', icon: 'pin' },
+  { id: 'support_radar', labelKey: 'liveRadar', label: 'Simulated Driver Radar', icon: 'pin' },
 ];
 
 const adminNavigation: { id: AdminView; labelKey: string; label: string; icon: IconName }[] = [
   { id: 'admin_overview', labelKey: 'systemOverview', label: 'System Overview', icon: 'shield' },
-  { id: 'admin_drivers', labelKey: 'driverVerification', label: 'Driver Verification', icon: 'people' },
+  {
+    id: 'admin_drivers',
+    labelKey: 'driverVerification',
+    label: 'Driver Verification',
+    icon: 'people',
+  },
   { id: 'admin_audit', labelKey: 'auditLog', label: 'Live Audit Log', icon: 'clock' },
 ];
 
@@ -117,22 +143,8 @@ export function Workspace({
 
   const t = (key: string) => getTranslation(lang, key);
 
-  // Supabase Auth State
-  const [authUser, setAuthUser] = useState<{
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    emailConfirmed: boolean;
-  } | null>(null);
-
-  const [authTab, setAuthTab] = useState<'signin' | 'signup'>('signin');
-  const [emailInput, setEmailInput] = useState('');
-  const [passwordInput, setPasswordInput] = useState('');
-  const [nameInput, setNameInput] = useState('');
-  const [roleInput, setRoleInput] = useState<'passenger' | 'driver' | 'support' | 'admin'>('passenger');
-  const [authError, setAuthError] = useState('');
-  const [authBusy, setAuthBusy] = useState(false);
+  const authUser = user ? { ...user, emailConfirmed: true } : null;
+  const authBusy = false;
 
   // Support dispatch state
   const [callerName, setCallerName] = useState('');
@@ -154,41 +166,6 @@ export function Workspace({
       : isAdmin
         ? { name: 'Administrator', icon: '🛡️', bg: '#fef3c7', color: '#92400e' }
         : { name: 'Passenger Mode', icon: '👤', bg: '#eaf4ee', color: '#285943' };
-
-  // Listen to Supabase Auth State
-  useEffect(() => {
-    void supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const u = session.user;
-        setAuthUser({
-          id: u.id,
-          email: u.email || '',
-          name: u.user_metadata?.name || u.email?.split('@')[0] || 'User',
-          role: u.user_metadata?.role || 'passenger',
-          emailConfirmed: !!u.email_confirmed_at,
-        });
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        const u = session.user;
-        setAuthUser({
-          id: u.id,
-          email: u.email || '',
-          name: u.user_metadata?.name || u.email?.split('@')[0] || 'User',
-          role: u.user_metadata?.role || 'passenger',
-          emailConfirmed: !!u.email_confirmed_at,
-        });
-      } else {
-        setAuthUser(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   const refresh = useCallback(async () => {
     const next = await api<Dashboard>('/dashboard');
@@ -235,7 +212,6 @@ export function Workspace({
 
   const open = (next: Dialog) => {
     setError('');
-    setAuthError('');
     setDialog(next);
   };
 
@@ -257,76 +233,11 @@ export function Workspace({
     }
   }
 
-  // Supabase Auth Handlers
-  async function handleSignUp(e: FormEvent) {
-    e.preventDefault();
-    setAuthError('');
-    setAuthBusy(true);
-    try {
-      const { data: resData, error: err } = await supabase.auth.signUp({
-        email: emailInput,
-        password: passwordInput,
-        options: {
-          data: {
-            name: nameInput,
-            role: roleInput,
-          },
-        },
-      });
-      if (err) throw err;
-      if (resData.user && !resData.session) {
-        setNotice(
-          `Account created! A verification link has been sent to ${emailInput}. Please verify your email to log in.`,
-        );
-      } else {
-        setNotice(`Welcome to Zew, ${nameInput || emailInput}!`);
-      }
-      setDialog(null);
-    } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Sign up failed');
-    } finally {
-      setAuthBusy(false);
-    }
-  }
-
-  async function handleSignIn(e: FormEvent) {
-    e.preventDefault();
-    setAuthError('');
-    setAuthBusy(true);
-    try {
-      const { data: resData, error: err } = await supabase.auth.signInWithPassword({
-        email: emailInput,
-        password: passwordInput,
-      });
-      if (err) throw err;
-      const userRole = resData.user?.user_metadata?.role || 'passenger';
-      setNotice(`Signed in as ${resData.user?.email}!`);
-      setDialog(null);
-      if (userRole === 'driver') navigate('driver_groups');
-      else if (userRole === 'support') navigate('support_dispatch');
-      else if (userRole === 'admin') navigate('admin_overview');
-      else navigate('find');
-    } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Sign in failed');
-    } finally {
-      setAuthBusy(false);
-    }
-  }
-
   async function handleSignOut() {
-    setBusy(true);
-    try {
-      await supabase.auth.signOut();
-      localStorage.removeItem('zew-demo-session');
-      setAuthUser(null);
-      setNotice('Logged out successfully.');
-      setDialog(null);
+    await run(async () => {
+      await signOut();
       window.location.href = '/';
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Logout failed');
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   async function search(e?: FormEvent) {
@@ -407,7 +318,13 @@ export function Workspace({
             onBlur={() => {
               setTimeout(() => setFocused(false), 200);
             }}
-            style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: 16 }}
+            style={{
+              width: '100%',
+              border: 'none',
+              background: 'transparent',
+              outline: 'none',
+              fontSize: 16,
+            }}
           />
         </span>
         {focused && (
@@ -478,7 +395,8 @@ export function Workspace({
     const minCapacity = Math.max(1, Math.min(journey.minSeats || 1, maxCapacity));
 
     // Dynamic vehicle tier multiplier based on capacity
-    const vehicleTier = maxCapacity > 8 ? 'Coaster / Bus' : maxCapacity > 4 ? 'Minivan' : 'Sedan Car';
+    const vehicleTier =
+      maxCapacity > 8 ? 'Coaster / Bus' : maxCapacity > 4 ? 'Minivan' : 'Sedan Car';
     const vehicleMultiplier = maxCapacity > 8 ? 1.5 : maxCapacity > 4 ? 1.25 : 1.0;
 
     // Dynamic Base Trip Solo Total (Calculated dynamically per route length & vehicle type)
@@ -581,7 +499,16 @@ export function Workspace({
                   const maxVal = Math.max(journey.maxSeats || 4, val);
                   updateJourney({ minSeats: val, maxSeats: maxVal, seats: val } as any);
                 }}
-                style={{ height: 38, padding: '0 6px', fontSize: 12, fontWeight: '700', borderRadius: 6, border: '1px solid #d2dccb', background: '#fff', color: '#285943' }}
+                style={{
+                  height: 38,
+                  padding: '0 6px',
+                  fontSize: 12,
+                  fontWeight: '700',
+                  borderRadius: 6,
+                  border: '1px solid #d2dccb',
+                  background: '#fff',
+                  color: '#285943',
+                }}
               />
               <input
                 type="number"
@@ -594,7 +521,16 @@ export function Workspace({
                   const minVal = Math.min(journey.minSeats || 1, val);
                   updateJourney({ minSeats: minVal, maxSeats: val } as any);
                 }}
-                style={{ height: 38, padding: '0 6px', fontSize: 12, fontWeight: '700', borderRadius: 6, border: '1px solid #d2dccb', background: '#fff', color: '#285943' }}
+                style={{
+                  height: 38,
+                  padding: '0 6px',
+                  fontSize: 12,
+                  fontWeight: '700',
+                  borderRadius: 6,
+                  border: '1px solid #d2dccb',
+                  background: '#fff',
+                  color: '#285943',
+                }}
               />
             </div>
           </div>
@@ -650,7 +586,15 @@ export function Workspace({
                 const inSelectedRange = count >= minCapacity && count <= maxCapacity;
                 const isCurrentSeats = (journey.minSeats || 1) === count;
                 const icon =
-                  count === 1 ? '👤' : count === 2 ? '👥' : count <= 4 ? '🧑‍🤝‍🧑' : count <= 8 ? '🚐' : '🚌';
+                  count === 1
+                    ? '👤'
+                    : count === 2
+                      ? '👥'
+                      : count <= 4
+                        ? '🧑‍🤝‍🧑'
+                        : count <= 8
+                          ? '🚐'
+                          : '🚌';
                 const label =
                   count === 1
                     ? 'Solo'
@@ -667,7 +611,12 @@ export function Workspace({
                     key={count}
                     type="button"
                     onClick={() => {
-                      const updated = { ...journey, seats: 1, minSeats: count, maxSeats: Math.max(count, journey.maxSeats || 4) };
+                      const updated = {
+                        ...journey,
+                        seats: 1,
+                        minSeats: count,
+                        maxSeats: Math.max(count, journey.maxSeats || 4),
+                      };
                       updateJourney(updated as any);
                       if (results) {
                         void run(async () => {
@@ -744,8 +693,13 @@ export function Workspace({
                   <strong>{Math.round(baseSoloFare / maxCapacity)} ETB</strong> — saving{' '}
                   <strong>
                     {baseSoloFare - Math.round(baseSoloFare / maxCapacity)} ETB (
-                    {Math.round(((baseSoloFare - Math.round(baseSoloFare / maxCapacity)) / baseSoloFare) * 100)}%)
-                  </strong>!
+                    {Math.round(
+                      ((baseSoloFare - Math.round(baseSoloFare / maxCapacity)) / baseSoloFare) *
+                        100,
+                    )}
+                    %)
+                  </strong>
+                  !
                 </span>
               </div>
             )}
@@ -755,7 +709,7 @@ export function Workspace({
     );
   }
 
-  const completedDriverFare = completed.reduce((sum, b) => sum + b.fare, 0);
+  const completedDriverFare = data?.demoEarnings.totalFare ?? 0;
 
   return (
     <div className={`app-shell ${theme === 'light' ? 'light-theme' : 'dark-theme'}`}>
@@ -768,6 +722,7 @@ export function Workspace({
             <i />
           </span>
         </a>
+        <p className="sidebar-demo-label">PRIVATE DEMO · SIMULATED RIDES</p>
         <div className="city-label">
           <span className="live-dot" /> ADDIS ABABA
         </div>
@@ -833,6 +788,20 @@ export function Workspace({
                   ))}
         </nav>
         <div className="sidebar-bottom">
+          <button
+            className="nav-item"
+            onClick={() => navigate(isDriver ? 'find' : 'driver_groups')}
+          >
+            <Icon name={isDriver ? 'people' : 'car'} />
+            {isDriver ? 'Switch to Passenger Mode' : 'Switch to Driver Mode'}
+          </button>
+          <button
+            className="nav-item"
+            onClick={() => open('account')}
+            aria-label="Demo workspace controls"
+          >
+            <Icon name="people" /> Demo controls
+          </button>
           <button className="nav-item help-button" onClick={() => open('help')}>
             <Icon name="help" />
             How Zew works
@@ -855,17 +824,37 @@ export function Workspace({
               }}
             >
               <Icon name="sun" size={16} /> Wherever you’re going,{' '}
-              <em style={{ fontStyle: 'italic', color: '#2e7d59', fontWeight: 800 }}>go together.</em>
+              <em style={{ fontStyle: 'italic', color: '#2e7d59', fontWeight: 800 }}>
+                go together.
+              </em>
             </span>
           </div>
           <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {/* Language Selector */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#ffffff', padding: '4px 10px', borderRadius: 10, border: '1px solid #cbd5e1' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                background: '#ffffff',
+                padding: '4px 10px',
+                borderRadius: 10,
+                border: '1px solid #cbd5e1',
+              }}
+            >
               <span style={{ fontSize: 13 }}>🌐</span>
               <select
                 value={lang}
                 onChange={(e) => setLang(e.target.value as Language)}
-                style={{ border: 'none', background: 'transparent', fontSize: 12, fontWeight: 700, color: '#334155', cursor: 'pointer', outline: 'none' }}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: '#334155',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
                 aria-label="Select Language"
               >
                 <option value="en">English</option>
@@ -895,9 +884,23 @@ export function Workspace({
 
             {user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', fontSize: 12 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    fontSize: 12,
+                  }}
+                >
                   <strong style={{ color: '#1b3d2b', fontWeight: 800 }}>{user.name}</strong>
-                  <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: '#64748b',
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                    }}
+                  >
                     {user.role} ({user.email})
                   </span>
                 </div>
@@ -1097,11 +1100,26 @@ export function Workspace({
                                 <div className="driver-details">
                                   <strong>
                                     {trip.driver}{' '}
-                                    <span className="sample-label" style={{ background: '#e0f2fe', color: '#0369a1', cursor: 'pointer' }}>
-                                      Verified driver 🔍
+                                    <span
+                                      className="sample-label"
+                                      style={{
+                                        background: '#e0f2fe',
+                                        color: '#0369a1',
+                                        cursor: 'pointer',
+                                      }}
+                                    >
+                                      Sample driver · simulated profile
                                     </span>
                                   </strong>
-                                  <span style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'underline' }}>{trip.vehicle}</span>
+                                  <span
+                                    style={{
+                                      color: '#2563eb',
+                                      fontWeight: 600,
+                                      textDecoration: 'underline',
+                                    }}
+                                  >
+                                    {trip.vehicle}
+                                  </span>
                                   <small>
                                     <Icon name="route" size={13} /> Same direction ·{' '}
                                     {trip.availableSeats} seats left
@@ -1211,7 +1229,7 @@ export function Workspace({
                             ) : (
                               <p>
                                 {b.status === 'completed'
-                                  ? 'Ride completed. Automated payment processed.'
+                                  ? 'Demo payment recorded. No money was charged.'
                                   : b.status === 'in_progress'
                                     ? 'Your journey is in progress.'
                                     : 'Your reservation was cancelled.'}
@@ -1253,7 +1271,9 @@ export function Workspace({
                       className="secondary"
                       onClick={() => {
                         navigate('find');
-                        setNotice('Select your pickup, drop-off & departure time, then tap "Save this commute".');
+                        setNotice(
+                          'Select your pickup, drop-off & departure time, then tap "Save this commute".',
+                        );
                       }}
                     >
                       <Icon name="plus" size={17} /> Add a commute
@@ -1344,25 +1364,37 @@ export function Workspace({
                   flexWrap: 'wrap',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 260 }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 260 }}
+                >
                   <span
                     style={{
                       width: 14,
                       height: 14,
                       borderRadius: '50%',
                       background: driverActive ? '#22c55e' : '#ef4444',
-                      boxShadow: driverActive ? '0 0 0 4px rgba(34, 197, 94, 0.2)' : '0 0 0 4px rgba(239, 68, 68, 0.2)',
+                      boxShadow: driverActive
+                        ? '0 0 0 4px rgba(34, 197, 94, 0.2)'
+                        : '0 0 0 4px rgba(239, 68, 68, 0.2)',
                       flexShrink: 0,
                     }}
                   />
                   <div>
-                    <strong style={{ fontSize: 14, color: driverActive ? '#15803d' : '#b91c1c', display: 'block' }}>
-                      {driverActive ? '🟢 DRIVER STATUS: ONLINE & ACTIVE' : '🔴 DRIVER STATUS: OFFLINE & INACTIVE'}
+                    <strong
+                      style={{
+                        fontSize: 14,
+                        color: driverActive ? '#15803d' : '#b91c1c',
+                        display: 'block',
+                      }}
+                    >
+                      {driverActive
+                        ? '🟢 DRIVER STATUS: ONLINE & ACTIVE'
+                        : '🔴 DRIVER STATUS: OFFLINE & INACTIVE'}
                     </strong>
                     <span style={{ fontSize: 12, color: driverActive ? '#166534' : '#991b1b' }}>
                       {driverActive
-                        ? 'You are online and accepting commuter requests on your active route. Visible on Live Dispatch Radar.'
-                        : 'You are offline. Commuters and support dispatchers cannot view your vehicle until activated.'}
+                        ? 'You are online and accepting commuter requests on your active route. Shown only in this simulated workspace.'
+                        : 'This sample driver is inactive in your private demo. No real riders or dispatchers see this view.'}
                     </span>
                   </div>
                 </div>
@@ -1420,7 +1452,14 @@ export function Workspace({
                             }}
                           >
                             <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  marginBottom: 4,
+                                }}
+                              >
                                 <span className={`status-pill ${b.status}`}>
                                   {statusLabel[b.status]}
                                 </span>
@@ -1433,7 +1472,9 @@ export function Workspace({
                               </p>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                              <strong style={{ fontSize: 18, color: '#285943' }}>{b.fare} ETB</strong>
+                              <strong style={{ fontSize: 18, color: '#285943' }}>
+                                {b.fare} ETB
+                              </strong>
                               {b.status === 'confirmed' && (
                                 <button
                                   className="primary"
@@ -1442,7 +1483,7 @@ export function Workspace({
                                     open('board');
                                   }}
                                 >
-                                  Board passenger
+                                  Enter boarding code
                                 </button>
                               )}
                               {b.status === 'in_progress' && (
@@ -1456,11 +1497,11 @@ export function Workspace({
                                         action: 'complete',
                                       });
                                       await refresh();
-                                      setNotice(`Trip completed! ${b.fare} ETB collected.`);
+                                      setNotice(`Trip completed! ${b.fare} ETB simulated receipt.`);
                                     })
                                   }
                                 >
-                                  Complete trip
+                                  Complete demo trip
                                 </button>
                               )}
                             </div>
@@ -1479,19 +1520,36 @@ export function Workspace({
               {view === 'driver_earnings' && (
                 <div style={{ maxWidth: 720, margin: '0 auto', padding: '12px 0' }}>
                   <div className="card" style={{ padding: 24, marginBottom: 24 }}>
-                    <h3>Your Earnings Summary</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 16 }}>
+                    <h3>Your simulated receipt summary</h3>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: 16,
+                        marginTop: 16,
+                      }}
+                    >
                       <div>
-                        <small style={{ color: '#69735f', display: 'block' }}>Today</small>
+                        <small style={{ color: '#69735f', display: 'block' }}>
+                          Completed demo fares
+                        </small>
                         <strong style={{ fontSize: 24 }}>{completedDriverFare} ETB</strong>
                       </div>
                       <div>
-                        <small style={{ color: '#69735f', display: 'block' }}>This Week</small>
-                        <strong style={{ fontSize: 24 }}>{completedDriverFare + 1280} ETB</strong>
+                        <small style={{ color: '#69735f', display: 'block' }}>
+                          Example platform share
+                        </small>
+                        <strong style={{ fontSize: 24 }}>
+                          {data.demoEarnings.platformFee} ETB
+                        </strong>
                       </div>
                       <div>
-                        <small style={{ color: '#69735f', display: 'block' }}>This Month</small>
-                        <strong style={{ fontSize: 24 }}>{completedDriverFare + 4850} ETB</strong>
+                        <small style={{ color: '#69735f', display: 'block' }}>
+                          Simulated driver payout
+                        </small>
+                        <strong style={{ fontSize: 24 }}>
+                          {data.demoEarnings.driverPayout} ETB
+                        </strong>
                       </div>
                     </div>
                   </div>
@@ -1515,7 +1573,7 @@ export function Workspace({
                       </>
                     ) : (
                       <>
-                        Live Driver Radar.
+                        Simulated Driver Radar.
                         <br />
                         <em>Track active fleet locations.</em>
                       </>
@@ -1541,7 +1599,8 @@ export function Workspace({
                       }
                       await run(async () => {
                         const activeDeparture =
-                          !journey.departure || Date.parse(journey.departure) <= Date.now() - 5 * 60000
+                          !journey.departure ||
+                          Date.parse(journey.departure) <= Date.now() - 5 * 60000
                             ? new Date(Date.now() + 15 * 60000).toISOString()
                             : journey.departure;
                         const activeJourney = { ...journey, departure: activeDeparture };
@@ -1569,7 +1628,9 @@ export function Workspace({
                         ]);
                         setCallerName('');
                         setCallerPhone('');
-                        setNotice(`Ride dispatched for ${callerName}! Boarding code: ${bookingRes.code}`);
+                        setNotice(
+                          `Ride dispatched for ${callerName}! Boarding code: ${bookingRes.code}`,
+                        );
                       });
                     }}
                   >
@@ -1577,7 +1638,14 @@ export function Workspace({
                       <h2>Create Phone Ride Order</h2>
                       <Icon name="help" />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: 16,
+                        marginBottom: 16,
+                      }}
+                    >
                       <label className="field">
                         Caller Name
                         <input
@@ -1600,7 +1668,12 @@ export function Workspace({
                       </label>
                     </div>
                     {routeFields()}
-                    <button className="primary full" type="submit" disabled={busy} style={{ marginTop: 20 }}>
+                    <button
+                      className="primary full"
+                      type="submit"
+                      disabled={busy}
+                      style={{ marginTop: 20 }}
+                    >
                       {busy ? 'Dispatching...' : 'Dispatch Ride & Generate Code'}
                       <Icon name="arrow" size={18} />
                     </button>
@@ -1623,12 +1696,23 @@ export function Workspace({
                             }}
                           >
                             <div>
-                              <strong>{order.caller} ({order.phone})</strong>
+                              <strong>
+                                {order.caller} ({order.phone})
+                              </strong>
                               <br />
                               <small style={{ color: '#69735f' }}>Route: {order.route}</small>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                              <span style={{ background: '#eaffef', color: '#285943', padding: '4px 8px', borderRadius: 12, fontSize: 12, fontWeight: 'bold' }}>
+                              <span
+                                style={{
+                                  background: '#eaffef',
+                                  color: '#285943',
+                                  padding: '4px 8px',
+                                  borderRadius: 12,
+                                  fontSize: 12,
+                                  fontWeight: 'bold',
+                                }}
+                              >
                                 Code: {order.code}
                               </span>
                             </div>
@@ -1636,7 +1720,9 @@ export function Workspace({
                         ))}
                       </div>
                     ) : (
-                      <p style={{ color: '#69735f', margin: '12px 0 0' }}>No phone dispatch orders created in this session.</p>
+                      <p style={{ color: '#69735f', margin: '12px 0 0' }}>
+                        No phone dispatch orders created in this session.
+                      </p>
                     )}
                   </div>
                 </div>
@@ -1645,22 +1731,74 @@ export function Workspace({
               {view === 'support_radar' && (
                 <div style={{ maxWidth: 840, margin: '0 auto' }}>
                   <div className="section-title" style={{ marginBottom: 16 }}>
-                    <h2>Live Active Driver Radar</h2>
+                    <h2>Simulated Driver Radar</h2>
                     <span className="muted">Addis Ababa active driver fleet</span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                      gap: 16,
+                    }}
+                  >
                     {[
-                      { name: 'Hana T.', vehicle: 'Toyota Vitz · Silver', corridor: 'Bole → City centre', seats: '4 seats open' },
-                      { name: 'Dawit M.', vehicle: 'Suzuki Dzire · White', corridor: 'Bole → City centre', seats: '3 seats open' },
-                      { name: 'Selam A.', vehicle: 'Toyota Yaris · Blue', corridor: 'CMC → City centre', seats: '4 seats open' },
-                      { name: 'Abebe K.', vehicle: 'Hyundai Atos · Red', corridor: 'Bole → City centre', seats: '4 seats open' },
-                      { name: 'Ermias K.', vehicle: 'Hyundai Elantra · Silver', corridor: 'CMC → City centre', seats: '3 seats open' },
+                      {
+                        name: 'Hana T.',
+                        vehicle: 'Toyota Vitz · Silver',
+                        corridor: 'Bole → City centre',
+                        seats: '4 seats open',
+                      },
+                      {
+                        name: 'Dawit M.',
+                        vehicle: 'Suzuki Dzire · White',
+                        corridor: 'Bole → City centre',
+                        seats: '3 seats open',
+                      },
+                      {
+                        name: 'Selam A.',
+                        vehicle: 'Toyota Yaris · Blue',
+                        corridor: 'CMC → City centre',
+                        seats: '4 seats open',
+                      },
+                      {
+                        name: 'Abebe K.',
+                        vehicle: 'Hyundai Atos · Red',
+                        corridor: 'Bole → City centre',
+                        seats: '4 seats open',
+                      },
+                      {
+                        name: 'Ermias K.',
+                        vehicle: 'Hyundai Elantra · Silver',
+                        corridor: 'CMC → City centre',
+                        seats: '3 seats open',
+                      },
                     ].map((driver, i) => (
                       <div key={i} className="card" style={{ padding: 16 }}>
                         <strong style={{ fontSize: 16 }}>{driver.name}</strong>
-                        <p style={{ margin: '4px 0', fontSize: 13, color: '#69735f' }}>{driver.vehicle}</p>
-                        <small style={{ display: 'block', color: '#285943', fontWeight: 'bold', marginBottom: 8 }}>{driver.corridor}</small>
-                        <span style={{ background: '#eaffef', color: '#285943', padding: '4px 8px', borderRadius: 12, fontSize: 12 }}>{driver.seats}</span>
+                        <p style={{ margin: '4px 0', fontSize: 13, color: '#69735f' }}>
+                          {driver.vehicle}
+                        </p>
+                        <small
+                          style={{
+                            display: 'block',
+                            color: '#285943',
+                            fontWeight: 'bold',
+                            marginBottom: 8,
+                          }}
+                        >
+                          {driver.corridor}
+                        </small>
+                        <span
+                          style={{
+                            background: '#eaffef',
+                            color: '#285943',
+                            padding: '4px 8px',
+                            borderRadius: 12,
+                            fontSize: 12,
+                          }}
+                        >
+                          {driver.seats}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -1684,7 +1822,7 @@ export function Workspace({
                       </>
                     ) : view === 'admin_drivers' ? (
                       <>
-                        Driver Approvals.
+                        Sample Driver Profiles.
                         <br />
                         <em>Fleet verification management.</em>
                       </>
@@ -1692,7 +1830,7 @@ export function Workspace({
                       <>
                         Live Audit Trail.
                         <br />
-                        <em>Real-time security log.</em>
+                        <em>Private demo activity log.</em>
                       </>
                     )}
                   </h1>
@@ -1705,10 +1843,19 @@ export function Workspace({
 
               {view === 'admin_overview' && (
                 <div style={{ maxWidth: 840, margin: '0 auto' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: 16,
+                      marginBottom: 32,
+                    }}
+                  >
                     <div className="card" style={{ padding: 16 }}>
                       <small style={{ color: '#69735f' }}>Total Commutes</small>
-                      <h3 style={{ margin: '4px 0 0', fontSize: 24 }}>{148 + data.bookings.length}</h3>
+                      <h3 style={{ margin: '4px 0 0', fontSize: 24 }}>
+                        {148 + data.bookings.length}
+                      </h3>
                     </div>
                     <div className="card" style={{ padding: 16 }}>
                       <small style={{ color: '#69735f' }}>Active Drivers</small>
@@ -1716,11 +1863,15 @@ export function Workspace({
                     </div>
                     <div className="card" style={{ padding: 16 }}>
                       <small style={{ color: '#69735f' }}>Platform Fees (10%)</small>
-                      <h3 style={{ margin: '4px 0 0', fontSize: 24 }}>{Math.round(completedDriverFare * 0.1)} ETB</h3>
+                      <h3 style={{ margin: '4px 0 0', fontSize: 24 }}>
+                        {Math.round(completedDriverFare * 0.1)} ETB
+                      </h3>
                     </div>
                     <div className="card" style={{ padding: 16 }}>
                       <small style={{ color: '#69735f' }}>API Health</small>
-                      <h3 style={{ margin: '4px 0 0', fontSize: 16, color: '#285943' }}>🟢 Operational</h3>
+                      <h3 style={{ margin: '4px 0 0', fontSize: 16, color: '#285943' }}>
+                        🟢 Operational
+                      </h3>
                     </div>
                   </div>
 
@@ -1728,11 +1879,22 @@ export function Workspace({
                     <h3>Configured Active Corridors</h3>
                     <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
                       {data.corridors.map((c) => (
-                        <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #eee' }}>
+                        <div
+                          key={c.id}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            padding: '12px 0',
+                            borderBottom: '1px solid #eee',
+                          }}
+                        >
                           <div>
                             <strong>{c.name}</strong>
                             <br />
-                            <small style={{ color: '#69735f' }}>{c.stops.length} Stops ({c.stops[0].name} → {c.stops[c.stops.length - 1].name})</small>
+                            <small style={{ color: '#69735f' }}>
+                              {c.stops.length} Stops ({c.stops[0].name} →{' '}
+                              {c.stops[c.stops.length - 1].name})
+                            </small>
                           </div>
                           <span style={{ color: '#285943', fontWeight: 'bold' }}>Active Route</span>
                         </div>
@@ -1745,23 +1907,67 @@ export function Workspace({
               {view === 'admin_drivers' && (
                 <div style={{ maxWidth: 840, margin: '0 auto' }}>
                   <div className="card" style={{ padding: 24 }}>
-                    <h3>Driver Fleet & Verification Status</h3>
+                    <h3>Sample Driver Profiles</h3>
                     <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
                       {[
-                        { name: 'Hana T.', vehicle: 'Toyota Vitz · Silver', license: 'ET-AA-40192', status: 'Verified' },
-                        { name: 'Dawit M.', vehicle: 'Suzuki Dzire · White', license: 'ET-AA-91823', status: 'Verified' },
-                        { name: 'Selam A.', vehicle: 'Toyota Yaris · Blue', license: 'ET-AA-38192', status: 'Verified' },
-                        { name: 'Tigist W.', vehicle: 'Nissan Note · Grey', license: 'ET-AA-72819', status: 'Verified' },
-                        { name: 'Maron B.', vehicle: 'Toyota Rush · Black', license: 'ET-AA-10928', status: 'Pending Review' },
+                        {
+                          name: 'Hana T.',
+                          vehicle: 'Toyota Vitz · Silver',
+                          license: 'ET-AA-40192',
+                          status: 'Demo profile',
+                        },
+                        {
+                          name: 'Dawit M.',
+                          vehicle: 'Suzuki Dzire · White',
+                          license: 'ET-AA-91823',
+                          status: 'Demo profile',
+                        },
+                        {
+                          name: 'Selam A.',
+                          vehicle: 'Toyota Yaris · Blue',
+                          license: 'ET-AA-38192',
+                          status: 'Demo profile',
+                        },
+                        {
+                          name: 'Tigist W.',
+                          vehicle: 'Nissan Note · Grey',
+                          license: 'ET-AA-72819',
+                          status: 'Demo profile',
+                        },
+                        {
+                          name: 'Maron B.',
+                          vehicle: 'Toyota Rush · Black',
+                          license: 'ET-AA-10928',
+                          status: 'Pending Review',
+                        },
                       ].map((driver, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #eee' }}>
+                        <div
+                          key={i}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '12px 0',
+                            borderBottom: '1px solid #eee',
+                          }}
+                        >
                           <div>
                             <strong>{driver.name}</strong> ({driver.vehicle})
                             <br />
                             <small style={{ color: '#69735f' }}>License: {driver.license}</small>
                           </div>
                           <div>
-                            <span style={{ background: driver.status === 'Verified' ? '#eaffef' : '#fff3cd', color: driver.status === 'Verified' ? '#285943' : '#856404', padding: '4px 10px', borderRadius: 12, fontSize: 12, fontWeight: 'bold' }}>
+                            <span
+                              style={{
+                                background:
+                                  driver.status === 'Demo profile' ? '#eaffef' : '#fff3cd',
+                                color: driver.status === 'Demo profile' ? '#285943' : '#856404',
+                                padding: '4px 10px',
+                                borderRadius: 12,
+                                fontSize: 12,
+                                fontWeight: 'bold',
+                              }}
+                            >
                               {driver.status}
                             </span>
                           </div>
@@ -1779,10 +1985,21 @@ export function Workspace({
                     <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
                       {data.events && data.events.length > 0 ? (
                         data.events.map((ev, i) => (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #eee', fontSize: 14 }}>
+                          <div
+                            key={i}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              padding: '10px 0',
+                              borderBottom: '1px solid #eee',
+                              fontSize: 14,
+                            }}
+                          >
                             <div>
                               <strong style={{ color: '#285943' }}>{ev.kind}</strong>
-                              <span style={{ color: '#69735f', marginLeft: 12 }}>Entity: {ev.entityId}</span>
+                              <span style={{ color: '#69735f', marginLeft: 12 }}>
+                                Entity: {ev.entityId}
+                              </span>
                             </div>
                             <small style={{ color: '#69735f' }}>{ev.createdAt}</small>
                           </div>
@@ -1806,14 +2023,21 @@ export function Workspace({
             <button className="text-button" onClick={() => open('waitlist')}>
               {data?.waitlistJoined ? 'Registration saved' : 'Join the pilot'}
             </button>
-            <span className="footer-disclaimer">
-              Zew Addis Ababa · Shared commute pilot
-            </span>
+            <span className="footer-disclaimer">Zew Addis Ababa · Private ride demo</span>
           </footer>
         </main>
       </div>
 
-      {dialog && (
+      {dialog === 'auth' && (
+        <AuthModal
+          isOpen
+          onClose={() => setDialog(null)}
+          onSuccess={() => {
+            window.location.href = '/';
+          }}
+        />
+      )}
+      {dialog && dialog !== 'auth' && (
         <Modal
           title={
             {
@@ -1824,7 +2048,6 @@ export function Workspace({
               booking: 'Your ride, at a glance',
               board: 'Ready to board?',
               account: 'Account & Workspace',
-              auth: authTab === 'signin' ? 'Welcome Back to Zew' : 'Create Zew Account',
               'driver-profile': `Driver & Vehicle Profile · ${selected?.driver ?? 'Driver'}`,
             }[dialog]!
           }
@@ -1836,140 +2059,6 @@ export function Workspace({
             <p className="error-banner" role="alert">
               {error}
             </p>
-          )}
-
-          {/* AUTHENTICATION DIALOG (SUPABASE AUTH) */}
-          {dialog === 'auth' && (
-            <div className="auth-dialog-content">
-              <div style={{ display: 'flex', gap: 8, marginBottom: 20, borderBottom: '1px solid #e1e3de', paddingBottom: 12 }}>
-                <button
-                  type="button"
-                  className={`secondary ${authTab === 'signin' ? 'active' : ''}`}
-                  style={{ flex: 1, border: authTab === 'signin' ? '2px solid #285943' : '1px solid #ccc', padding: '10px' }}
-                  onClick={() => { setAuthTab('signin'); setAuthError(''); }}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  className={`secondary ${authTab === 'signup' ? 'active' : ''}`}
-                  style={{ flex: 1, border: authTab === 'signup' ? '2px solid #285943' : '1px solid #ccc', padding: '10px' }}
-                  onClick={() => { setAuthTab('signup'); setAuthError(''); }}
-                >
-                  Create Account
-                </button>
-              </div>
-
-              {authError && (
-                <div role="alert" className="error-banner" style={{ marginBottom: 16 }}>
-                  {authError}
-                </div>
-              )}
-
-              {authTab === 'signin' ? (
-                <form onSubmit={handleSignIn}>
-                  <label className="field" style={{ marginBottom: 12 }}>
-                    Email Address
-                    <input
-                      type="email"
-                      required
-                      placeholder="you@example.com"
-                      value={emailInput}
-                      onChange={(e) => setEmailInput(e.target.value)}
-                      autoFocus
-                    />
-                  </label>
-                  <label className="field" style={{ marginBottom: 20 }}>
-                    Password
-                    <input
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      value={passwordInput}
-                      onChange={(e) => setPasswordInput(e.target.value)}
-                    />
-                  </label>
-                  <button className="primary full" type="submit" disabled={authBusy}>
-                    {authBusy ? 'Signing in…' : 'Sign In with Supabase'}
-                    <Icon name="arrow" size={17} />
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleSignUp}>
-                  <label className="field" style={{ marginBottom: 12 }}>
-                    Full Name
-                    <input
-                      type="text"
-                      required
-                      placeholder="Your full name"
-                      value={nameInput}
-                      onChange={(e) => setNameInput(e.target.value)}
-                      autoFocus
-                    />
-                  </label>
-                  <label className="field" style={{ marginBottom: 12 }}>
-                    Email Address
-                    <input
-                      type="email"
-                      required
-                      placeholder="you@example.com"
-                      value={emailInput}
-                      onChange={(e) => setEmailInput(e.target.value)}
-                    />
-                  </label>
-                  <label className="field" style={{ marginBottom: 12 }}>
-                    Password
-                    <input
-                      type="password"
-                      required
-                      minLength={6}
-                      placeholder="At least 6 characters"
-                      value={passwordInput}
-                      onChange={(e) => setPasswordInput(e.target.value)}
-                    />
-                  </label>
-                  <label className="field" style={{ marginBottom: 20 }}>
-                    Select Primary Role
-                    <select
-                      value={roleInput}
-                      onChange={(e) => setRoleInput(e.target.value as any)}
-                    >
-                      <option value="passenger">👤 Passenger</option>
-                      <option value="driver">🚗 Driver</option>
-                      <option value="support">🎧 Customer Support</option>
-                      <option value="admin">🛡️ Administrator</option>
-                    </select>
-                  </label>
-                  <button className="primary full" type="submit" disabled={authBusy}>
-                    {authBusy ? 'Creating Account…' : 'Sign Up & Send Verification Email'}
-                    <Icon name="arrow" size={17} />
-                  </button>
-                </form>
-              )}
-
-              <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee', textAlign: 'center' }}>
-                <small style={{ color: '#69735f', display: 'block', marginBottom: 12 }}>
-                  Protected by Supabase Auth with email verification
-                </small>
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => {
-                    setAuthUser({
-                      id: 'demo-user-123',
-                      email: 'demo@zew.app',
-                      name: 'Demo User',
-                      role: 'passenger',
-                      emailConfirmed: true,
-                    });
-                    setNotice('Logged in as Demo User.');
-                    setDialog(null);
-                  }}
-                >
-                  ⚡ Fast Instant Login (Demo User)
-                </button>
-              </div>
-            </div>
           )}
 
           {dialog === 'help' && (
@@ -2052,76 +2141,227 @@ export function Workspace({
           {dialog === 'driver-profile' && selected && (
             <div className="driver-profile-modal">
               {/* Driver Header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, background: '#f4f7f2', padding: 16, borderRadius: 16, marginBottom: 16, border: '1px solid #e2ebd8' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 16,
+                  background: '#f4f7f2',
+                  padding: 16,
+                  borderRadius: 16,
+                  marginBottom: 16,
+                  border: '1px solid #e2ebd8',
+                }}
+              >
                 <div style={{ position: 'relative' }}>
-                  <span className="avatar driver-avatar tone-0" style={{ width: 60, height: 60, fontSize: 22, borderRadius: 18 }}>
+                  <span
+                    className="avatar driver-avatar tone-0"
+                    style={{ width: 60, height: 60, fontSize: 22, borderRadius: 18 }}
+                  >
                     {selected.driver[0]}
                   </span>
-                  <span style={{ position: 'absolute', bottom: -2, right: -2, width: 14, height: 14, background: '#2e7d32', border: '2px solid white', borderRadius: '50%' }} title="Verified & active" />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      bottom: -2,
+                      right: -2,
+                      width: 14,
+                      height: 14,
+                      background: '#2e7d32',
+                      border: '2px solid white',
+                      borderRadius: '50%',
+                    }}
+                    title="Simulated profile"
+                  />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: 18, color: '#1b3b2b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: 18,
+                      color: '#1b3b2b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
                     {selected.driver}
-                    <span style={{ background: '#e0f2fe', color: '#0369a1', fontSize: 11, padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>
-                      ✓ Verified Driver
+                    <span
+                      style={{
+                        background: '#e0f2fe',
+                        color: '#0369a1',
+                        fontSize: 11,
+                        padding: '2px 8px',
+                        borderRadius: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      Sample demo driver
                     </span>
                   </h3>
                   <p style={{ margin: '4px 0 0', fontSize: 13, color: '#456b38', fontWeight: 600 }}>
                     4.9 ★ Rating · 148 Shared Journeys Completed
                   </p>
                   <span style={{ fontSize: '11px', color: '#69735f' }}>
-                    Government ID & Ethiopian Driver License Verified
+                    Sample profile · no identity or license verification
                   </span>
                 </div>
               </div>
 
               {/* Vehicle Visual Specs Card */}
-              <div style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', padding: 18, borderRadius: 18, marginBottom: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                  color: 'white',
+                  padding: 18,
+                  borderRadius: 18,
+                  marginBottom: 16,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: 12,
+                  }}
+                >
                   <div>
-                    <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700 }}>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: '#94a3b8',
+                        textTransform: 'uppercase',
+                        letterSpacing: 1,
+                        fontWeight: 700,
+                      }}
+                    >
                       ASSIGNED DEMO VEHICLE
                     </span>
-                    <h4 style={{ margin: '2px 0 0', fontSize: 20, color: '#38bdf8', fontWeight: 800 }}>
+                    <h4
+                      style={{ margin: '2px 0 0', fontSize: 20, color: '#38bdf8', fontWeight: 800 }}
+                    >
                       {selected.vehicle}
                     </h4>
                   </div>
-                  <span style={{ background: '#334155', color: '#e2e8f0', fontSize: 12, fontFamily: 'monospace', fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #475569' }}>
+                  <span
+                    style={{
+                      background: '#334155',
+                      color: '#e2e8f0',
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                      fontWeight: 700,
+                      padding: '4px 10px',
+                      borderRadius: 8,
+                      border: '1px solid #475569',
+                    }}
+                  >
                     AA 2-B4091
                   </span>
                 </div>
 
                 {/* Car Features */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-                  <span style={{ background: '#1e3a8a33', border: '1px solid #3b82f644', color: '#93c5fd', fontSize: 11, padding: '4px 10px', borderRadius: 20 }}>
+                  <span
+                    style={{
+                      background: '#1e3a8a33',
+                      border: '1px solid #3b82f644',
+                      color: '#93c5fd',
+                      fontSize: 11,
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                    }}
+                  >
                     ❄️ Air Conditioned
                   </span>
-                  <span style={{ background: '#064e3b33', border: '1px solid #10b98144', color: '#6ee7b7', fontSize: 11, padding: '4px 10px', borderRadius: 20 }}>
+                  <span
+                    style={{
+                      background: '#064e3b33',
+                      border: '1px solid #10b98144',
+                      color: '#6ee7b7',
+                      fontSize: 11,
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                    }}
+                  >
                     🧹 Clean & Sanitized
                   </span>
-                  <span style={{ background: '#78350f33', border: '1px solid #f59e0b44', color: '#fde68a', fontSize: 11, padding: '4px 10px', borderRadius: 20 }}>
+                  <span
+                    style={{
+                      background: '#78350f33',
+                      border: '1px solid #f59e0b44',
+                      color: '#fde68a',
+                      fontSize: 11,
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                    }}
+                  >
                     🚭 Non-Smoking
                   </span>
-                  <span style={{ background: '#4c1d9533', border: '1px solid #8b5cf644', color: '#c4b5fd', fontSize: 11, padding: '4px 10px', borderRadius: 20 }}>
+                  <span
+                    style={{
+                      background: '#4c1d9533',
+                      border: '1px solid #8b5cf644',
+                      color: '#c4b5fd',
+                      fontSize: 11,
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                    }}
+                  >
                     🧳 Luggage Space (2 Bags)
                   </span>
                 </div>
 
-                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #334155', display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#cbd5e1' }}>
+                <div
+                  style={{
+                    marginTop: 14,
+                    paddingTop: 12,
+                    borderTop: '1px solid #334155',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 12,
+                    color: '#cbd5e1',
+                  }}
+                >
                   <span>Corridor: {corridor?.name ?? 'Addis Commute Corridor'}</span>
-                  <span>Seats Open: <strong>{selected.availableSeats} / {selected.seats}</strong></span>
+                  <span>
+                    Seats Open:{' '}
+                    <strong>
+                      {selected.availableSeats} / {selected.seats}
+                    </strong>
+                  </span>
                 </div>
               </div>
 
               {/* Corridor Route Info */}
-              <div style={{ background: '#fafbf9', border: '1px solid #e5ebe1', padding: 14, borderRadius: 14, marginBottom: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+              <div
+                style={{
+                  background: '#fafbf9',
+                  border: '1px solid #e5ebe1',
+                  padding: 14,
+                  borderRadius: 14,
+                  marginBottom: 20,
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 13,
+                    marginBottom: 6,
+                  }}
+                >
                   <span style={{ color: '#556353' }}>Departure Time:</span>
-                  <strong style={{ color: '#1b3b2b' }}>{day(selected.departure)} · {time(selected.departure)} EAT</strong>
+                  <strong style={{ color: '#1b3b2b' }}>
+                    {day(selected.departure)} · {time(selected.departure)} EAT
+                  </strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                   <span style={{ color: '#556353' }}>Passenger Seat Rate:</span>
-                  <strong style={{ color: '#285943', fontSize: 15 }}>{selected.fare} ETB / seat</strong>
+                  <strong style={{ color: '#285943', fontSize: 15 }}>
+                    {selected.fare} ETB / seat
+                  </strong>
                 </div>
               </div>
 
@@ -2153,11 +2393,30 @@ export function Workspace({
           {dialog === 'booking' && selected && (
             <div>
               {/* Passenger Role Banner */}
-              <div style={{ background: '#eef5ec', border: '1px solid #cce3cb', borderRadius: '12px', padding: '12px', marginBottom: '16px' }}>
-                <span style={{ fontSize: '11px', color: '#285943', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>
+              <div
+                style={{
+                  background: '#eef5ec',
+                  border: '1px solid #cce3cb',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  marginBottom: '16px',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#285943',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    display: 'block',
+                  }}
+                >
                   YOUR ROLE IN THIS TRIP
                 </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}
+                >
                   <span style={{ fontSize: '20px' }}>👤</span>
                   <div>
                     <strong style={{ color: '#1b3b2b', fontSize: '15px', display: 'block' }}>
@@ -2175,8 +2434,10 @@ export function Workspace({
               </p>
               <div className="booking-summary">
                 <p>
-                  <span>Verified driver</span>
-                  <strong>{selected.driver} <span className="sample-label">✓ Verified</span></strong>
+                  <span>Sample driver</span>
+                  <strong>
+                    {selected.driver} <span className="sample-label">Sample</span>
+                  </strong>
                 </p>
                 <p>
                   <span>Departure</span>
@@ -2204,8 +2465,20 @@ export function Workspace({
                 </p>
               </div>
 
-              <p style={{ fontSize: '11px', color: '#556353', margin: '12px 0 16px', textAlign: 'center', background: '#f8faf7', padding: '8px', borderRadius: '8px', border: '1px solid #e2ebe1' }}>
-                ℹ️ You pay only {selected.fare} ETB for your 1 seat in {selected.driver}'s car. The rest of the vehicle seats are shared with other corridor commuters.
+              <p
+                style={{
+                  fontSize: '11px',
+                  color: '#556353',
+                  margin: '12px 0 16px',
+                  textAlign: 'center',
+                  background: '#f8faf7',
+                  padding: '8px',
+                  borderRadius: '8px',
+                  border: '1px solid #e2ebe1',
+                }}
+              >
+                Illustrative demo fare: {selected.fare} ETB for your 1 seat in {selected.driver}'s
+                car. The rest of the vehicle seats are shared with other corridor commuters.
               </p>
 
               <button
@@ -2223,7 +2496,7 @@ export function Workspace({
                   })
                 }
               >
-                {busy ? 'Reserving…' : 'Confirm reservation'}
+                {busy ? 'Reserving…' : 'Confirm demo reservation'}
                 <Icon name="check" size={17} />
               </button>
             </div>
@@ -2296,7 +2569,7 @@ export function Workspace({
                     {authUser ? authUser.email : 'Guest Session'}
                     {authUser?.emailConfirmed && (
                       <span style={{ color: '#285943', fontWeight: 'bold', marginLeft: 6 }}>
-                        ✓ Verified
+                        Sample
                       </span>
                     )}
                   </p>
@@ -2307,7 +2580,9 @@ export function Workspace({
                 className="role-toggle"
                 style={{ marginBottom: 20, background: '#f8f8ee', borderRadius: 12, padding: 16 }}
               >
-                <h4 style={{ margin: '0 0 12px', fontSize: 14 }}>Active Role Workspace</h4>
+                <h4 style={{ margin: '0 0 12px', fontSize: 14 }}>
+                  Simulated workspace views · no role permissions
+                </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <button
                     type="button"
@@ -2392,11 +2667,7 @@ export function Workspace({
                   Log out of account
                 </button>
               ) : (
-                <button
-                  type="button"
-                  className="primary full"
-                  onClick={() => open('auth')}
-                >
+                <button type="button" className="primary full" onClick={() => open('auth')}>
                   Sign In / Create Account
                 </button>
               )}

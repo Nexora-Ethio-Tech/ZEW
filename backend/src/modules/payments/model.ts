@@ -1,7 +1,8 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export type PaymentMethod = 'telebirr' | 'cbe_birr' | 'cash';
-export type PaymentStatus = 'not_due' | 'pending_telebirr' | 'paid_telebirr' | 'simulated' | 'failed';
+export type PaymentStatus =
+  'not_due' | 'pending_telebirr' | 'paid_telebirr' | 'simulated' | 'failed';
 
 export interface TelebirrInitiateInput {
   bookingId?: string;
@@ -47,6 +48,10 @@ export function verifyTelebirrSignature(
   secretKey = 'zew_telebirr_demo_secret',
 ): boolean {
   const { sign, ...rest } = payload;
-  const expectedSign = generateTelebirrSignature(rest as unknown as Record<string, string | number>, secretKey);
-  return sign.toUpperCase() === expectedSign;
+  const expectedSign = generateTelebirrSignature(
+    rest as unknown as Record<string, string | number>,
+    secretKey,
+  );
+  if (!/^[a-fA-F0-9]{64}$/.test(sign)) return false;
+  return timingSafeEqual(Buffer.from(sign, 'hex'), Buffer.from(expectedSign, 'hex'));
 }

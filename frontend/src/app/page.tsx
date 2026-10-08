@@ -1,43 +1,30 @@
 'use client';
-
-import { useState, useEffect } from 'react';
-import { Workspace } from '@/features/workspace';
+import { Suspense, useEffect, useState } from 'react';
 import { LandingPage } from '@/features/landing/landing';
-import { getStoredUser, clearAuthSession } from '@/lib/api';
-import { applyTheme, getStoredTheme } from '@/lib/theme';
+import { PoolWorkspace } from '@/features/pool/pool-workspace';
+import { restoreAccount, type Account } from '@/lib/auth';
 
 export default function Home() {
-  const [user, setUser] = useState<{ id: string; email: string; name: string; role: string } | null>(null);
-  const [loading, setLoading] = useState(true);
-
+  const [user, setUser] = useState<Account | null>(null);
+  const [error, setError] = useState('');
   useEffect(() => {
-    applyTheme(getStoredTheme());
-    const stored = getStoredUser();
-    if (stored) {
-      setUser(stored);
-    }
-    setLoading(false);
+    let active = true;
+    restoreAccount()
+      .then((account) => {
+        if (active) setUser(account);
+      })
+      .catch(() => {
+        if (active) setError('We could not restore your sign-in. Please sign in again.');
+      });
+    return () => {
+      active = false;
+    };
   }, []);
-
-  if (loading) {
+  if (user)
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#f8faf6', color: '#1b3d2b', fontFamily: 'sans-serif' }}>
-        <h2>Loading Zew Addis Ababa…</h2>
-      </div>
+      <Suspense fallback={<p role="status">Opening your workspace…</p>}>
+        <PoolWorkspace />
+      </Suspense>
     );
-  }
-
-  if (!user) {
-    return <LandingPage onAuthenticate={(user) => setUser(user)} />;
-  }
-
-  return (
-    <Workspace
-      user={user}
-      onLogout={() => {
-        clearAuthSession();
-        setUser(null);
-      }}
-    />
-  );
+  return <LandingPage onAuthenticate={setUser} accountError={error} />;
 }

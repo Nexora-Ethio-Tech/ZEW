@@ -218,7 +218,7 @@ export function demoRiders(now = Date.now()): PoolRider[] {
       pickup: 'Bole Brass zebra crossing shelter',
       pickupSeconds: 45,
       destination: 'wollosefer',
-      direction: 'forward' as const,
+      direction: 'reverse' as const,
     },
     {
       id: 'michael',
@@ -286,7 +286,18 @@ export function demoRiders(now = Date.now()): PoolRider[] {
       destination: 'wollosefer',
       direction: 'forward' as const,
     },
-  ].map((r) => ({ ...r, readyUntil: now + 180000, locationAt: now, optedIn: true }));
+    {
+      id: 'nahom',
+      name: 'Nahom G.',
+      initials: 'NG',
+      color: 'sand',
+      phone: 'Simulated',
+      pickup: 'Outside the demo pickup window',
+      pickupSeconds: 150,
+      destination: 'meskel',
+      direction: 'forward' as const,
+    },
+  ].map((r) => ({ ...r, readyUntil: now + 120000, locationAt: now, optedIn: true }));
 }
 export function seedPool(now = Date.now()): PoolState {
   return {

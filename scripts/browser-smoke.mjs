@@ -3,7 +3,7 @@
 import { writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const origin = process.env.ZEW_BASE_URL || 'http://127.0.0.1:3000';
+const origin = process.env.ZEW_BASE_URL || 'http://localhost:3000';
 const tab = await fetch('http://127.0.0.1:9235/json/new?about:blank', { method: 'PUT' }).then((r) =>
   r.json(),
 );
@@ -22,7 +22,10 @@ socket.addEventListener('message', (event) => {
     });
   }
   if (message.method === 'Runtime.exceptionThrown')
-    exceptions.push(message.params.exceptionDetails.text);
+    exceptions.push(
+      message.params.exceptionDetails.exception?.description ??
+        message.params.exceptionDetails.text,
+    );
   if (!message.id) return;
   const task = tasks.get(message.id);
   tasks.delete(message.id);
@@ -54,7 +57,7 @@ const waitFor = async (expression) => {
     if (await evaluate(expression)) return;
     await pause(150);
   }
-  throw new Error(`Timed out: ${expression}; page: ${await evaluate('document.body.innerText')}`);
+  throw new Error(`Timed out: ${expression}`);
 };
 const click = (text) =>
   evaluate(
@@ -115,22 +118,6 @@ try {
   await waitFor('document.body.innerText.includes("Morning commute")');
   await click('Use this route');
   await waitFor('!!document.querySelector(".search-card")');
-  await click('Switch to Driver Mode');
-  await click('Offer a ride');
-  await input('input[name="driver"]', 'Demo Driver');
-  await input('input[name="vehicle"]', 'Toyota Vitz');
-  await click('Save demo offer');
-  await waitFor('document.body.innerText.includes("Cancel offer")');
-  await click('Cancel offer');
-  await waitFor('!!document.querySelector(".offered-card .cancelled")');
-  await click('Switch to Passenger Mode');
-  await click('Join the pilot');
-  await input('input[name="name"]', 'Browser Demo');
-  await input('input[name="email"]', 'demo@example.com');
-  await evaluate('document.querySelector("input[name=consent]").click()');
-  await click('Save my interest');
-  await waitFor('document.body.innerText.includes("Your interest is saved.")');
-  await click('Back to my workspace');
   await evaluate('document.querySelector(".toast button")?.click()');
   await send('Emulation.setDeviceMetricsOverride', {
     width: 390,
@@ -182,7 +169,7 @@ try {
   }
   assert.deepEqual(exceptions, [], 'No unhandled browser exceptions');
   console.log(
-    'PASS: match → reserve → board → complete → receipt; saved commute survives reload; driver offer/cancel; mobile layout.',
+    'PASS: match → reserve → board → complete → receipt; saved commute survives reload; mobile layout.',
   );
   console.log('Screenshots: /tmp/zew-desktop.png, /tmp/zew-mobile.png');
 } finally {

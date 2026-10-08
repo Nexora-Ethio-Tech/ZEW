@@ -67,7 +67,10 @@ export function getStoredUser(): { id: string; email: string; name: string; role
   }
 }
 
-export function setAuthSession(tokenStr: string, user: { id: string; email: string; name: string; role: string }) {
+export function setAuthSession(
+  tokenStr: string,
+  user: { id: string; email: string; name: string; role: string },
+) {
   localStorage.setItem(key, tokenStr);
   localStorage.setItem(userKey, JSON.stringify(user));
 }
@@ -147,22 +150,10 @@ export async function getAuthToken(): Promise<string> {
   return token();
 }
 
-export async function initiateTelebirrPayment(input: {
-  phoneNumber: string;
-  amount: number;
-  bookingId?: string;
-  groupId?: string;
-}) {
-  return api<{
-    outTradeNo: string;
-    status: 'pending_telebirr';
-    amount: number;
-    phoneNumber: string;
-    ussdPushNotice: string;
-  }>('/payments/telebirr/initiate', 'POST', input);
-}
-
-export async function calculateRoadRoute(origin: { latitude: number; longitude: number }, destination: { latitude: number; longitude: number }) {
+export async function calculateRoadRoute(
+  origin: { latitude: number; longitude: number },
+  destination: { latitude: number; longitude: number },
+) {
   return api<{
     haversineDistanceKm: number;
     roadDistanceKm: number;

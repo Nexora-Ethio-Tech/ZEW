@@ -11,6 +11,7 @@ import { placeRoutes } from './modules/groups/places.js';
 import { paymentRoutes } from './modules/payments/routes.js';
 import { routingRoutes } from './modules/routing/routes.js';
 import { streamRoutes } from './modules/stream/routes.js';
+import type { IdentityVerifier } from './modules/auth/service.js';
 import { authRoutes } from './modules/auth/routes.js';
 
 class ApiError extends Error {
@@ -61,14 +62,14 @@ const tripInput = z
   .strict()
   .refine(validRoute, 'Invalid route');
 
-export function buildApp({ databasePath = ':memory:', logger = false } = {}) {
+export function buildApp({ databasePath = ':memory:', logger = false, verifyIdentity }: { databasePath?: string; logger?: boolean; verifyIdentity?: IdentityVerifier } = {}) {
   const app = Fastify({
     logger: logger ? { redact: ['req.headers.authorization'] } : false,
     bodyLimit: 16384,
   });
   const store = new Store(databasePath);
   const limits = new Map<string, { count: number; expires: number }>();
-  app.register(cors, { origin: true });
+  app.register(cors, { origin: env.FRONTEND_ORIGIN });
   app.addHook('onClose', async () => store.close());
   app.addHook('onRequest', async (req, reply) => {
     reply.header('Cache-Control', 'no-store').header('X-Content-Type-Options', 'nosniff');
@@ -93,7 +94,7 @@ export function buildApp({ databasePath = ':memory:', logger = false } = {}) {
   });
   app.get('/api/v1/health', async () => ({ status: 'ok', service: 'zew-api', mode: 'demo' }));
   app.post('/api/v1/session', async (_, reply) => reply.code(201).send(store.create()));
-  app.register(authRoutes, { store });
+  app.register(authRoutes, { store, verifyIdentity });
   app.register(
     async (api) => {
       api.decorateRequest('sessionId', '');

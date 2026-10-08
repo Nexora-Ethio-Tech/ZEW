@@ -113,13 +113,14 @@ export function FarePanel({
           <>
             <div className="auto-group-box">
               <div className="auto-group-header">
-                <strong>⚡ Automated System Grouping</strong>
-                <span className="auto-group-tag">SYSTEM MATCHED</span>
+                <strong>Find your demo circle</strong>
+                <span className="auto-group-tag">SIMULATED</span>
               </div>
               <p className="auto-group-desc">
-                Set your group size & budget. The system automatically groups compatible riders and assigns your ride.
+                Try a group size and budget with simulated riders. Review the result before
+                requesting.
               </p>
-              
+
               <div className="auto-group-controls">
                 <div className="control-group">
                   <label>Min People:</label>
@@ -209,11 +210,11 @@ export function FarePanel({
               {busy
                 ? 'Updating…'
                 : pool.quote.count > 1
-                  ? `Confirm ${pool.quote.count}-Person System Group`
-                  : 'Request Solo Ride'}
+                  ? 'Request this group'
+                  : 'Request a solo demo'}
               <Icon name="arrow" size={18} />
             </button>
-            <p className="request-note">Review your system-formed group, then request. No payment required.</p>
+            <p className="request-note">Review your demo group. No real ride or payment.</p>
           </>
         ) : (
           <div className={`group-status-panel ${status}`} role="status">

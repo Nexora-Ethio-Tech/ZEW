@@ -1,7 +1,13 @@
 import type { FastifyReply } from 'fastify';
 
 export interface StreamEvent {
-  type: 'driver_tick' | 'group_update' | 'booking_update' | 'payment_update' | 'payment_completed' | 'heartbeat';
+  type:
+    | 'driver_tick'
+    | 'group_update'
+    | 'booking_update'
+    | 'payment_update'
+    | 'payment_completed'
+    | 'heartbeat';
   data: Record<string, any>;
 }
 
@@ -25,7 +31,10 @@ export function registerStreamClient(sessionId: string, reply: FastifyReply) {
   // Send SSE initial connection event
   sendSseMessage(connection, {
     type: 'heartbeat',
-    data: { message: 'Zew live SSE driver & status stream connected', connectedAt: new Date().toISOString() },
+    data: {
+      message: 'Zew live SSE driver & status stream connected',
+      connectedAt: new Date().toISOString(),
+    },
   });
 
   reply.raw.on('close', () => {
@@ -51,7 +60,7 @@ export function broadcastEvent(targetSessionId: string | 'global', event: Stream
 
 // Background radar driver ticks simulator (moves drivers along Bole / CMC corridor coordinates)
 let driverTickAngle = 0;
-setInterval(() => {
+const driverTimer = setInterval(() => {
   if (activeClients.size === 0) return;
   driverTickAngle = (driverTickAngle + 0.05) % (2 * Math.PI);
 
@@ -84,3 +93,6 @@ setInterval(() => {
     data: { drivers, timestamp: Date.now() },
   });
 }, 4000);
+
+// Idle simulation must not keep tests or a shutting-down API alive.
+driverTimer.unref();

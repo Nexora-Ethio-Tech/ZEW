@@ -1,6 +1,9 @@
 .pool-app {
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  --font-body:
+    'Plus Jakarta Sans Variable', 'Noto Sans Ethiopic Variable', -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  --font-display:
+    'Outfit Variable', 'Plus Jakarta Sans Variable', 'Noto Sans Ethiopic Variable', sans-serif;
   --pool-green: #1c4d36;
   --pool-dark: #19271e;
   --pool-muted: #627265;
@@ -842,7 +845,9 @@
   border: 1px solid #dce3d3;
   border-radius: 12px;
   padding: 10px 14px;
-  box-shadow: 0 8px 24px rgba(25, 39, 30, 0.14), 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 8px 24px rgba(25, 39, 30, 0.14),
+    0 2px 6px rgba(0, 0, 0, 0.04);
   pointer-events: auto;
 }
 
@@ -867,7 +872,9 @@
   border-radius: 50%;
   flex-shrink: 0;
   display: inline-block;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 2px 4px rgba(0, 0, 0, 0.12);
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.9),
+    0 2px 4px rgba(0, 0, 0, 0.12);
 }
 
 .map-overlay-box .green-dot {
@@ -1505,7 +1512,9 @@
   border: 1px solid var(--pool-glass-border);
   border-radius: 20px;
   padding: 24px 22px 20px;
-  box-shadow: 0 12px 32px rgba(27, 45, 34, 0.06), 0 2px 8px rgba(0, 0, 0, 0.02);
+  box-shadow:
+    0 12px 32px rgba(27, 45, 34, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.02);
   backdrop-filter: blur(16px);
   scroll-margin-top: 130px;
 }
@@ -2917,7 +2926,8 @@
 }
 
 @keyframes pulseGlow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(49, 89, 65, 0.4);
   }
   50% {
@@ -2984,8 +2994,12 @@
   animation: fadeInOverlay 0.25s ease-out;
 }
 @keyframes fadeInOverlay {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .telebirr-modal-card {
@@ -2997,13 +3011,21 @@
   background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(20px);
   padding: 24px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 180, 216, 0.15);
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(0, 180, 216, 0.15);
   color: white;
   animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 @keyframes modalPop {
-  from { opacity: 0; transform: scale(0.95) translateY(10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .telebirr-header {

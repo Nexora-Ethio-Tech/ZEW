@@ -1,4 +1,7 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+import '@fontsource-variable/outfit';
+import '@fontsource-variable/noto-sans-ethiopic';
+import '@fontsource-variable/plus-jakarta-sans';
 import 'leaflet/dist/leaflet.css';
 import '../features/pool/pool.css';
 import './styles.css';
@@ -8,20 +11,20 @@ export const metadata: Metadata = {
   title: 'Zew — Go your way, together',
   description:
     'Choose any pickup and destination. Find people going your way and share the fare. Interactive ride demo.',
+  applicationName: 'Zew',
+  openGraph: {
+    title: 'Zew — Go your way, together',
+    description: 'A shared-ride idea for Addis. Explore the private interactive demo.',
+    type: 'website',
+  },
   icons: { icon: '/icon.svg', apple: '/icon-192.png' },
 };
+
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#214839' };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
       <body>
         {children}
         <Pwa />

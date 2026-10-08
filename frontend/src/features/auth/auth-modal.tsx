@@ -1,215 +1,221 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Icon } from '@/components/icon';
-import { setAuthSession } from '@/lib/api';
-import { supabase } from '@/lib/supabase';
+import { authConfigured, getSupabase } from '@/lib/supabase';
+import { establishSession, type Account } from '@/lib/auth';
+import './auth.css';
 
 export function AuthModal({
   isOpen,
   onClose,
   onSuccess,
+  initialTab = 'login',
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (user: { id: string; email: string; name: string; role: string }) => void;
+  onSuccess: (user: Account) => void;
+  initialTab?: 'login' | 'signup';
 }) {
-  const [tab, setTab] = useState<'login' | 'signup'>('login');
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [tab, setTab] = useState(initialTab);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'rider' | 'driver' | 'operator'>('rider');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
   const [verificationSent, setVerificationSent] = useState(false);
+  useEffect(() => {
+    if (isOpen) {
+      setTab(initialTab);
+      dialog.current?.showModal();
+    } else dialog.current?.close();
+  }, [isOpen, initialTab]);
 
-  if (!isOpen) return null;
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setError('');
     setBusy(true);
-
     try {
+      const provider = getSupabase();
       if (tab === 'signup') {
-        // Trigger Supabase email verification dispatch
-        try {
-          await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: { name, role },
-            },
-          });
-        } catch (supabaseErr: any) {
-          console.warn('[Supabase Auth Email Dispatch Notice]:', supabaseErr?.message);
-        }
-      }
-
-      const endpoint = tab === 'login' ? '/api/v1/auth/login' : '/api/v1/auth/signup';
-      const body =
-        tab === 'login'
-          ? { email, password }
-          : { email, name, password, role };
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Authentication failed. Please check details.');
-      }
-
-      setAuthSession(data.token, data.user);
-
-      if (tab === 'signup') {
+        const { error } = await provider.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { name: name.trim() },
+          },
+        });
+        if (error) throw error;
+        // No API session or account is created until the provider verifies the user.
+        setPassword('');
         setVerificationSent(true);
-      } else {
-        onSuccess(data.user);
-        onClose();
+        return;
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred.');
+      const { data, error } = await provider.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      if (!data.session) throw new Error('Confirm your email before signing in.');
+      const user = await establishSession(data.session);
+      setPassword('');
+      onSuccess(user);
+      onClose();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to sign in. Please try again.');
     } finally {
       setBusy(false);
     }
   }
-
-  if (verificationSent) {
-    return (
-      <div className="auth-modal-backdrop" onClick={onClose}>
-        <div
-          className="auth-modal-card"
-          onClick={(e) => e.stopPropagation()}
-          style={{ textContent: 'center', textAlign: 'center', padding: '36px 28px' }}
-        >
-          <div style={{ fontSize: 52, marginBottom: 16 }}>📩</div>
-          <h2 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', marginBottom: 12 }}>
-            Check Your Email
-          </h2>
-          <p style={{ fontSize: 14, color: '#475569', marginBottom: 24, lineHeight: 1.6 }}>
-            We’ve sent a confirmation email to <strong style={{ color: '#059669' }}>{email}</strong> using your Zew custom email template. Please click the verification link inside to confirm your account.
-          </p>
-          <button
-            className="auth-submit-btn"
-            style={{ width: '100%', justifyContent: 'center' }}
-            onClick={() => {
-              setVerificationSent(false);
-              onSuccess({ id: 'user-new', email, name, role });
-              onClose();
-            }}
-          >
-            I Checked My Email / Continue
-            <Icon name="arrow" size={16} />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="auth-modal-backdrop" onClick={onClose}>
-      <div className="auth-modal-card" onClick={(e) => e.stopPropagation()}>
-        <button className="auth-close-btn" onClick={onClose} aria-label="Close modal">
-          <Icon name="close" size={16} />
+    <dialog
+      ref={dialog}
+      className="auth-dialog"
+      aria-labelledby="auth-title"
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!busy) onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !busy) onClose();
+      }}
+    >
+      <div className="auth-modal-card">
+        <button
+          className="auth-close-btn"
+          onClick={onClose}
+          disabled={busy}
+          aria-label="Close dialog"
+        >
+          <Icon name="close" size={20} />
         </button>
-
-        <div className="auth-header">
-          <span className="auth-logo">zew<span>↗</span></span>
-          <h2>{tab === 'login' ? 'Welcome back to Zew' : 'Create your Zew account'}</h2>
-          <p>
-            {tab === 'login'
-              ? 'Sign in to access your ride circle workspace and planned commutes'
-              : 'Join the shared ride community across Addis Ababa'}
-          </p>
-        </div>
-
-        <div className="auth-tabs">
-          <button
-            type="button"
-            className={`auth-tab ${tab === 'login' ? 'active' : ''}`}
-            onClick={() => setTab('login')}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            className={`auth-tab ${tab === 'signup' ? 'active' : ''}`}
-            onClick={() => setTab('signup')}
-          >
-            Sign Up
-          </button>
-        </div>
-
-        {error && <div className="auth-error-notice">{error}</div>}
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          {tab === 'signup' && (
-            <div className="auth-field">
-              <label>Full Name</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Abebe Bikila"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+        <span className="auth-logo">
+          zew
+          <span className="auth-logo-arrow">
+            <Icon name="arrow" size={22} />
+          </span>
+        </span>
+        {verificationSent ? (
+          <>
+            <span className="auth-mail-icon">
+              <Icon name="check" size={28} />
+            </span>
+            <h2 id="auth-title">Check your inbox.</h2>
+            <p>
+              If this address can receive a sign-up email, look for a confirmation link at{' '}
+              <strong>{email}</strong>. Follow the link, then sign in. Checking your inbox alone
+              does not activate your account.
+            </p>
+            <button
+              className="auth-submit-btn"
+              onClick={() => {
+                setVerificationSent(false);
+                setTab('login');
+              }}
+            >
+              Back to sign in <Icon name="arrow" size={18} />
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="auth-eyebrow">A LITTLE LESS SOLO.</p>
+            <h2 id="auth-title">{tab === 'login' ? 'Good to see you.' : 'Your next chapter.'}</h2>
+            <p>
+              {tab === 'login'
+                ? 'Sign in with your confirmed email to open your private workspace.'
+                : 'Create a rider account. Confirm your email before you sign in.'}
+            </p>
+            <div className="auth-tabs" aria-label="Account action">
+              {(['login', 'signup'] as const).map((action) => (
+                <button
+                  key={action}
+                  className={tab === action ? 'active' : ''}
+                  disabled={busy}
+                  aria-pressed={tab === action}
+                  onClick={() => {
+                    setTab(action);
+                    setError('');
+                  }}
+                >
+                  {action === 'login' ? 'Sign in' : 'Create account'}
+                </button>
+              ))}
             </div>
-          )}
-
-          <div className="auth-field">
-            <label>Email Address</label>
-            <input
-              type="email"
-              required
-              placeholder="e.g. rider@zew.et"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="auth-field">
-            <label>Password</label>
-            <div className="auth-password-wrapper">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <button
-                type="button"
-                className="auth-password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                <Icon name={showPassword ? 'eye-off' : 'eye'} size={18} />
+            {!authConfigured && (
+              <p className="auth-config-note" role="status">
+                Account sign-in is not available on this installation yet.{' '}
+                <a href="/demo">Explore the private demo instead</a>
+              </p>
+            )}
+            {error && (
+              <p className="auth-error-notice" role="alert">
+                {error}
+              </p>
+            )}
+            <form onSubmit={submit} className="auth-form">
+              {tab === 'signup' && (
+                <label className="auth-field" htmlFor="auth-name">
+                  Your name
+                  <input
+                    id="auth-name"
+                    autoComplete="name"
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your full name"
+                  />
+                </label>
+              )}
+              <label className="auth-field" htmlFor="auth-email">
+                Email address
+                <input
+                  id="auth-email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  maxLength={254}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                />
+              </label>
+              <label className="auth-field" htmlFor="auth-password">
+                Password
+              </label>
+              <div className="auth-password-wrapper">
+                <input
+                  id="auth-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
+                  required
+                  minLength={tab === 'signup' ? 12 : 1}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={tab === 'signup' ? 'At least 12 characters' : 'Your password'}
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  <Icon name={showPassword ? 'eye-off' : 'eye'} size={18} />
+                </button>
+              </div>
+              <button className="auth-submit-btn" disabled={busy || !authConfigured} type="submit">
+                {busy
+                  ? 'Please wait…'
+                  : tab === 'login'
+                    ? 'Sign in'
+                    : 'Create account & send email'}
+                <Icon name="arrow" size={18} />
               </button>
-            </div>
-          </div>
-
-          {tab === 'signup' && (
-            <div className="auth-field">
-              <label>Account Role</label>
-              <select value={role} onChange={(e) => setRole(e.target.value as any)}>
-                <option value="rider">Rider (Book & Share Rides)</option>
-                <option value="driver">Driver (Offer Planned Trips)</option>
-                <option value="operator">Operator (Support Dispatch)</option>
-              </select>
-            </div>
-          )}
-
-          <button type="submit" disabled={busy} className="auth-submit-btn">
-            {busy ? 'Please wait…' : tab === 'login' ? 'Sign In to Zew' : 'Create Account & Send Email'}
-            <Icon name="arrow" size={16} />
-          </button>
-        </form>
+            </form>
+            <p className="auth-footnote">Private demo · simulated rides · no real payments</p>
+          </>
+        )}
       </div>
-    </div>
+    </dialog>
   );
 }

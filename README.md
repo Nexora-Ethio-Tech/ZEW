@@ -1,77 +1,85 @@
 # Zew
 
-A shared-ride demo for any journey, not only commutes. Separate Next.js frontend and Fastify API, with real street maps, place search, persistent local data and a simulated rider journey.
+A shared-ride idea for Addis Ababa, presented as a polished private demo. Explore an interactive landing page, try a circle of simulated riders, split an illustrative fare, and complete a demo journey.
+
+**This is not a live transport service.** People, availability, arrival times, driver actions, dispatch controls, fares and receipts are simulated. Real payments are not connected.
 
 ## Run locally
 
-Use **Node.js 24+** (`nvm use` if you use nvm). From this directory:
+Use **Node.js 24+** (`nvm use`), then run from the repository root:
 
 ```bash
 npm run setup
 npm run dev
 ```
 
-Open **http://localhost:3000**. The API runs at `127.0.0.1:4000`. Stop both with Ctrl+C. Docker, payment keys, and map keys are not required. Optional configuration is documented in each app's `.env.example`.
+The frontend runs on port 3000 and the API on port 4000. Stop both with Ctrl+C. No payment credentials, Docker or Supabase account is required to explore the demo. App-specific options are in `frontend/.env.example` and `backend/.env.example`.
 
-## Try the journey
+- `/`: public landing page, interactive example fare calculator, optional account sign-in.
+- `/demo`: account-free ride-circle workspace with sample riders and driver controls.
+- `/planned`: account-free planned-commute demo.
 
-The homepage now features **ride circles**:
+## Try a ride circle
 
-1. Replace the example pickup/destination: type a street, landmark or city, press **Search**, then select a result. Or use **Use my location**, or **Set pickup/destination on map** and confirm a pin. Locations are not restricted to fixed stops.
-2. Add Sara, Bereket, and Eden. Your Meskel Square demo share changes **360 → 180 → 120 → 90 ETB**. Remove or skip people as you like.
-3. Request the group when the fare suits you. Open Driver space and let Hana accept it, then start and complete the demo ride.
-4. Check My rides for the receipt and two seeded example journeys.
+1. Open `/demo`. Choose a pickup and destination by search, map pin or one-time device location, or keep the example Bole → Meskel Square journey.
+2. Add Sara, Bereket and Eden. Your illustrative share changes **360 → 180 → 120 → 90 ETB**. Try the group-size and budget controls or remove a person.
+3. Request the group, open driver space, and let the sample driver Hana accept it.
+4. Start and complete the demo ride. My rides shows the simulated receipt and two labeled seeded examples.
 
-Riders become unavailable after two minutes; **Refresh demo** starts a new simulated availability window. Distant, wrong-way and expired riders are rejected. Driver acceptance also checks capacity and travel time to the final pickup. All timings and profiles remain fictional. [Read the full group and location rules](docs/product/ride-circles.md).
+Riders have a two-minute readiness window. Refresh demo restarts simulated availability. Distant, wrong-way and expired riders are rejected; driver acceptance also checks capacity and arrival before readiness ends. These checks do not verify actual roads, traffic, safe boarding points or legal pickup reachability. Custom journeys use a fixed illustrative 360 ETB total.
 
-### Planned commutes
+## Planned commutes
 
-The original experience is still available from **Planned commutes** (`/planned`):
+Open `/planned`, keep the Bole → Meskel Square example and click Find my ride. Choose a sample driver, confirm a demo reservation, and find the boarding code in My rides. Switch to Driver Mode, enter the code, and complete the demo trip. Switch back to Passenger Mode and open Past rides for the simulated receipt. Save and reuse a commute from the rider form. The API also supports private driver offers and consented pilot-interest records.
 
-1. In **Find a ride**, keep the suggested Bole → Meskel Square route and departure time. Click **Find my ride**.
-2. Choose a sample driver and confirm your reservation.
-3. In **My rides**, note the four-digit boarding code.
-4. Open **Driver space**, enter that code, then complete the demo trip.
-5. Return to **My rides → Past rides** to see the simulated receipt.
-6. Save a commute, create/cancel a driver offer, or try the local pilot-registration form.
+Sample departures are generated for the following morning in Addis time. Every session is isolated: driver controls affect only that session's sample rides. State survives refreshes and API restarts in `backend/data/zew.sqlite`. Tokens are stored as hashes in SQLite, sessions expire after 30 days, and bearer tokens must remain private.
 
-Sample trips are created for the following morning at 08:00/08:15 Addis time. Each browser has a private sandbox; trip offers are not published to other users. Data survives refreshes and API restarts. The browser stores a bearer token; the API stores its hash and session data in `backend/data/zew.sqlite`.
+## Verified account sign-in
 
-## What is implemented
+Accounts are optional and require a configured Supabase Auth project with email confirmation enabled. Set `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` on the frontend and matching `SUPABASE_URL` / `SUPABASE_KEY` on the API. Use public publishable keys; never place service-role credentials in frontend variables.
 
-- Responsive rider and driver screens, loading/empty/error states, form labels and native dialogs.
-- Matching by corridor, ordered stop direction, route containment, time window, and seat availability, with rejection reasons.
-- Transactional seat reservations, duplicate protection, boarding codes, cancellation and completion state checks.
-- Saved commutes, driver offers, simulated receipts/payout totals, consented local registration, activity events.
-- Input validation, session ownership checks, rate limits, SQLite persistence and API tests.
-- Install manifest/icons and a production-only service worker that provides an offline notice. API and booking data are never cached.
+Sign-up does not create a local account or grant API access. After the actual confirmation link is followed, sign-in sends the provider access token to the API, which independently verifies the user and email confirmation. Self-selected roles do not grant elevated access. API logout revokes the session. Confirmed accounts still open private demo workspaces, not live transport operations.
 
-**This is a demo, not a live ride service.** The homepage uses Leaflet/OpenStreetMap streets and Photon place search. People, driver responses, fares and pickup ETAs remain simulated. Custom journeys use an explicitly illustrative 360 ETB total, not a distance-based quote. Device location can supply a one-time pickup reading anywhere with permission. Continuous GPS, phone sign-in, verified rider/driver/operator roles, road routing, notifications, and real payments remain future integrations. SQLite is a local-demo adapter; the existing Docker/PostGIS configuration is reserved for the production data layer.
+Hard-coded local password accounts and automatic password resets have been removed. Migration 005 removes legacy local identities and their sessions while retaining guest demo data; back up existing databases before upgrading. SQLite is authoritative; the old fire-and-forget remote mirroring has been removed.
 
-Map/search need internet. Photon is a low-volume public demo service, not a production SLA: searches are explicit, cached and throttled. Use a managed/self-hosted provider for production. Configure `PHOTON_URL` in the backend and `NEXT_PUBLIC_MAP_TILE_URL`/`NEXT_PUBLIC_MAP_ATTRIBUTION` in the frontend. Respect [Photon limits](https://github.com/komoot/photon#demo-server) and the [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/): visible attribution, normal browser caching, no tile prefetch or offline downloading. Search text reaches Photon; the viewed map area reaches the tile provider. Device GPS is not sent for reverse geocoding.
-
-## Commands
+## Checks
 
 ```bash
-npm run check  # Backend types + tests, frontend types
-npm run build # Build both applications
-npm run format # Format application source with Prettier
+npm run check  # Backend types + API tests + frontend types
+npm run build # Both production builds
 ```
 
-After a build, start each app in its own terminal with `npm --prefix backend start` and `npm --prefix frontend start`. The production frontend registers the offline service worker; installation support varies by browser.
+After building, run `npm --prefix backend start` and `npm --prefix frontend start` in separate terminals. The production frontend registers an offline-notice service worker; it never caches API responses or queues bookings/payment actions.
 
-For the optional browser acceptance check, launch a dedicated headless Chrome profile with debugging port 9235, then run `node scripts/browser-smoke.mjs` while the apps are running. The script creates test-only demo data and writes screenshots under `/tmp`. Set `ZEW_BASE_URL` to override the frontend URL and `ZEW_CHECK_PWA=1` to check the production offline fallback.
+Browser acceptance scripts use a dedicated headless Chromium profile with debugging port 9235. Run sequentially against running applications:
 
-Run `node scripts/group-browser-smoke.mjs` for the circle flow, fare changes, driver acceptance, GPS permissions, live place search, map pins, persistence and mobile layout. It uses simulated coordinates, never your actual device location. Automated tile requests are stubbed to avoid fetching public tiles during scripted map movement; actual tiles are loaded in normal interactive use.
+```bash
+node scripts/landing-browser-smoke.mjs
+node scripts/group-browser-smoke.mjs
+ZEW_CHECK_PWA=1 node scripts/browser-smoke.mjs
+```
 
-## Structure and further reading
+Set `ZEW_BASE_URL` to override the frontend origin. Screenshots are written to `/tmp`. Circle tests stub public tiles and place search; `ZEW_LIVE_PLACES=1` enables optional live search. No test reads the user's actual GPS position.
+
+## Maps and providers
+
+The demo uses Leaflet with configurable OpenStreetMap tiles and a Photon search proxy. Network access is required. Photon is a low-volume public demo service; production needs a suitable managed or self-hosted provider. Set `PHOTON_URL`, `NEXT_PUBLIC_MAP_TILE_URL` and `NEXT_PUBLIC_MAP_ATTRIBUTION` to configure providers. Respect [Photon limits](https://github.com/komoot/photon#demo-server) and the [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/): visible attribution, normal caching, no prefetch/offline tile downloading. Search text reaches Photon; the viewed map area reaches the tile provider. Device GPS is not reverse-geocoded.
+
+Fonts and marker icons are served locally. Tile errors are shown without silently changing providers or attribution. Optional OSRM routing has an illustrative fallback; neither indicates verified road safety. Real-payment endpoints return 501 until a provider and durable ledger are integrated. Zew never collects a payment PIN.
+
+## Deployment and structure
+
+[Deploy to Vercel](docs/deployment.md): the Next.js frontend runs on Vercel; the separate SQLite API needs persistent hosting. A backend Dockerfile and optional paid Render blueprint are included. Setting `API_URL` to a reachable public HTTPS backend is required for Vercel builds.
 
 ```text
-frontend/       Web UI, API client, PWA assets
-backend/        API, matching, trip rules, SQLite adapter, tests
-docs/           Product brief, architecture, research, AI guidelines
-infrastructure/ Reserved PostGIS initialization
-scripts/        Combined dev launcher and browser acceptance check
+frontend/src/app/        Public, demo and planned routes
+frontend/src/features/   Landing, verified auth, circles, planned journey UI
+frontend/src/lib/        API, auth, theme and localization
+backend/src/modules/     Auth verification, trips, matching, groups, routing, stream
+backend/src/shared/      Transactional SQLite store and migrations
+backend/tests/           API and regression tests
+scripts/                 Dev launcher and browser acceptance checks
+infrastructure/          Reserved future PostGIS schema
 ```
 
-Start with [the beginner guide](docs/START-HERE.md), [architecture](docs/architecture.md), and [implementation status](docs/implementation-status.md). The source deck remains `zew-pitch-deck.pdf`.
+See [implementation status](docs/implementation-status.md), [architecture](docs/architecture.md) and [ride-circle rules](docs/product/ride-circles.md). Real multi-user operations, approved roles, real payments and operational safety workflows are future work.

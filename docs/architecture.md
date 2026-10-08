@@ -2,7 +2,11 @@
 
 ## Current implementation
 
-The homepage uses `frontend/src/features/pool/` for ride-circle construction, location input and driver acceptance. Its backend counterpart is `backend/src/modules/groups/`; group state is optional on existing session records and initialized through an idempotent bootstrap endpoint. See [group rules](product/ride-circles.md). The earlier planned-trip UI remains available at `/planned`.
+The public homepage is `frontend/src/features/landing/`; it links to the account-free circle demo at `/demo` and the planned-commute demo at `/planned`. Circle UI lives in `frontend/src/features/pool/`; its API is `backend/src/modules/groups/`. The earlier planned-trip UI remains in `features/workspace.tsx`.
+
+Optional accounts use one identity source: Supabase Auth. The frontend signs up/signs in with the provider, then exchanges its access token at `/auth/session`. The backend independently verifies the token and confirmed email; only then does it create a private rider session. Role selection and local password accounts cannot grant access. The transaction store is SQLite; there is no asynchronous remote mirroring. Payment-provider endpoints fail closed until a real integration is implemented, and the SSE stream is an authenticated simulation.
+
+The frontend is deployable to Vercel and proxies API calls to a separately hosted persistent Fastify process. SQLite must not be deployed on Vercel's ephemeral function filesystem. See [deployment](deployment.md) for the Docker/Render backend and frontend configuration.
 
 `place-search.tsx` calls the authenticated Photon proxy in `groups/places.ts`; arbitrary coordinates/names are stored through `/pool/place`. `street-map.tsx` is client-only Leaflet, with real configurable map tiles and confirmed pin selection. Exact pickup coordinates return only to the owning session. Search and map providers are external; road routing and live multi-user matching are still future integrations.
 

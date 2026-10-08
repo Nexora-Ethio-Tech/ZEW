@@ -7,9 +7,10 @@
   "scripts": {
     "setup": "npm ci && npm --prefix backend ci && npm --prefix frontend ci",
     "dev": "node scripts/dev.mjs",
-    "check": "npm --prefix backend run typecheck && npm --prefix backend test && npm --prefix frontend run typecheck",
+    "check": "npm --prefix backend run typecheck && npm --prefix backend test && npm --prefix frontend run typecheck && node scripts/deployment-config-check.mjs",
     "build": "npm --prefix backend run build && npm --prefix frontend run build",
-    "format": "prettier --write frontend/src frontend/public frontend/next.config.ts backend/src backend/tests scripts package.json"
+    "format": "prettier --write frontend/src frontend/public frontend/next.config.ts backend/src backend/tests scripts package.json",
+    "check:deployment": "node scripts/deployment-config-check.mjs"
   },
   "devDependencies": {
     "prettier": "^3.9.9"
