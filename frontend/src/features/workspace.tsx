@@ -69,7 +69,13 @@ const statusLabel = {
   cancelled: 'Cancelled',
 };
 
-export function Workspace() {
+export function Workspace({
+  user,
+  onLogout,
+}: {
+  user?: { id: string; email: string; name: string; role: string } | null;
+  onLogout?: () => void;
+} = {}) {
   const [data, setData] = useState<Dashboard>();
   const [view, setView] = useState<View>('find');
 
@@ -835,7 +841,34 @@ export function Workspace() {
             </span>
           </div>
           <div className="topbar-right">
-            {authUser ? (
+            {user ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', fontSize: 12 }}>
+                  <strong style={{ color: '#1b3d2b', fontWeight: 800 }}>{user.name}</strong>
+                  <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
+                    {user.role} ({user.email})
+                  </span>
+                </div>
+                {onLogout && (
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#475569',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Log Out
+                  </button>
+                )}
+              </div>
+            ) : authUser ? (
               <button
                 className="topbar-avatar"
                 onClick={() => open('account')}
@@ -1455,14 +1488,19 @@ export function Workspace() {
                         return;
                       }
                       await run(async () => {
-                        const searchResults = await api<Matches>('/matches', 'POST', journey);
+                        const activeDeparture =
+                          !journey.departure || Date.parse(journey.departure) <= Date.now() - 5 * 60000
+                            ? new Date(Date.now() + 15 * 60000).toISOString()
+                            : journey.departure;
+                        const activeJourney = { ...journey, departure: activeDeparture };
+                        const searchResults = await api<Matches>('/matches', 'POST', activeJourney);
                         const match = searchResults.matches[0];
                         if (!match) {
                           setError('No drivers available on this corridor for caller.');
                           return;
                         }
                         const bookingRes = await api<Booking>('/bookings', 'POST', {
-                          ...journey,
+                          ...activeJourney,
                           tripId: match.id,
                         });
                         await refresh();

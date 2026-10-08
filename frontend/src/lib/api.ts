@@ -54,6 +54,29 @@ export interface Matches {
   rejected: { tripId: string; reason: string }[];
 }
 const key = 'zew-demo-session';
+export const userKey = 'zew-user-account';
+
+export function getStoredUser(): { id: string; email: string; name: string; role: string } | null {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem(userKey);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function setAuthSession(tokenStr: string, user: { id: string; email: string; name: string; role: string }) {
+  localStorage.setItem(key, tokenStr);
+  localStorage.setItem(userKey, JSON.stringify(user));
+}
+
+export function clearAuthSession() {
+  localStorage.removeItem(key);
+  localStorage.removeItem(userKey);
+}
+
 let pendingSession: Promise<string> | undefined;
 async function token() {
   const existing = localStorage.getItem(key);

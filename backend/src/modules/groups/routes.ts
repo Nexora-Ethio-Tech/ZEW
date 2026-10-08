@@ -146,6 +146,8 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
   app.post('/pool/auto-match', async (req) => {
     const input = z
       .object({
+        minSeats: z.number().int().min(1).max(4).optional(),
+        maxSeats: z.number().int().min(1).max(4).optional(),
         targetSeats: z.number().int().min(1).max(4).optional(),
         maxFare: z.number().positive().optional(),
       })

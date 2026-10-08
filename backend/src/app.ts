@@ -11,6 +11,7 @@ import { placeRoutes } from './modules/groups/places.js';
 import { paymentRoutes } from './modules/payments/routes.js';
 import { routingRoutes } from './modules/routing/routes.js';
 import { streamRoutes } from './modules/stream/routes.js';
+import { authRoutes } from './modules/auth/routes.js';
 
 class ApiError extends Error {
   constructor(
@@ -21,7 +22,7 @@ class ApiError extends Error {
   }
 }
 const fields = {
-  corridorId: z.enum(['bole-centre', 'cmc-centre']),
+  corridorId: z.enum(['bole-centre', 'cmc-centre', 'bole-cmc']),
   origin: z.string().max(40),
   destination: z.string().max(40),
   departure: z
@@ -67,7 +68,7 @@ export function buildApp({ databasePath = ':memory:', logger = false } = {}) {
   });
   const store = new Store(databasePath);
   const limits = new Map<string, { count: number; expires: number }>();
-  app.register(cors, { origin: env.FRONTEND_ORIGIN });
+  app.register(cors, { origin: true });
   app.addHook('onClose', async () => store.close());
   app.addHook('onRequest', async (req, reply) => {
     reply.header('Cache-Control', 'no-store').header('X-Content-Type-Options', 'nosniff');
@@ -92,6 +93,7 @@ export function buildApp({ databasePath = ':memory:', logger = false } = {}) {
   });
   app.get('/api/v1/health', async () => ({ status: 'ok', service: 'zew-api', mode: 'demo' }));
   app.post('/api/v1/session', async (_, reply) => reply.code(201).send(store.create()));
+  app.register(authRoutes, { store });
   app.register(
     async (api) => {
       api.decorateRequest('sessionId', '');
@@ -142,6 +144,32 @@ export function buildApp({ databasePath = ':memory:', logger = false } = {}) {
               if (trip) {
                 state.trips.push(trip);
               }
+            }
+            if (!trip && input.tripId.startsWith('ondemand-')) {
+              const driverName = input.tripId.endsWith('-1')
+                ? 'Solomon H.'
+                : input.tripId.endsWith('-2')
+                  ? 'Hiwot A.'
+                  : 'Yonas M.';
+              const vehicleName = input.tripId.endsWith('-1')
+                ? 'Toyota Corolla · Silver'
+                : input.tripId.endsWith('-2')
+                  ? 'Suzuki Swift · Blue'
+                  : 'Hyundai Atos · White';
+              trip = {
+                id: input.tripId,
+                corridorId: input.corridorId,
+                origin: input.origin,
+                destination: input.destination,
+                departure: input.departure,
+                seats: 4,
+                driver: driverName,
+                vehicle: vehicleName,
+                fare: 80,
+                source: 'sample',
+                status: 'open',
+              };
+              state.trips.push(trip);
             }
             if (!trip) throw new ApiError(404, 'Trip not found');
             const reason = rejectionReason(state, trip, input);

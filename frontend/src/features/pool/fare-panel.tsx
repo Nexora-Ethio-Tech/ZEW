@@ -113,22 +113,77 @@ export function FarePanel({
           <>
             <div className="auto-group-box">
               <div className="auto-group-header">
-                <strong>⚡ Auto-Group Match</strong>
-                <span className="auto-group-tag">RECOMMENDED</span>
+                <strong>⚡ Automated System Grouping</strong>
+                <span className="auto-group-tag">SYSTEM MATCHED</span>
               </div>
-              <p className="auto-group-desc">System assigns compatible neighbours along your corridor</p>
-              <div className="auto-group-buttons">
-                {[2, 3, 4].map((seats) => (
-                  <button
-                    key={seats}
-                    type="button"
-                    className={`auto-group-btn ${pool.quote.count === seats ? 'selected' : ''}`}
+              <p className="auto-group-desc">
+                Set your group size & budget. The system automatically groups compatible riders and assigns your ride.
+              </p>
+              
+              <div className="auto-group-controls">
+                <div className="control-group">
+                  <label>Min People:</label>
+                  <select
+                    value={pool.minSeats ?? 2}
                     disabled={busy}
-                    onClick={() => void action('/auto-match', { targetSeats: seats })}
+                    onChange={(e) =>
+                      void action('/auto-match', {
+                        minSeats: Number(e.target.value),
+                        maxSeats: Math.max(Number(e.target.value), pool.maxSeats ?? 4),
+                        maxFare: pool.maxFare ?? 360,
+                      })
+                    }
                   >
-                    {seats === 2 ? 'Pair (2)' : seats === 3 ? 'Trio (3)' : 'Full (4)'}
-                  </button>
-                ))}
+                    {[1, 2, 3, 4].map((n) => (
+                      <option key={n} value={n}>
+                        {n} {n === 1 ? 'person' : 'people'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="control-group">
+                  <label>Max People:</label>
+                  <select
+                    value={pool.maxSeats ?? 4}
+                    disabled={busy}
+                    onChange={(e) =>
+                      void action('/auto-match', {
+                        minSeats: Math.min(Number(e.target.value), pool.minSeats ?? 2),
+                        maxSeats: Number(e.target.value),
+                        maxFare: pool.maxFare ?? 360,
+                      })
+                    }
+                  >
+                    {[1, 2, 3, 4].map((n) => (
+                      <option key={n} value={n}>
+                        {n} {n === 1 ? 'person' : 'people'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="control-group budget-group">
+                <label>Max Fare / Person:</label>
+                <div className="fare-budget-options">
+                  {[120, 180, 240, 360].map((amount) => (
+                    <button
+                      key={amount}
+                      type="button"
+                      className={`budget-btn ${(pool.maxFare ?? 360) === amount ? 'selected' : ''}`}
+                      disabled={busy}
+                      onClick={() =>
+                        void action('/auto-match', {
+                          minSeats: pool.minSeats ?? 2,
+                          maxSeats: pool.maxSeats ?? 4,
+                          maxFare: amount,
+                        })
+                      }
+                    >
+                      {amount} ETB
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="fare-progress">
@@ -136,7 +191,7 @@ export function FarePanel({
             </div>
             <div className="fare-stages">
               <span>Just you</span>
-              <span>Better together</span>
+              <span>System Grouped ({pool.quote.count}/4)</span>
             </div>
             {(expiredMember || locationStale || pool.requestIssue) && (
               <p className="group-inline-warning">
@@ -154,11 +209,11 @@ export function FarePanel({
               {busy
                 ? 'Updating…'
                 : pool.quote.count > 1
-                  ? 'Request this group'
-                  : 'Request solo ride'}
+                  ? `Confirm ${pool.quote.count}-Person System Group`
+                  : 'Request Solo Ride'}
               <Icon name="arrow" size={18} />
             </button>
-            <p className="request-note">Review your group, then request. No payment required.</p>
+            <p className="request-note">Review your system-formed group, then request. No payment required.</p>
           </>
         ) : (
           <div className={`group-status-panel ${status}`} role="status">

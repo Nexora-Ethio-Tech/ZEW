@@ -55,6 +55,9 @@ export interface Pool {
   lockedFare?: number;
   driverId?: string;
   targetSeats: number;
+  minSeats?: number;
+  maxSeats?: number;
+  maxFare?: number;
   fareOptions: { seats: number; yourFare: number; issue: string | null }[];
   requestIssue: string | null;
   driverEarnings: { driverId: string; completedTrips: number; payout: number }[];

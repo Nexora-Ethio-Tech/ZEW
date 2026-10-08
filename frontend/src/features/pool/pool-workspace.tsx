@@ -431,15 +431,15 @@ export function PoolWorkspace() {
                       <section className="neighbours" id="nearby-riders">
                         <div className="neighbours-heading">
                           <div>
-                            <p className="section-eyebrow">02 / YOUR CIRCLE</p>
+                            <p className="section-eyebrow">02 / AUTOMATED RIDE CIRCLE</p>
                             <h2>
                               {draft
-                                ? 'A little company goes a long way.'
+                                ? 'System-Matched Ride Circle'
                                 : 'Your people, your shared journey.'}
                             </h2>
                             <p>
                               {draft
-                                ? 'Choose a group size, or pick your demo riders below.'
+                                ? 'The system automatically matches compatible passengers traveling your way based on your group size & fare preferences.'
                                 : 'Your group and fare stay locked for this request.'}
                             </p>
                           </div>

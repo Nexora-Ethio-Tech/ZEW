@@ -92,6 +92,9 @@ export interface PoolState {
   lockedFare?: number;
   driverId?: string;
   targetSeats?: number;
+  minSeats?: number;
+  maxSeats?: number;
+  maxFare?: number;
   history: {
     id: string;
     route: string;

@@ -42,6 +42,46 @@ export class Store {
 
     return { token };
   }
+  hashPassword(password: string) {
+    return createHash('sha256').update(password).digest('hex');
+  }
+
+  findUserByEmail(email: string) {
+    try {
+      const row = this.db
+        .prepare('SELECT id, email, name, password_hash AS passwordHash, role, created_at AS createdAt FROM users WHERE LOWER(email) = LOWER(?)')
+        .get(email) as { id: string; email: string; name: string; passwordHash: string; role: string; createdAt: string } | undefined;
+      return row;
+    } catch {
+      return undefined;
+    }
+  }
+
+  createUser(input: { email: string; name: string; password: string; role?: string }) {
+    const existing = this.findUserByEmail(input.email);
+    if (existing) throw new Error('An account with this email already exists.');
+    const id = `user-${randomUUID().slice(0, 8)}`;
+    const passwordHash = this.hashPassword(input.password);
+    const role = input.role || 'rider';
+    const createdAt = new Date().toISOString();
+
+    this.db
+      .prepare('INSERT INTO users (id, email, name, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(id, input.email.toLowerCase(), input.name, passwordHash, role, createdAt);
+
+    return { id, email: input.email.toLowerCase(), name: input.name, role, createdAt };
+  }
+
+  createSessionForUser(user: { id: string; email: string; name: string; role: string }) {
+    const res = this.create();
+    const sessionId = this.session(res.token)!;
+    this.mutate(sessionId, 'auth.login', (state) => {
+      (state as any).user = user;
+      return { value: true, entityId: user.id };
+    });
+    return { token: res.token, user };
+  }
+
   private hash(token: string) {
     return createHash('sha256').update(token).digest('hex');
   }

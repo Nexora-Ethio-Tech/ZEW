@@ -8,7 +8,7 @@ const children = [
     ['--env-file-if-exists=.env', '--import', 'tsx', '--watch', 'src/server.ts'],
     { cwd: fileURLToPath(new URL('backend/', root)), stdio: 'inherit' },
   ),
-  spawn(process.execPath, ['node_modules/next/dist/bin/next', 'dev', '--hostname', '127.0.0.1'], {
+  spawn(process.execPath, ['node_modules/next/dist/bin/next', 'dev', '--hostname', '0.0.0.0'], {
     cwd: fileURLToPath(new URL('frontend/', root)),
     stdio: 'inherit',
   }),

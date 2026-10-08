@@ -1,11 +1,10 @@
 import { corridors, routePositions, sampleTripsForTime, type Journey, type State, type Trip } from '../trips/model.js';
 
 export function availableSeats(state: State, trip: Trip) {
-  // Conservative: a booking occupies seats for the whole driver trip, even after completion.
   return (
     trip.seats -
     state.bookings
-      .filter((b) => b.tripId === trip.id && b.status !== 'cancelled')
+      .filter((b) => b.tripId === trip.id && (b.status === 'confirmed' || b.status === 'in_progress'))
       .reduce((n, b) => n + b.seats, 0)
   );
 }

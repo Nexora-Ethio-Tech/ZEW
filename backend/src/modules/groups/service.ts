@@ -275,22 +275,71 @@ export function setPlace(pool: PoolState, target: 'pickup' | 'destination', plac
 }
 export function autoMatchGroup(
   pool: PoolState,
-  options: { targetSeats?: number; maxFare?: number } = {},
+  options: { minSeats?: number; maxSeats?: number; maxFare?: number; targetSeats?: number } = {},
   now = Date.now(),
 ) {
   requireDraft(pool);
-  const requestedSeats = Math.max(1, Math.min(MAX_MEMBERS, options.targetSeats ?? 3));
+  const minSeats = Math.max(1, Math.min(MAX_MEMBERS, options.minSeats ?? 2));
+  const maxSeats = Math.max(minSeats, Math.min(MAX_MEMBERS, options.maxSeats ?? 4));
+  const maxFareBudget = options.maxFare && options.maxFare > 0 ? options.maxFare : 360;
+
+  const issue = locationIssue(pool, now);
+  if (issue) throw new GroupError(issue);
+
   const availableRiders = pool.riders.filter(
     (r) => !pool.skippedIds.includes(r.id) && !riderIssue(pool, r, now),
   );
 
-  const selected = availableRiders
-    .slice()
-    .sort((a, b) => a.pickupSeconds - b.pickupSeconds)
-    .slice(0, requestedSeats - 1);
+  let bestGroupRiders: PoolRider[] | null = null;
+  let bestGroupSize = 1;
 
-  pool.selectedIds = selected.map((r) => r.id);
-  pool.targetSeats = requestedSeats;
+  for (let seats = maxSeats; seats >= minSeats; seats--) {
+    const candidateRiders = availableRiders
+      .slice()
+      .sort((a, b) => a.pickupSeconds - b.pickupSeconds)
+      .slice(0, seats - 1);
+
+    const groupCount = 1 + candidateRiders.length;
+    if (groupCount < minSeats) continue;
+
+    const candidatePool: PoolState = { ...pool, selectedIds: candidateRiders.map((r) => r.id) };
+    const quote = fareQuote(candidatePool, groupCount);
+
+    if (quote.yourFare <= maxFareBudget) {
+      const matchingDriver = demoDrivers.find((d) => !driverIssue(candidatePool, d.id, now));
+      if (matchingDriver) {
+        bestGroupRiders = candidateRiders;
+        bestGroupSize = groupCount;
+        break;
+      }
+    }
+  }
+
+  if (!bestGroupRiders && minSeats > 1) {
+    const fallbackRiders = availableRiders
+      .slice()
+      .sort((a, b) => a.pickupSeconds - b.pickupSeconds)
+      .slice(0, maxSeats - 1);
+    const candidatePool: PoolState = { ...pool, selectedIds: fallbackRiders.map((r) => r.id) };
+    const matchingDriver = demoDrivers.find((d) => !driverIssue(candidatePool, d.id, now));
+
+    if (matchingDriver && 1 + fallbackRiders.length >= minSeats) {
+      bestGroupRiders = fallbackRiders;
+      bestGroupSize = 1 + fallbackRiders.length;
+    }
+  }
+
+  if (!bestGroupRiders) {
+    throw new GroupError(
+      `No automated ride group could be formed matching min ${minSeats} passengers and max fare ${maxFareBudget} ETB. Try adjusting your preferences or refreshing availability.`,
+    );
+  }
+
+  pool.selectedIds = bestGroupRiders.map((r) => r.id);
+  pool.targetSeats = bestGroupSize;
+  pool.minSeats = minSeats;
+  pool.maxSeats = maxSeats;
+  pool.maxFare = maxFareBudget;
   pool.version++;
   return poolView(pool, now);
 }
@@ -388,6 +437,9 @@ export function poolView(pool: PoolState, now = Date.now()) {
     },
     locationIssue: locationIssue(pool, now),
     targetSeats: pool.targetSeats ?? 1,
+    minSeats: pool.minSeats ?? 2,
+    maxSeats: pool.maxSeats ?? 4,
+    maxFare: pool.maxFare ?? 360,
     fareOptions: Array.from({ length: MAX_MEMBERS }, (_, i) => {
       const { selectedIds: _selected, ...preview } = preferencePreview(pool, i + 1, now);
       return preview;
