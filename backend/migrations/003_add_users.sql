@@ -8,10 +8,10 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TEXT NOT NULL
 );
 
--- Seed demo accounts (password: password123)
--- SHA256('password123') = ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f
+-- Seed accounts (password: word123pass)
+-- SHA256('word123pass') = a8adcd2d4dba9baa859db460f956b1f00a35000e448f662b97336d0d2664ca99
 INSERT OR IGNORE INTO users (id, email, name, password_hash, role, created_at) VALUES
-  ('user-rider-1', 'rider@zew.et', 'Demo Rider', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'rider', '2026-10-08T00:00:00.000Z'),
-  ('user-driver-1', 'driver@zew.et', 'Hana T. (Driver)', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'driver', '2026-10-08T00:00:00.000Z'),
-  ('user-operator-1', 'operator@zew.et', 'Support Operator', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'operator', '2026-10-08T00:00:00.000Z'),
-  ('user-yonas-1', 'yonas@zew.et', 'Yonas M.', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'rider', '2026-10-08T00:00:00.000Z');
+  ('user-rider-1', 'rider@zew.et', 'Demo Rider', 'a8adcd2d4dba9baa859db460f956b1f00a35000e448f662b97336d0d2664ca99', 'rider', '2026-10-08T00:00:00.000Z'),
+  ('user-driver-1', 'driver@zew.et', 'Hana T. (Driver)', 'a8adcd2d4dba9baa859db460f956b1f00a35000e448f662b97336d0d2664ca99', 'driver', '2026-10-08T00:00:00.000Z'),
+  ('user-operator-1', 'operator@zew.et', 'Support Operator', 'a8adcd2d4dba9baa859db460f956b1f00a35000e448f662b97336d0d2664ca99', 'operator', '2026-10-08T00:00:00.000Z'),
+  ('user-yonas-1', 'yonas@zew.et', 'Yonas M.', 'a8adcd2d4dba9baa859db460f956b1f00a35000e448f662b97336d0d2664ca99', 'rider', '2026-10-08T00:00:00.000Z');

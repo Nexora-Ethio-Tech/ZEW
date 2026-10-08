@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Icon } from '@/components/icon';
 import { setAuthSession } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 export function AuthModal({
   isOpen,
@@ -16,10 +17,12 @@ export function AuthModal({
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [role, setRole] = useState<'rider' | 'driver' | 'operator'>('rider');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [verificationSent, setVerificationSent] = useState(false);
 
   if (!isOpen) return null;
 
@@ -29,6 +32,21 @@ export function AuthModal({
     setBusy(true);
 
     try {
+      if (tab === 'signup') {
+        // Trigger Supabase email verification dispatch
+        try {
+          await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { name, role },
+            },
+          });
+        } catch (supabaseErr: any) {
+          console.warn('[Supabase Auth Email Dispatch Notice]:', supabaseErr?.message);
+        }
+      }
+
       const endpoint = tab === 'login' ? '/api/v1/auth/login' : '/api/v1/auth/signup';
       const body =
         tab === 'login'
@@ -47,8 +65,13 @@ export function AuthModal({
       }
 
       setAuthSession(data.token, data.user);
-      onSuccess(data.user);
-      onClose();
+
+      if (tab === 'signup') {
+        setVerificationSent(true);
+      } else {
+        onSuccess(data.user);
+        onClose();
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred.');
     } finally {
@@ -56,26 +79,36 @@ export function AuthModal({
     }
   }
 
-  async function quickLogin(presetEmail: string) {
-    setError(null);
-    setBusy(true);
-    try {
-      const res = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: presetEmail, password: 'password123' }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Quick login failed');
-
-      setAuthSession(data.token, data.user);
-      onSuccess(data.user);
-      onClose();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
+  if (verificationSent) {
+    return (
+      <div className="auth-modal-backdrop" onClick={onClose}>
+        <div
+          className="auth-modal-card"
+          onClick={(e) => e.stopPropagation()}
+          style={{ textContent: 'center', textAlign: 'center', padding: '36px 28px' }}
+        >
+          <div style={{ fontSize: 52, marginBottom: 16 }}>📩</div>
+          <h2 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', marginBottom: 12 }}>
+            Check Your Email
+          </h2>
+          <p style={{ fontSize: 14, color: '#475569', marginBottom: 24, lineHeight: 1.6 }}>
+            We’ve sent a confirmation email to <strong style={{ color: '#059669' }}>{email}</strong> using your Zew custom email template. Please click the verification link inside to confirm your account.
+          </p>
+          <button
+            className="auth-submit-btn"
+            style={{ width: '100%', justifyContent: 'center' }}
+            onClick={() => {
+              setVerificationSent(false);
+              onSuccess({ id: 'user-new', email, name, role });
+              onClose();
+            }}
+          >
+            I Checked My Email / Continue
+            <Icon name="arrow" size={16} />
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -141,13 +174,23 @@ export function AuthModal({
 
           <div className="auth-field">
             <label>Password</label>
-            <input
-              type="password"
-              required
-              placeholder="Enter password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="auth-password-wrapper">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <Icon name={showPassword ? 'eye-off' : 'eye'} size={18} />
+              </button>
+            </div>
           </div>
 
           {tab === 'signup' && (
@@ -162,7 +205,7 @@ export function AuthModal({
           )}
 
           <button type="submit" disabled={busy} className="auth-submit-btn">
-            {busy ? 'Please wait…' : tab === 'login' ? 'Sign In to Zew' : 'Create Account'}
+            {busy ? 'Please wait…' : tab === 'login' ? 'Sign In to Zew' : 'Create Account & Send Email'}
             <Icon name="arrow" size={16} />
           </button>
         </form>

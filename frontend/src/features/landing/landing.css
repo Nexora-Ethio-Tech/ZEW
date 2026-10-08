@@ -77,7 +77,96 @@
 
 .landing-auth-actions {
   display: flex;
+  align-items: center;
   gap: 12px;
+}
+
+.landing-lang-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #d2e6dc;
+  padding: 6px 12px;
+  border-radius: 12px;
+}
+.lang-icon {
+  font-size: 14px;
+}
+.lang-select {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f392b;
+  cursor: pointer;
+  outline: none;
+}
+
+.theme-toggle-btn {
+  background: #ffffff;
+  border: 1px solid #d2e6dc;
+  color: #0f392b;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.theme-toggle-btn:hover {
+  background: #e8f3ed;
+}
+
+/* Dark Theme Overrides */
+.landing-shell.dark-theme {
+  background: #0f172a;
+  color: #f8fafc;
+}
+.landing-shell.dark-theme .landing-nav {
+  background: rgba(15, 23, 42, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.landing-shell.dark-theme .landing-logo {
+  color: #ffffff;
+}
+.landing-shell.dark-theme .landing-nav-links a {
+  color: #94a3b8;
+}
+.landing-shell.dark-theme .landing-nav-links a:hover {
+  color: #ffffff;
+}
+.landing-shell.dark-theme .landing-hero-left h1 {
+  color: #ffffff;
+}
+.landing-shell.dark-theme .landing-hero-desc {
+  color: #94a3b8;
+}
+.landing-shell.dark-theme .step-card,
+.landing-shell.dark-theme .landing-stats-grid,
+.landing-shell.dark-theme .landing-btn-secondary,
+.landing-shell.dark-theme .theme-toggle-btn,
+.landing-shell.dark-theme .landing-lang-selector {
+  background: #1e293b;
+  border-color: #334155;
+  color: #ffffff;
+}
+.landing-shell.dark-theme .lang-select {
+  color: #ffffff;
+}
+.landing-shell.dark-theme .step-card h3 {
+  color: #ffffff;
+}
+.landing-shell.dark-theme .step-card p {
+  color: #94a3b8;
+}
+.landing-shell.dark-theme .landing-footer {
+  background: #0f172a;
+  border-top-color: #1e293b;
+  color: #94a3b8;
+}
+.landing-shell.dark-theme .footer-logo {
+  color: #ffffff;
 }
 
 .landing-btn-primary {
@@ -440,4 +529,219 @@
   font-size: 28px;
   font-weight: 900;
   color: #0f392b;
+}
+
+/* Auth Modal Overlay & Card */
+.auth-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeInModal 0.2s ease-out forwards;
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.auth-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 32px 28px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.08);
+  animation: slideUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUpModal {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.auth-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.auth-close-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.auth-logo {
+  font-size: 24px;
+  font-weight: 900;
+  color: #0f392b;
+}
+
+.auth-logo span {
+  color: #10b981;
+}
+
+.auth-header h2 {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 10px 0 6px;
+}
+
+.auth-header p {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.auth-tabs {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.auth-tab.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.auth-error-notice {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-field label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.auth-field input,
+.auth-field select {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.auth-field input:focus,
+.auth-field select:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.auth-password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-password-wrapper input {
+  padding-right: 44px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+}
+
+.auth-password-toggle:hover {
+  color: #0f172a;
+}
+
+.auth-submit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #059669, #2563eb);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  margin-top: 8px;
+}
+
+.auth-submit-btn:hover:not(:disabled) {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+.auth-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

@@ -32,22 +32,31 @@ export default function LeafletRouteMap({
     const instance = L.map(node.current, { scrollWheelZoom: false }).setView([9.01, 38.77], 13);
     map.current = instance;
 
-    const tileUrl =
-      process.env.NEXT_PUBLIC_MAP_TILE_URL ??
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    const isDark = typeof document !== 'undefined' && (
+      document.documentElement.getAttribute('data-theme') === 'dark' ||
+      document.documentElement.classList.contains('dark-theme')
+    );
+
+    const defaultTileUrl = isDark
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+    const tileUrl = process.env.NEXT_PUBLIC_MAP_TILE_URL ?? defaultTileUrl;
     const tileAttribution =
       process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ??
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>';
 
     const tileLayer = L.tileLayer(tileUrl, {
       maxZoom: 19,
-      subdomains: ['a', 'b', 'c'],
+      subdomains: ['a', 'b', 'c', 'd'],
       attribution: tileAttribution,
     });
 
     tileLayer.on('tileerror', () => {
       tileLayer.setUrl(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+        isDark
+          ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+          : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
       );
     });
 
@@ -74,6 +83,11 @@ export default function LeafletRouteMap({
     if (!map.current || !layers.current || !corridor) return;
     layers.current.clearLayers();
 
+    const isDark = typeof document !== 'undefined' && (
+      document.documentElement.getAttribute('data-theme') === 'dark' ||
+      document.documentElement.classList.contains('dark-theme')
+    );
+
     const originIdx = corridor.stops.findIndex((s) => s.id === originId);
     const destIdx = corridor.stops.findIndex((s) => s.id === destinationId);
     if (originIdx === -1 || destIdx === -1) return;
@@ -85,7 +99,7 @@ export default function LeafletRouteMap({
     // Draw the full corridor line lightly
     const allLatLngs = corridor.stops.map((s) => [s.latitude, s.longitude] as [number, number]);
     L.polyline(allLatLngs, {
-      color: '#d4dfc7',
+      color: isDark ? '#334155' : '#d4dfc7',
       weight: 6,
       opacity: 0.6,
     }).addTo(layers.current);
@@ -94,7 +108,7 @@ export default function LeafletRouteMap({
     const activeStops = corridor.stops.slice(startIndex, endIndex + 1);
     const activeLatLngs = activeStops.map((s) => [s.latitude, s.longitude] as [number, number]);
     L.polyline(activeLatLngs, {
-      color: '#285943',
+      color: isDark ? '#10b981' : '#285943',
       weight: 6,
       opacity: 0.9,
     }).addTo(layers.current);

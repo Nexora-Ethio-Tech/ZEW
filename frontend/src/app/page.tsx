@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { Workspace } from '@/features/workspace';
 import { LandingPage } from '@/features/landing/landing';
 import { getStoredUser, clearAuthSession } from '@/lib/api';
+import { applyTheme, getStoredTheme } from '@/lib/theme';
 
 export default function Home() {
   const [user, setUser] = useState<{ id: string; email: string; name: string; role: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    applyTheme(getStoredTheme());
     const stored = getStoredUser();
     if (stored) {
       setUser(stored);

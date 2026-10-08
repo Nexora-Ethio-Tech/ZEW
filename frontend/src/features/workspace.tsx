@@ -17,6 +17,8 @@ import {
   type Matches,
   type Trip,
 } from '@/lib/api';
+import { getTranslation, type Language, type Theme } from '@/lib/i18n';
+import { applyTheme, getStoredTheme } from '@/lib/theme';
 
 type PassengerView = 'find' | 'rides' | 'saved';
 type DriverView = 'driver_groups' | 'driver_earnings';
@@ -26,26 +28,26 @@ type AdminView = 'admin_overview' | 'admin_drivers' | 'admin_audit';
 type View = PassengerView | DriverView | SupportView | AdminView;
 type Dialog = 'waitlist' | 'help' | 'save' | 'offer' | 'booking' | 'board' | 'account' | 'auth' | 'driver-profile' | null;
 
-const passengerNavigation: { id: PassengerView; label: string; icon: IconName }[] = [
-  { id: 'find', label: 'Plan ahead', icon: 'route' },
-  { id: 'rides', label: 'My rides', icon: 'rides' },
-  { id: 'saved', label: 'Saved commutes', icon: 'bookmark' },
+const passengerNavigation: { id: PassengerView; labelKey: string; label: string; icon: IconName }[] = [
+  { id: 'find', labelKey: 'planAhead', label: 'Plan ahead', icon: 'route' },
+  { id: 'rides', labelKey: 'myRides', label: 'My rides', icon: 'rides' },
+  { id: 'saved', labelKey: 'savedCommutes', label: 'Saved commutes', icon: 'bookmark' },
 ];
 
-const driverNavigation: { id: DriverView; label: string; icon: IconName }[] = [
-  { id: 'driver_groups', label: 'Passenger requests', icon: 'car' },
-  { id: 'driver_earnings', label: 'Earnings & Payouts', icon: 'wallet' },
+const driverNavigation: { id: DriverView; labelKey: string; label: string; icon: IconName }[] = [
+  { id: 'driver_groups', labelKey: 'passengerRequests', label: 'Passenger requests', icon: 'car' },
+  { id: 'driver_earnings', labelKey: 'earningsPayouts', label: 'Earnings & Payouts', icon: 'wallet' },
 ];
 
-const supportNavigation: { id: SupportView; label: string; icon: IconName }[] = [
-  { id: 'support_dispatch', label: 'Phone Dispatch Desk', icon: 'help' },
-  { id: 'support_radar', label: 'Live Driver Radar', icon: 'pin' },
+const supportNavigation: { id: SupportView; labelKey: string; label: string; icon: IconName }[] = [
+  { id: 'support_dispatch', labelKey: 'phoneDispatch', label: 'Phone Dispatch Desk', icon: 'help' },
+  { id: 'support_radar', labelKey: 'liveRadar', label: 'Live Driver Radar', icon: 'pin' },
 ];
 
-const adminNavigation: { id: AdminView; label: string; icon: IconName }[] = [
-  { id: 'admin_overview', label: 'System Overview', icon: 'shield' },
-  { id: 'admin_drivers', label: 'Driver Verification', icon: 'people' },
-  { id: 'admin_audit', label: 'Live Audit Log', icon: 'clock' },
+const adminNavigation: { id: AdminView; labelKey: string; label: string; icon: IconName }[] = [
+  { id: 'admin_overview', labelKey: 'systemOverview', label: 'System Overview', icon: 'shield' },
+  { id: 'admin_drivers', labelKey: 'driverVerification', label: 'Driver Verification', icon: 'people' },
+  { id: 'admin_audit', labelKey: 'auditLog', label: 'Live Audit Log', icon: 'clock' },
 ];
 
 function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -98,6 +100,22 @@ export function Workspace({
   const [notice, setNotice] = useState('');
   const [filter, setFilter] = useState<'upcoming' | 'past'>('upcoming');
   const [driverActive, setDriverActive] = useState(true);
+  const [lang, setLang] = useState<Language>('en');
+  const [theme, setTheme] = useState<Theme>('light');
+
+  useEffect(() => {
+    const active = getStoredTheme();
+    setTheme(active);
+    applyTheme(active);
+  }, []);
+
+  const handleToggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(nextTheme);
+    applyTheme(nextTheme);
+  };
+
+  const t = (key: string) => getTranslation(lang, key);
 
   // Supabase Auth State
   const [authUser, setAuthUser] = useState<{
@@ -535,7 +553,7 @@ export function Workspace({
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
           <label className="field" style={{ width: '100%', marginBottom: 0 }}>
-            Departure · Addis time
+            {t('departureAddisTime')}
             <input
               aria-label="Departure time"
               required
@@ -549,7 +567,7 @@ export function Workspace({
           </label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: '#7a8276' }}>
-              Capacity Range ({minCapacity}–{maxCapacity} riders)
+              {t('capacityRange')} ({minCapacity}–{maxCapacity})
             </span>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               <input
@@ -601,7 +619,7 @@ export function Workspace({
               }}
             >
               <span style={{ fontSize: 12, fontWeight: 700, color: '#1f4835' }}>
-                💰 Dynamic Fare Breakdown ({vehicleTier})
+                💰 {t('dynamicFareBreakdown')} ({vehicleTier})
               </span>
               <span
                 style={{
@@ -740,7 +758,7 @@ export function Workspace({
   const completedDriverFare = completed.reduce((sum, b) => sum + b.fare, 0);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${theme === 'light' ? 'light-theme' : 'dark-theme'}`}>
       <aside className="sidebar">
         <a className="brand" href="/" aria-label="Zew home">
           zew<span className="brand-dot">.</span>
@@ -772,7 +790,7 @@ export function Workspace({
                   aria-current={view === item.id ? 'page' : undefined}
                 >
                   <Icon name={item.icon} />
-                  <span>{item.label}</span>
+                  <span>{t(item.labelKey)}</span>
                 </button>
               ))
             : isSupport
@@ -784,7 +802,7 @@ export function Workspace({
                     aria-current={view === item.id ? 'page' : undefined}
                   >
                     <Icon name={item.icon} />
-                    <span>{item.label}</span>
+                    <span>{t(item.labelKey)}</span>
                   </button>
                 ))
               : isAdmin
@@ -796,7 +814,7 @@ export function Workspace({
                       aria-current={view === item.id ? 'page' : undefined}
                     >
                       <Icon name={item.icon} />
-                      <span>{item.label}</span>
+                      <span>{t(item.labelKey)}</span>
                     </button>
                   ))
                 : passengerNavigation.map((item) => (
@@ -807,7 +825,7 @@ export function Workspace({
                       aria-current={view === item.id ? 'page' : undefined}
                     >
                       <Icon name={item.icon} />
-                      <span>{item.label}</span>
+                      <span>{t(item.labelKey)}</span>
                       {item.id === 'rides' && active.length > 0 && (
                         <span className="count">{active.length}</span>
                       )}
@@ -840,7 +858,41 @@ export function Workspace({
               <em style={{ fontStyle: 'italic', color: '#2e7d59', fontWeight: 800 }}>go together.</em>
             </span>
           </div>
-          <div className="topbar-right">
+          <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Language Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#ffffff', padding: '4px 10px', borderRadius: 10, border: '1px solid #cbd5e1' }}>
+              <span style={{ fontSize: 13 }}>🌐</span>
+              <select
+                value={lang}
+                onChange={(e) => setLang(e.target.value as Language)}
+                style={{ border: 'none', background: 'transparent', fontSize: 12, fontWeight: 700, color: '#334155', cursor: 'pointer', outline: 'none' }}
+                aria-label="Select Language"
+              >
+                <option value="en">English</option>
+                <option value="am">አማርኛ</option>
+                <option value="om">Afaan Oromoo</option>
+              </select>
+            </div>
+
+            {/* Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={handleToggleTheme}
+              style={{
+                padding: '6px 12px',
+                fontSize: 12,
+                fontWeight: 700,
+                borderRadius: 10,
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#334155',
+                cursor: 'pointer',
+              }}
+              title="Toggle Light/Dark Theme"
+            >
+              {theme === 'light' ? '☀️ Light' : '🌙 Dark'}
+            </button>
+
             {user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', fontSize: 12 }}>
@@ -864,7 +916,7 @@ export function Workspace({
                       cursor: 'pointer',
                     }}
                   >
-                    Log Out
+                    {t('signOut')}
                   </button>
                 )}
               </div>
@@ -972,16 +1024,16 @@ export function Workspace({
                   <section className="journey-grid">
                     <form className="search-card card" onSubmit={search}>
                       <div className="section-title">
-                        <h2>Where are you heading?</h2>
+                        <h2>{t('whereHeading')}</h2>
                         <Icon name="route" />
                       </div>
                       {routeFields()}
                       <button className="primary full" disabled={busy} type="submit">
-                        {busy ? 'Finding your route…' : 'Find my ride'}
+                        {busy ? 'Finding your route…' : t('findMyRide')}
                         <Icon name="arrow" size={18} />
                       </button>
                       <button type="button" className="save-link" onClick={() => open('save')}>
-                        <Icon name="bookmark" size={15} /> Save this commute
+                        <Icon name="bookmark" size={15} /> {t('saveThisCommute')}
                       </button>
                     </form>
                     <div
