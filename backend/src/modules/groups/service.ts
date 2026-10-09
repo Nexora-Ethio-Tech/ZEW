@@ -6,6 +6,7 @@ import {
   MAX_PICKUP_SECONDS,
   DEMO_APPLICANTS_PER_ROUTE,
   demoDrivers,
+  customFare,
   demoDemandZones,
   demoRoutePlaces,
   demoRoutes,
@@ -48,17 +49,13 @@ export function riderIssue(pool: PoolState, rider: PoolRider, now = Date.now()):
   if (rider.corridorId) {
     const route = demoRoutes.find((item) => item.id === rider.corridorId);
     const pickup = pool.pickupPlace ?? pickupZones.find((zone) => zone.id === pool.zoneId);
-    const destination = pool.destinationPlace ?? {
-      wollosefer: demoRoutePlaces.wollosefer,
-      meskel: demoRoutePlaces.meskel,
-      mexico: demoRoutePlaces.mexico,
-    }[pool.destination as 'wollosefer' | 'meskel' | 'mexico'];
+    const destination = pool.destinationPlace ?? demoRoutePlaces[pool.destination];
     if (!route || !pickup || !destination ||
       distanceMeters(pickup, demoRoutePlaces[route.from]) > 650 ||
       distanceMeters(destination, demoRoutePlaces[route.to]) > 650)
-      return 'This sample application is for another example journey.';
+      return 'This application belongs to another journey.';
   } else if (!nearDemoCorridor(pool)) {
-    return 'Sample riders are only available near the Bole demo landmarks.';
+    return 'Configured applications are only available near the Bole landmarks.';
   }
   if (rider.corridorId) {
     const span = Math.max(0, rider.pickupSeconds,
@@ -160,18 +157,15 @@ function preferencePreview(pool: PoolState, seats: number, now: number) {
     issue:
       locationIssue(pool, now) ||
       (candidate.selectedIds.length !== seats - 1
-        ? 'Not enough ready demo riders for this example journey. Refresh availability or choose another route.'
+        ? 'Not enough ready applications for this journey. Refresh availability or choose another route.'
         : null),
   };
 }
 function nearDemoCorridor(pool: PoolState) {
   const demoPickup = pool.pickupPlace ?? pickupZones.find((zone) => zone.id === pool.zoneId);
   const destinationAnchor = pool.destinationPlace
-    ? [
-        { latitude: 8.9905, longitude: 38.7713 },
-        { latitude: 9.0108, longitude: 38.7615 },
-        { latitude: 9.0104, longitude: 38.7453 },
-      ].some((stop) => distanceMeters(pool.destinationPlace!, stop) <= 1000)
+    ? destinations.some((stop) => demoRoutePlaces[stop.id] &&
+        distanceMeters(pool.destinationPlace!, demoRoutePlaces[stop.id]) <= 1000)
     : true;
   return Boolean(
     demoPickup &&
@@ -213,12 +207,14 @@ export function requestGroup(pool: PoolState, version: number, now = Date.now())
     );
     if (reason) throw new GroupError(reason);
   }
-  if (!demoDrivers.some((driver) => !driverIssue(pool, driver.id, now))) {
+  const assignedDriver = demoDrivers.find((driver) => !driverIssue(pool, driver.id, now));
+  if (!assignedDriver) {
     throw new GroupError(
-      'No demo driver can reach everyone before their availability ends. Refresh nearby riders or choose a smaller group.',
+      'No configured driver can reach everyone before availability ends. Refresh availability or choose a smaller group.',
     );
   }
   pool.status = 'requested';
+  pool.driverId = assignedDriver.id;
   pool.lockedFare = fareQuote(pool).yourFare;
   pool.requestedUntil = Math.min(
     now + 120000,
@@ -246,7 +242,7 @@ export function applyForGroup(pool: PoolState, version: number, now = Date.now()
     requestGroup(pool, version, now);
     return;
   }
-  throw new GroupError('No demo group meets your people and fare limits right now. Adjust them or refresh demo availability.');
+  throw new GroupError('No group meets your people and fare limits right now. Adjust them or refresh availability.');
 }
 export function setGroupCriteria(
   pool: PoolState,
@@ -268,19 +264,18 @@ export function setGroupCriteria(
   pool.selectedIds = [];
   pool.version++;
 }
-export function acceptGroup(pool: PoolState, driverId: string, now = Date.now()) {
+export function acceptGroup(pool: PoolState, now = Date.now()) {
   syncExpiry(pool, now);
   if (pool.status !== 'requested') throw new GroupError('This group request is no longer open.');
-  const issue = driverIssue(pool, driverId, now);
+  const issue = driverIssue(pool, pool.driverId ?? '', now);
   if (issue) throw new GroupError(issue);
-  pool.driverId = driverId;
   pool.status = 'accepted';
   pool.version++;
 }
 export function setDeviceLocation(pool: PoolState, location: DeviceLocation, now = Date.now()) {
   requireDraft(pool);
   if (!withinEthiopiaBounds(location))
-    throw new GroupError('Choose a location in Ethiopia for this demo.', 400);
+    throw new GroupError('Choose a location in Ethiopia.', 400);
   if (location.timestamp > now + 5000 || location.timestamp < now - MAX_LOCATION_AGE_MS)
     throw new GroupError('That location is stale. Please try again.', 400);
   const nearest = pickupZones
@@ -336,17 +331,19 @@ export function newGroup(pool: PoolState, now = Date.now()) {
   pool.requestedUntil = undefined;
   pool.lockedFare = undefined;
   pool.driverId = undefined;
+  pool.assignedDriver = undefined;
+  pool.boardingCode = undefined;
   pool.version++;
 }
 export function groupDestinations(pool: PoolState) {
   return pool.destinationPlace
-    ? [...destinations, { id: 'custom', name: pool.destinationPlace.name, fare: 360, order: 4 }]
+    ? [...destinations, { id: 'custom', name: pool.destinationPlace.name, fare: customFare, order: 4 }]
     : [...destinations];
 }
 export function setPlace(pool: PoolState, target: 'pickup' | 'destination', place: Place) {
   requireDraft(pool);
   if (!withinEthiopiaBounds(place))
-    throw new GroupError('Choose a place in Ethiopia for this demo.', 400);
+    throw new GroupError('Choose a place in Ethiopia.', 400);
   if (target === 'pickup') {
     pool.pickupPlace = place;
     pool.locationSource = 'place';
@@ -362,7 +359,7 @@ export function setPlace(pool: PoolState, target: 'pickup' | 'destination', plac
 export function setDemoRoute(pool: PoolState, routeId: string) {
   requireDraft(pool);
   const route = demoRoutes.find((item) => item.id === routeId);
-  if (!route) throw new GroupError('Example journey not found.', 404);
+  if (!route) throw new GroupError('Journey not found.', 404);
   pool.pickupPlace = demoRoutePlaces[route.from];
   pool.destinationPlace = demoRoutePlaces[route.to];
   pool.destination = 'custom';
@@ -482,8 +479,8 @@ export function computeDriverItinerary(pool: PoolState, mapPickupName: string) {
     groupCode: `ZEW-GRP-${pool.id.slice(0, 6).toUpperCase()}`,
     driverName: driver?.name ?? 'Assigned Driver',
     car: driver?.car ?? 'Taxi',
-    plate: driver?.plate ?? 'DEMO',
-    driverPhone: driver?.phone ?? '+251 91 188 9012 (Simulated)',
+    plate: driver?.plate ?? 'Not verified',
+    driverPhone: 'Not available',
     totalSeats: 1 + members.length,
     payoutPerSeat: quote.otherFare,
     totalDriverPayout: quote.driverPayout,
@@ -491,7 +488,7 @@ export function computeDriverItinerary(pool: PoolState, mapPickupName: string) {
       {
         id: 'you',
         name: 'You (Group Host)',
-        phone: '+251 91 100 0000 (Simulated)',
+        phone: 'Not available',
         pickup: mapPickupName,
         destination: destName,
         fare: quote.yourFare,
@@ -500,7 +497,7 @@ export function computeDriverItinerary(pool: PoolState, mapPickupName: string) {
       ...members.map((r) => ({
         id: r.id,
         name: r.name,
-        phone: r.phone ?? '+251 91 234 5678 (Simulated)',
+        phone: 'Not available',
         pickup: r.pickup,
         destination: groupDestinations(pool).find((d) => d.id === r.destination)?.name ?? destName,
         fare: quote.otherFare,
@@ -512,7 +509,7 @@ export function computeDriverItinerary(pool: PoolState, mapPickupName: string) {
 
 export function poolView(pool: PoolState, now = Date.now()) {
   // Map coordinates are returned only to the owning authenticated session, never other riders.
-  const { location, ...publicPool } = pool;
+  const { location, boardingCode, ...publicPool } = pool;
   const mapPickup =
     pool.pickupPlace ??
     (pool.locationSource === 'device' && location
@@ -520,20 +517,14 @@ export function poolView(pool: PoolState, now = Date.now()) {
       : (pickupZones.find((z) => z.id === pool.zoneId) ?? pickupZones[0]));
   return {
     ...publicPool,
+    boardingCode: ['accepted', 'in_progress'].includes(pool.status) ? boardingCode : undefined,
     mode: 'demo' as const,
     serverNow: now,
     maxPickupSeconds: MAX_PICKUP_SECONDS,
     location: location ? { accuracy: location.accuracy, timestamp: location.timestamp } : undefined,
     pickupName: mapPickup.name,
     mapPickup,
-    mapDestination: pool.destinationPlace ?? {
-      name: destinations.find((d) => d.id === pool.destination)!.name,
-      ...{
-        wollosefer: { latitude: 8.9905, longitude: 38.7713 },
-        meskel: { latitude: 9.0108, longitude: 38.7615 },
-        mexico: { latitude: 9.0104, longitude: 38.7453 },
-      }[pool.destination]!,
-    },
+    mapDestination: pool.destinationPlace ?? demoRoutePlaces[pool.destination],
     locationIssue: locationIssue(pool, now),
     targetSeats: pool.targetSeats ?? 1,
     minSeats: pool.minSeats ?? 1,
@@ -546,7 +537,7 @@ export function poolView(pool: PoolState, now = Date.now()) {
     requestIssue:
       locationIssue(pool, now) ||
       (!demoDrivers.some((driver) => !driverIssue(pool, driver.id, now))
-        ? 'No demo driver can reach this circle in time. Refresh availability or remove a rider.'
+        ? 'No configured driver can reach this circle in time. Refresh availability or remove a rider.'
         : null),
     driverEarnings: demoDrivers.map((driver) => {
       const receipts = pool.history.filter(

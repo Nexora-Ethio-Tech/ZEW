@@ -1,10 +1,15 @@
-import { corridors, routePositions, sampleTripsForTime, type Journey, type State, type Trip } from '../trips/model.js';
+import { routePositions, type Journey, type State, type Trip } from '../trips/model.js';
 
 export function availableSeats(state: State, trip: Trip) {
   return (
     trip.seats -
     state.bookings
-      .filter((b) => b.tripId === trip.id && (b.status === 'confirmed' || b.status === 'in_progress'))
+      .filter(
+        (b) =>
+          b.tripId === trip.id &&
+          b.departure === trip.departure &&
+          (b.status === 'confirmed' || b.status === 'in_progress'),
+      )
       .reduce((n, b) => n + b.seats, 0)
   );
 }
@@ -28,61 +33,25 @@ export function rejectionReason(
   if (Math.abs(Date.parse(trip.departure) - Date.parse(request.departure)) > 30 * 60000)
     return 'Outside your 30-minute window';
   if (availableSeats(state, trip) < request.seats) return 'Not enough seats';
-  if (state.bookings.some((b) => b.tripId === trip.id && b.status !== 'cancelled'))
+  if (
+    state.bookings.some(
+      (b) => b.tripId === trip.id && b.departure === trip.departure && b.status !== 'cancelled',
+    )
+  )
     return 'You already have a booking on this trip';
   return null;
 }
 
-function calculateSegmentKm(journey: Journey): number {
-  const corridor = corridors.find((c) => c.id === journey.corridorId);
-  if (!corridor) return 4.2;
-  const startStop = corridor.stops.find((s) => s.id === journey.origin);
-  const endStop = corridor.stops.find((s) => s.id === journey.destination);
-  if (!startStop || !endStop) return 4.2;
-
-  const R = 6371;
-  const dLat = ((endStop.latitude - startStop.latitude) * Math.PI) / 180;
-  const dLng = ((endStop.longitude - startStop.longitude) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((startStop.latitude * Math.PI) / 180) *
-      Math.cos((endStop.latitude * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const dist = Math.round(R * c * 10) / 10;
-  return Math.max(1.1, dist);
-}
-
+// Match a supplied set of departures. Scheduling and fare generation belong to the caller.
 export function findMatches(state: State, request: Journey) {
-  const dynamicSamples = sampleTripsForTime(request.departure);
-  const allTripsMap = new Map<string, Trip>();
-
-  for (const t of state.trips) {
-    allTripsMap.set(t.id, t);
-  }
-  for (const sample of dynamicSamples) {
-    if (!allTripsMap.has(sample.id)) {
-      allTripsMap.set(sample.id, sample);
-    }
-  }
-
-  const candidateTrips = Array.from(allTripsMap.values());
-  const segmentKm = calculateSegmentKm(request);
-  const baseSoloFare = Math.max(100, Math.round(segmentKm * 40 + 90));
-  const targetOccupancy = Math.max(1, request.minSeats || 1);
-  const targetPerSeatFare = Math.round(baseSoloFare / targetOccupancy);
-
+  const candidateTrips = state.trips;
   const matches = candidateTrips
     .filter((t) => !rejectionReason(state, t, request))
     .map((t) => {
-      const driverOffset = t.id.includes('hana') ? 5 : t.id.includes('dawit') ? -5 : t.id.includes('abebe') ? -10 : 0;
-      const dynamicFare = t.fare > 0 ? t.fare : Math.max(25, targetPerSeatFare + driverOffset);
-
       return {
         ...t,
-        fare: dynamicFare,
-        totalFare: dynamicFare * Math.max(1, request.seats),
+        fare: t.fare,
+        totalFare: t.fare * request.seats,
         availableSeats: availableSeats(state, t),
         differenceMinutes: Math.round(
           Math.abs(Date.parse(t.departure) - Date.parse(request.departure)) / 60000,

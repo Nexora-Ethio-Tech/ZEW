@@ -33,7 +33,7 @@ export async function authRoutes(
     const id = token.length === 64 ? store.session(token) : undefined;
     if (!id) return reply.code(401).send({ message: 'Sign in to continue.' });
     const state = store.read(id);
-    if (!state.user) return reply.code(401).send({ message: 'This is a private demo session.' });
+    if (!state.user) return reply.code(401).send({ message: 'This is a private guest session.' });
     return { user: state.user };
   });
   app.post('/api/v1/auth/logout', async (req, reply) => {

@@ -24,7 +24,7 @@ export function Avatar({
       height={size}
       viewBox="0 0 60 60"
       role="img"
-      aria-label={`${name}, illustrated demo avatar`}
+      aria-label={`${name}, illustrated avatar`}
     >
       <circle cx="30" cy="30" r="30" fill={background} />
       {longHair && <path d="M15 41V25C15 4 47 5 45 28v16z" fill={hair} />}

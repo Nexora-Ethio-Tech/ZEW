@@ -1,14 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Store } from '../../shared/store.js';
-import { seedPool, type PoolState } from './model.js';
+import { seedPool, pickupZones, destinations, type PoolState } from './model.js';
 import {
   GroupError,
-  acceptGroup,
   applyForGroup,
   addRider,
   autoMatchGroup,
-  fareQuote,
   newGroup,
   poolView,
   refreshDemo,
@@ -20,7 +18,6 @@ import {
   setTargetPreference,
   setGroupCriteria,
   setDemoRoute,
-  groupDestinations,
 } from './service.js';
 
 export async function groupRoutes(app: FastifyInstance, { store }: { store: Store }) {
@@ -29,13 +26,15 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
     if (!pool) throw new GroupError('Open your group workspace first.', 404);
     return pool;
   };
-  const mutate = (sessionId: string, event: string, change: (pool: PoolState) => void) =>
+  const mutate = (sessionId: string, event: string, change: (pool: PoolState) => void) => {
     store.mutate(sessionId, event, (state) => {
       if (!state.pool) throw new GroupError('Open your group workspace first.', 404);
       syncExpiry(state.pool);
       change(state.pool);
-      return { value: poolView(state.pool), entityId: state.pool.id };
+      return { value: null, entityId: state.pool.id };
     });
+    return poolView(get(sessionId));
+  };
   app.post('/pool/bootstrap', async (req) => {
     const existing = store.read(req.sessionId).pool;
     if (existing) {
@@ -64,7 +63,7 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
   app.post('/pool/location', async (req) => {
     const input = z
       .discriminatedUnion('source', [
-        z.object({ source: z.literal('demo'), zoneId: z.enum(['edna', 'atlas']) }).strict(),
+        z.object({ source: z.literal('demo'), zoneId: z.string().refine((id) => pickupZones.some((zone) => zone.id === id)) }).strict(),
         z
           .object({
             source: z.literal('device'),
@@ -94,7 +93,7 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
   });
   app.post('/pool/destination', async (req) => {
     const { destination } = z
-      .object({ destination: z.enum(['wollosefer', 'meskel', 'mexico']) })
+      .object({ destination: z.string().refine((id) => destinations.some((place) => place.id === id)) })
       .strict()
       .parse(req.body);
     return mutate(req.sessionId, 'group.destination_updated', (pool) => {
@@ -200,21 +199,15 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
       setGroupCriteria(pool, input);
     });
   });
-  app.post('/pool/accept', async (req) => {
-    const { groupId, driverId } = z
-      .object({ groupId: z.string().uuid(), driverId: z.enum(['hana', 'dawit', 'abel']) })
-      .strict()
-      .parse(req.body);
-    return mutate(req.sessionId, 'group.accepted', (pool) => {
-      if (pool.id !== groupId) throw new GroupError('This request has been replaced.');
-      acceptGroup(pool, driverId);
-    });
+  app.post('/pool/accept', async () => {
+    throw new GroupError('Use the assigned driver account to accept this request.', 403);
   });
   app.post('/pool/action', async (req) => {
     const { action } = z
       .object({ action: z.enum(['cancel', 'start', 'complete', 'new']) })
       .strict()
       .parse(req.body);
+    if (action === 'start' || action === 'complete') throw new GroupError('Use the assigned driver account for this action.', 403);
     return mutate(req.sessionId, `group.${action}`, (pool) => {
       if (action === 'new') {
         newGroup(pool);
@@ -222,24 +215,7 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
       }
       if (action === 'cancel' && ['draft', 'requested', 'accepted'].includes(pool.status))
         pool.status = 'cancelled';
-      else if (action === 'start' && pool.status === 'accepted') pool.status = 'in_progress';
-      else if (action === 'complete' && pool.status === 'in_progress') {
-        pool.status = 'completed';
-        const quote = fareQuote(pool);
-        pool.history.unshift({
-          id: pool.id,
-          route: `${poolView(pool).pickupName} → ${groupDestinations(pool).find((d) => d.id === pool.destination)!.name}`,
-          members: 1 + pool.selectedIds.length,
-          fare: pool.lockedFare ?? fareQuote(pool).yourFare,
-          date: new Date().toISOString(),
-          demo: true,
-          driverId: pool.driverId,
-          total: quote.total,
-          fee: quote.fee,
-          driverPayout: quote.driverPayout,
-        });
-        pool.history = pool.history.slice(0, 30);
-      } else throw new GroupError('This action is not available for this group.');
+      else throw new GroupError('This action is not available for this group.');
       pool.version++;
     });
   });

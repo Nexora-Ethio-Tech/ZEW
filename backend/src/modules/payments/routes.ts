@@ -9,7 +9,7 @@ export const paymentRoutes: FastifyPluginAsync<{ store: Store }> = async (api) =
       .code(501)
       .send({
         message:
-          'Real payments are not connected. Demo ride completion records a simulated receipt only.',
+          'Payments are not connected. Completing a ride records a private preview receipt only.',
         mode: 'demo',
       });
   api.post('/payments/telebirr/initiate', unavailable);

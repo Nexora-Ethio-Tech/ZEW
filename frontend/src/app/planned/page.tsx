@@ -1,4 +1,9 @@
-import { Workspace } from '@/features/workspace';
+import { PlannedWorkspace } from '@/features/planned/planned-workspace';
+import { PassengerAccess } from '@/features/auth/passenger-access';
 export default function PlannedPage() {
-  return <Workspace />;
+  return (
+    <PassengerAccess>
+      <PlannedWorkspace />
+    </PassengerAccess>
+  );
 }

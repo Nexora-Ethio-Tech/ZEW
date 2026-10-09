@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { reserveTrip } from './helpers.js';
 import { buildApp } from '../src/app.js';
 import { findMatches } from '../src/modules/matching/service.js';
 import { seedState } from '../src/modules/trips/model.js';
@@ -21,7 +22,9 @@ async function setup(databasePath = ':memory:') {
     seats: 1,
   };
   const request = (url: string, payload?: unknown, method: 'POST' | 'GET' | 'DELETE' = 'POST') =>
-    app.inject({ url: `/api/v1${url}`, method, headers, payload: payload as object });
+    url === '/bookings'
+      ? reserveTrip(app, headers, payload as object)
+      : app.inject({ url: `/api/v1${url}`, method, headers, payload: payload as object });
   return { app, headers, journey, request };
 }
 
@@ -62,7 +65,7 @@ test('matching checks direction, containment, time and capacity; ranks closest d
   );
 });
 
-test('booking flow: duplicate protection, boarding code, valid transitions, simulated receipt', async (t) => {
+test('rider can reserve and cancel, but cannot board or complete a booking', async (t) => {
   const { app, journey, request } = await setup();
   t.after(() => app.close());
   const book = () => request('/bookings', { ...journey, tripId: 'sample-hana' });
@@ -73,33 +76,30 @@ test('booking flow: duplicate protection, boarding code, valid transitions, simu
   assert.equal(dash.trips.find((t: { id: string }) => t.id === 'sample-hana').availableSeats, 2);
   assert.equal(
     (await request(`/bookings/${booking.id}/action`, { action: 'complete' })).statusCode,
-    409,
+    403,
   );
   assert.equal(
     (await request(`/bookings/${booking.id}/action`, { action: 'board', code: '0000' })).statusCode,
-    400,
+    403,
   );
   assert.equal(
-    (
-      await request(`/bookings/${booking.id}/action`, { action: 'board', code: booking.code })
-    ).json().status,
-    'in_progress',
+    (await request(`/bookings/${booking.id}/action`, { action: 'board', code: booking.code }))
+      .statusCode,
+    403,
   );
   assert.equal(
     (await request(`/bookings/${booking.id}/action`, { action: 'cancel' })).statusCode,
-    409,
+    200,
   );
-  const complete = (await request(`/bookings/${booking.id}/action`, { action: 'complete' })).json();
-  assert.equal(complete.status, 'completed');
-  assert.equal(complete.payment, 'simulated');
-  assert.equal(complete.fare, 100);
+  const after = (await request('/dashboard', undefined, 'GET')).json();
+  assert.equal(after.bookings[0].status, 'cancelled');
   assert.equal(
     (await request(`/bookings/${booking.id}/action`, { action: 'complete' })).statusCode,
-    409,
+    403,
   );
 });
 
-test('planned quote and earnings use server totals and count only completed reservations', async (t) => {
+test('planned fare is server calculated and passenger actions cannot create earnings', async (t) => {
   const { app, journey, request } = await setup();
   t.after(() => app.close());
   const selected = { ...journey, seats: 2 };
@@ -109,13 +109,18 @@ test('planned quote and earnings use server totals and count only completed rese
   assert.equal(booking.fare, match.totalFare);
   const before = (await request('/dashboard', undefined, 'GET')).json();
   assert.equal(before.demoEarnings.driverPayout, 0);
-  await request(`/bookings/${booking.id}/action`, { action: 'board', code: booking.code });
-  await request(`/bookings/${booking.id}/action`, { action: 'complete' });
+  assert.equal(
+    (await request(`/bookings/${booking.id}/action`, { action: 'board', code: booking.code }))
+      .statusCode,
+    403,
+  );
+  assert.equal(
+    (await request(`/bookings/${booking.id}/action`, { action: 'complete' })).statusCode,
+    403,
+  );
   const after = (await request('/dashboard', undefined, 'GET')).json();
-  assert.equal(after.demoEarnings.completedTrips, 1);
-  assert.equal(after.demoEarnings.totalFare, booking.fare);
-  assert.equal(after.demoEarnings.platformFee + after.demoEarnings.driverPayout, booking.fare);
-  assert.equal(after.demoEarnings.driverPayout, 180);
+  assert.equal(after.demoEarnings.completedTrips, 0);
+  assert.equal(after.demoEarnings.totalFare, 0);
 });
 
 test('cancellation releases seats and another browser cannot read or mutate a booking', async (t) => {
@@ -198,7 +203,7 @@ test('reject malformed journeys, fare tampering and unconsented registration', a
   assert.equal('waitlist' in dash, false);
 });
 
-test('saved commutes, driver offers, cancellation and own-trip protection', async (t) => {
+test('rider can save commutes but cannot offer or cancel driver trips', async (t) => {
   const { app, journey, request } = await setup();
   t.after(() => app.close());
   const saved = await request('/commutes', { ...journey, name: 'Work' });
@@ -207,13 +212,12 @@ test('saved commutes, driver offers, cancellation and own-trip protection', asyn
     (await request(`/commutes/${saved.json().id}`, undefined, 'DELETE')).statusCode,
     200,
   );
-  const trip = (
-    await request('/trips', { ...journey, driver: 'Demo Driver', vehicle: 'Toyota Vitz' })
-  ).json();
-  assert.equal(trip.fare, 100);
-  assert.equal((await request('/bookings', { ...journey, tripId: trip.id })).statusCode, 409);
-  assert.equal((await request(`/trips/${trip.id}/cancel`, {})).json().status, 'cancelled');
-  assert.equal((await request('/trips/sample-hana/cancel', {})).statusCode, 404);
+  assert.equal(
+    (await request('/trips', { ...journey, driver: 'Demo Driver', vehicle: 'Toyota Vitz' }))
+      .statusCode,
+    403,
+  );
+  assert.equal((await request('/trips/sample-hana/cancel', {})).statusCode, 403);
 });
 
 test('state survives API restart and bearer tokens remain valid', async () => {

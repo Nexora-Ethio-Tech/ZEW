@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { buildApp } from '../src/app.js';
 import { parsePlaces } from '../src/modules/groups/places.js';
 
-test('arbitrary places persist, invalidate groups, preserve rules and complete into history', async (t) => {
+test('arbitrary places persist, invalidate groups and preserve rider rules', async (t) => {
   const app = buildApp();
   t.after(() => app.close());
   const token = (await app.inject({ method: 'POST', url: '/api/v1/session' })).json().token;
@@ -43,10 +43,10 @@ test('arbitrary places persist, invalidate groups, preserve rules and complete i
   assert.equal(pool.quote.yourFare, 180);
   assert.equal((await post('/request', { version: pool.version })).json().status, 'requested');
   assert.equal((await post('/place', { target: 'pickup', place: pickup })).statusCode, 409);
-  await post('/accept', { groupId: pool.id, driverId: 'hana' });
-  await post('/action', { action: 'start' });
-  pool = (await post('/action', { action: 'complete' })).json();
-  assert.equal(pool.history[0].route, 'Adama station → Adama university');
+  assert.equal((await post('/accept', { groupId: pool.id, driverId: 'hana' })).statusCode, 403);
+  assert.equal((await post('/action', { action: 'start' })).statusCode, 403);
+  assert.equal((await post('/action', { action: 'complete' })).statusCode, 403);
+  assert.equal((await post('/action', { action: 'cancel' })).json().status, 'cancelled');
   await post('/action', { action: 'new' });
   pool = (await post('/destination', { destination: 'meskel' })).json();
   assert.equal(pool.destinationPlace, undefined);

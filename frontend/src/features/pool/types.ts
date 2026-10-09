@@ -54,6 +54,8 @@ export interface Pool {
   requestedUntil?: number;
   lockedFare?: number;
   driverId?: string;
+  assignedDriver?: { id: string; name: string; vehicle: string; seats: number };
+  boardingCode?: string;
   targetSeats: number;
   minSeats?: number;
   maxSeats?: number;

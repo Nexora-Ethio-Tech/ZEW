@@ -1,12 +1,16 @@
 'use client';
-import { Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LandingPage } from '@/features/landing/landing';
-import { PoolWorkspace } from '@/features/pool/pool-workspace';
 import { restoreAccount, type Account } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
+  const router = useRouter();
   const [user, setUser] = useState<Account | null>(null);
   const [error, setError] = useState('');
+  useEffect(() => {
+    if (user) router.replace(user.role === 'driver' ? '/driver' : '/rides');
+  }, [user, router]);
   useEffect(() => {
     let active = true;
     restoreAccount()
@@ -22,9 +26,9 @@ export default function Home() {
   }, []);
   if (user)
     return (
-      <Suspense fallback={<p role="status">Opening your workspace…</p>}>
-        <PoolWorkspace />
-      </Suspense>
+      <p className="route-loading" role="status">
+        Opening your workspace…
+      </p>
     );
   return <LandingPage onAuthenticate={setUser} accountError={error} />;
 }

@@ -10,11 +10,11 @@ import { Pwa } from '@/components/pwa';
 export const metadata: Metadata = {
   title: 'Zew — Go your way, together',
   description:
-    'Choose any pickup and destination. Find people going your way and share the fare. Interactive ride demo.',
+    'Choose a pickup and destination, set your group size and fare limit, and explore shared journeys in Addis Ababa.',
   applicationName: 'Zew',
   openGraph: {
     title: 'Zew — Go your way, together',
-    description: 'A shared-ride idea for Addis. Explore the private interactive demo.',
+    description: 'Explore shared journeys in Addis Ababa. Live ride requests and payments are not connected.',
     type: 'website',
   },
   icons: { icon: '/icon.svg', apple: '/icon-192.png' },

@@ -69,9 +69,10 @@ test('driver checks capacity and full pickup ETA; fare and membership lock at re
   assert.equal(driverIssue(pool, 'abel', now), 'Last pickup would exceed 2 minutes');
   // Hana: 20 sec to you + 100 sec to the final pickup = exactly 120 sec.
   assert.equal(driverIssue(pool, 'hana', now), null);
-  acceptGroup(pool, 'hana', now);
+  assert.equal(pool.driverId, 'hana');
+  acceptGroup(pool, now);
   assert.equal(pool.status, 'accepted');
-  assert.throws(() => acceptGroup(pool, 'hana', now), /no longer open/);
+  assert.throws(() => acceptGroup(pool, now), /no longer open/);
   syncExpiry(pool, now + 121000);
   assert.equal(pool.status, 'expired');
 });
@@ -110,7 +111,7 @@ async function setup() {
   return { app, request, headers };
 }
 
-test('API group lifecycle, tampering protection, duplicate acceptance and new-group history', async (t) => {
+test('rider group request cannot invoke driver transitions', async (t) => {
   const { app, request } = await setup();
   t.after(() => app.close());
   assert.equal((await request('/members', { riderId: 'nahom', action: 'add' })).statusCode, 409);
@@ -119,21 +120,22 @@ test('API group lifecycle, tampering protection, duplicate acceptance and new-gr
   assert.equal(group.quote.yourFare, 120);
   assert.equal((await request('/request', { version: group.version, fare: 1 })).statusCode, 400);
   assert.equal((await request('/request', { version: group.version - 1 })).statusCode, 409);
-  assert.equal((await request('/request', { version: group.version })).json().status, 'requested');
+  const assigned = (await request('/request', { version: group.version })).json();
+  assert.equal(assigned.status, 'requested');
+  assert.equal(assigned.driverId, 'hana');
+  assert.equal((await request('/accept', { groupId: group.id, driverId: 'dawit' })).statusCode, 403);
   assert.equal((await request('/members', { riderId: 'sara', action: 'remove' })).statusCode, 409);
   const results = await Promise.all([
-    request('/accept', { groupId: group.id, driverId: 'hana' }),
-    request('/accept', { groupId: group.id, driverId: 'hana' }),
+    request('/accept', { groupId: group.id }),
+    request('/accept', { groupId: group.id }),
   ]);
-  assert.deepEqual(results.map((r) => r.statusCode).sort(), [200, 409]);
-  assert.equal((await request('/action', { action: 'complete' })).statusCode, 409);
-  assert.equal((await request('/action', { action: 'start' })).json().status, 'in_progress');
-  const completed = (await request('/action', { action: 'complete' })).json();
-  assert.equal(completed.history[0].fare, 120);
-  assert.equal(completed.status, 'completed');
+  assert.deepEqual(results.map((r) => r.statusCode), [403, 403]);
+  assert.equal((await request('/action', { action: 'complete' })).statusCode, 403);
+  assert.equal((await request('/action', { action: 'start' })).statusCode, 403);
+  assert.equal((await request('', undefined, 'GET')).json().status, 'requested');
+  assert.equal((await request('/action', { action: 'cancel' })).json().status, 'cancelled');
   const fresh = (await request('/action', { action: 'new' })).json();
   assert.notEqual(fresh.id, group.id);
-  assert.equal(fresh.history.length, 3);
 });
 
 test('application forms and locks a group without client-selected passengers or fare', async (t) => {
@@ -237,7 +239,7 @@ test('Adama example journey matches its own applicants, never Bole applicants', 
   pool.pickupPlace = { name: 'Adama station', latitude: 8.54, longitude: 39.27 };
   pool.destinationPlace = { name: 'Adama university', latitude: 8.56, longitude: 39.29 };
   pool.destination = 'custom';
-  assert.match(riderIssue(pool, pool.riders[0], now)!, /Bole demo landmarks/);
+  assert.match(riderIssue(pool, pool.riders[0], now)!, /Bole landmarks/);
   assert.equal(poolView(pool, now).fareOptions[3].issue, null);
   applyForGroup(pool, pool.version, now);
   assert.equal(pool.selectedIds.length, 3);
@@ -262,10 +264,10 @@ test('an example applicant cannot match an unrelated destination', () => {
   const pool = seedPool(now);
   setDemoRoute(pool, 'gerji-megenagna');
   pool.destinationPlace = { name: 'Kazanchis', latitude: 9.02, longitude: 38.767 };
-  assert.match(riderIssue(pool, pool.riders.find((r) => r.id === 'gerji-megenagna-1')!, now)!, /another example journey/);
+  assert.match(riderIssue(pool, pool.riders.find((r) => r.id === 'gerji-megenagna-1')!, now)!, /another journey/);
   assert.ok(poolView(pool, now).fareOptions[1].issue);
   pool.minSeats = 2;
-  assert.throws(() => applyForGroup(pool, pool.version, now), /No demo group meets/);
+  assert.throws(() => applyForGroup(pool, pool.version, now), /No group meets/);
 });
 
 test('selecting an example journey refreshes its applicants and applies atomically', async (t) => {
@@ -314,9 +316,9 @@ test('device coordinates are private, fallback clears them, and other sessions c
     method: 'POST',
     url: '/api/v1/pool/accept',
     headers,
-    payload: { groupId: demo.id, driverId: 'hana' },
+    payload: { groupId: demo.id },
   });
-  assert.equal(cross.statusCode, 409);
+  assert.equal(cross.statusCode, 403);
   const other = (await app.inject({ url: '/api/v1/pool', headers })).json();
   assert.equal(other.location, undefined);
   assert.equal((await app.inject({ url: '/api/v1/pool' })).statusCode, 401);
@@ -365,7 +367,7 @@ test('API preferences reject tampering and return authoritative destination fare
   assert.equal((await request('/preference', { targetSeats: 1 })).statusCode, 409);
 });
 
-test('completed circle receipts fund only their demo driver and duplicate completion cannot add earnings', async (t) => {
+test('rider cannot create circle receipts or driver earnings', async (t) => {
   const { app, request } = await setup();
   t.after(() => app.close());
   const initial = (await request('', undefined, 'GET')).json();
@@ -375,33 +377,14 @@ test('completed circle receipts fund only their demo driver and duplicate comple
   );
   const group = (await request('/preference', { targetSeats: 3 })).json();
   await request('/request', { version: group.version });
-  await request('/accept', { groupId: group.id, driverId: 'hana' });
-  await request('/action', { action: 'start' });
+  assert.equal((await request('/accept', { groupId: group.id })).statusCode, 403);
+  assert.equal((await request('/action', { action: 'start' })).statusCode, 403);
   const results = await Promise.all([
     request('/action', { action: 'complete' }),
     request('/action', { action: 'complete' }),
   ]);
-  assert.deepEqual(results.map((result) => result.statusCode).sort(), [200, 409]);
-  const completed = (await request('', undefined, 'GET')).json();
-  assert.equal(completed.history.length, 3);
-  assert.equal(completed.history[0].total, 360);
-  assert.equal(completed.history[0].fee, 36);
-  assert.equal(completed.history[0].driverPayout, 324);
-  assert.deepEqual(
-    completed.driverEarnings.find((entry: { driverId: string }) => entry.driverId === 'hana'),
-    { driverId: 'hana', completedTrips: 1, payout: 324 },
-  );
-  assert.equal(
-    completed.driverEarnings.find((entry: { driverId: string }) => entry.driverId === 'dawit')
-      .payout,
-    0,
-  );
-  await request('/action', { action: 'new' });
-  await request('/destination', { destination: 'mexico' });
-  const later = (await request('', undefined, 'GET')).json();
-  assert.equal(
-    later.history[0].total,
-    360,
-    'Receipt amounts are immutable when the next destination changes',
-  );
+  assert.deepEqual(results.map((result) => result.statusCode), [403, 403]);
+  const unchanged = (await request('', undefined, 'GET')).json();
+  assert.equal(unchanged.status, 'requested');
+  assert.ok(unchanged.driverEarnings.every((entry: { payout: number }) => entry.payout === 0));
 });

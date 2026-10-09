@@ -5,7 +5,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Icon } from '@/components/icon';
 import { AuthModal } from '../auth/auth-modal';
-import { Avatar } from '../pool/avatar';
 import { getTranslation, type Language, type Theme } from '@/lib/i18n';
 import { applyTheme, getStoredTheme } from '@/lib/theme';
 import type { Account } from '@/lib/auth';
@@ -22,10 +21,26 @@ export function LandingPage({
   const [lang, setLang] = useState<Language>('en');
   const [theme, setTheme] = useState<Theme>('light');
   const [riders, setRiders] = useState(4);
+  const [farePreview, setFarePreview] = useState<{
+    pickup: string; destination: string; total: number; maxPeople: number;
+  } | null>(null);
   useEffect(() => {
     const value = getStoredTheme();
     setTheme(value);
     applyTheme(value);
+  }, []);
+  useEffect(() => {
+    let active = true;
+    void fetch('/api/v1/fare-preview')
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Fare unavailable')))
+      .then((data) => {
+        if (active) {
+          setFarePreview(data);
+          setRiders(Math.min(4, data.maxPeople));
+        }
+      })
+      .catch(() => { if (active) setFarePreview(null); });
+    return () => { active = false; };
   }, []);
   const t = (key: string) => getTranslation(lang, key);
   const toggleTheme = () => {
@@ -48,8 +63,8 @@ export function LandingPage({
         <nav className="landing-nav-links" aria-label="Main navigation">
           <a href="#how-it-works">{t('howItWorks')}</a>
           <a href="#showcase">{t('fareSplitting')}</a>
-          <Link href="/demo">
-            The demo{' '}
+          <Link href="/rides">
+            Find a ride{' '}
             <span className="diagonal-arrow">
               <Icon name="arrow" size={22} />
             </span>
@@ -99,7 +114,7 @@ export function LandingPage({
             </h1>
             <p className="landing-hero-desc">{t('heroDesc')}</p>
             <div className="landing-hero-cta">
-              <Link className="landing-btn-primary" href="/demo">
+              <Link className="landing-btn-primary" href="/rides">
                 {t('exploreDemo')}
                 <Icon name="arrow" size={20} />
               </Link>
@@ -110,18 +125,7 @@ export function LandingPage({
                 </span>
               </button>
             </div>
-            <div className="hero-people">
-              <div className="hero-avatar-stack">
-                <Avatar color="peach" name="Sara" />
-                <Avatar color="lavender" name="Bereket" />
-                <Avatar color="blue" name="Eden" />
-              </div>
-              <p>
-                One direction. A shared possibility.
-                <br />
-                <span>Meet the people in our private demo.</span>
-              </p>
-            </div>
+            <div className="hero-people"><p>One direction. A shared possibility.</p></div>
             <p className="landing-demo-note">
               <Icon name="shield" size={15} /> {t('demoNotice')}
             </p>
@@ -147,7 +151,7 @@ export function LandingPage({
             <div className="hero-journey-card">
               <div className="hero-card-heading">
                 <span>YOUR NEXT SHARED CHAPTER</span>
-                <span className="hero-demo-badge">DEMO</span>
+                <span className="hero-demo-badge">PREVIEW</span>
               </div>
               <div className="hero-route">
                 <div className="hero-route-line">
@@ -157,9 +161,9 @@ export function LandingPage({
                 </div>
                 <div>
                   <small>PICKUP</small>
-                  <strong>Bole · Edna Mall</strong>
+                  <strong>{farePreview?.pickup ?? 'Fare loading'}</strong>
                   <small>DESTINATION</small>
-                  <strong>Meskel Square</strong>
+                  <strong>{farePreview?.destination ?? 'Fare loading'}</strong>
                 </div>
                 <span className="hero-route-icon">
                   <Icon name="car" size={28} />
@@ -168,11 +172,11 @@ export function LandingPage({
               <div className="hero-card-bottom">
                 <div>
                   <span className="hero-fare">
-                    90 <small>ETB / person</small>
+                    {farePreview ? Math.round(farePreview.total / farePreview.maxPeople * 100) / 100 : '—'} <small>ETB / person</small>
                   </span>
-                  <p>4 people · illustrative shared fare</p>
+                  <p>{farePreview?.maxPeople ?? '—'} people · projected shared fare</p>
                 </div>
-                <Link href="/demo" aria-label="Explore this demo journey">
+                <Link href="/rides" aria-label="Explore this journey">
                   <Icon name="arrow" size={22} />
                 </Link>
               </div>
@@ -198,8 +202,7 @@ export function LandingPage({
               </h2>
             </div>
             <p>
-              Explore a different way to move through your city. Every ride here is a simulation, so
-              you can try the whole journey at your own pace.
+              Choose a journey, set your limits, and see how a shared fare is calculated.
             </p>
           </div>
           <div className="steps-grid">
@@ -227,22 +230,21 @@ export function LandingPage({
               <em>Better arithmetic.</em>
             </h2>
             <p>
-              A shared fare goes a little further. Try the numbers for our example Bole → Meskel
-              Square journey.
+              A shared fare goes a little further. Explore the fare breakdown for a Bole journey.
             </p>
             <div className="fare-showcase-route">
-              <Icon name="pin" size={18} /> Bole <span>··············</span>
-              <Icon name="arrow" size={18} /> Meskel Square
+              <Icon name="pin" size={18} /> {farePreview?.pickup ?? 'Pickup'} <span>··············</span>
+              <Icon name="arrow" size={18} /> {farePreview?.destination ?? 'Destination'}
             </div>
-            <small>Illustrative 360 ETB total. No distance-based quote or real payment.</small>
+            <small>Projected total: {farePreview ? `${farePreview.total} ETB` : 'unavailable'}. Road pricing and payment are not connected.</small>
           </div>
           <div className="fare-calculator">
             <div className="fare-calculator-heading">
               <span>HOW MANY IN YOUR CIRCLE?</span>
               <Icon name="people" size={20} />
             </div>
-            <div className="fare-people-selector" role="group" aria-label="Example passenger count">
-              {[1, 2, 3, 4].map((count) => (
+            <div className="fare-people-selector" role="group" aria-label="Passenger count">
+              {Array.from({ length: farePreview?.maxPeople ?? 0 }, (_, index) => index + 1).map((count) => (
                 <button
                   key={count}
                   aria-pressed={riders === count}
@@ -255,17 +257,17 @@ export function LandingPage({
             </div>
             <div className="fare-calculator-total" aria-live="polite">
               <strong>
-                {360 / riders}
+                {farePreview ? Math.round(farePreview.total / riders * 100) / 100 : '—'}
                 <span>ETB</span>
               </strong>
-              <p>Your example share, per person</p>
+              <p>Your projected share, per person</p>
             </div>
             <div className="fare-calculator-savings">
-              <span>Compared with the example solo fare</span>
+              <span>Compared with the solo fare</span>
               <strong>{Math.round((1 - 1 / riders) * 100)}% less</strong>
             </div>
-            <Link href="/demo">
-              Build your demo circle <Icon name="arrow" size={19} />
+            <Link href="/rides">
+              Build your ride circle <Icon name="arrow" size={19} />
             </Link>
           </div>
         </section>
@@ -279,10 +281,10 @@ export function LandingPage({
             <br />
             Your way.<em> Together.</em>
           </h2>
-          <Link className="landing-btn-primary" href="/demo">
+          <Link className="landing-btn-primary" href="/login">
             Take a look around <Icon name="arrow" size={20} />
           </Link>
-          <p>Explore the demo. No account or payment needed.</p>
+          <p>Explore ride sharing. No account or payment needed.</p>
         </section>
       </main>
       <footer className="landing-footer">
@@ -296,19 +298,18 @@ export function LandingPage({
           <p>A shared-ride idea, made for Addis.</p>
         </div>
         <div className="landing-footer-links">
-          <Link href="/demo">
-            Ride circle demo <Icon name="arrow" size={14} />
+          <Link href="/rides">
+            Ride circles <Icon name="arrow" size={14} />
           </Link>
           <Link href="/planned">
-            Planned commute demo <Icon name="arrow" size={14} />
+            Planned commutes <Icon name="arrow" size={14} />
           </Link>
           <button onClick={() => setAuth('login')}>
             Account sign-in <Icon name="arrow" size={14} />
           </button>
         </div>
         <p className="footer-disclaimer">
-          Private interactive demo. People, availability, driver actions, fares and payments are
-          simulated. No live transport service.
+          Preview environment. No live passenger matching, dispatch, or payments.
         </p>
         <span className="footer-made">MADE WITH POSSIBILITY IN ADDIS ABABA</span>
       </footer>

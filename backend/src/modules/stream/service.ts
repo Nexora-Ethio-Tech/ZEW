@@ -1,4 +1,5 @@
 import type { FastifyReply } from 'fastify';
+import { demoDrivers, pickupZones } from '../groups/model.js';
 
 export interface StreamEvent {
   type:
@@ -32,7 +33,7 @@ export function registerStreamClient(sessionId: string, reply: FastifyReply) {
   sendSseMessage(connection, {
     type: 'heartbeat',
     data: {
-      message: 'Zew live SSE driver & status stream connected',
+      message: 'Zew status stream connected',
       connectedAt: new Date().toISOString(),
     },
   });
@@ -64,29 +65,16 @@ const driverTimer = setInterval(() => {
   if (activeClients.size === 0) return;
   driverTickAngle = (driverTickAngle + 0.05) % (2 * Math.PI);
 
-  const baseLat = 8.9982;
-  const baseLng = 38.7865;
-
-  const drivers = [
-    {
-      id: 'hana',
-      name: 'Hana T.',
-      car: 'Toyota Vitz',
-      plate: 'DEMO 2048',
-      latitude: baseLat + Math.sin(driverTickAngle) * 0.003,
-      longitude: baseLng + Math.cos(driverTickAngle) * 0.004,
-      etaSeconds: Math.max(15, Math.round(20 + Math.sin(driverTickAngle) * 10)),
-    },
-    {
-      id: 'dawit',
-      name: 'Dawit M.',
-      car: 'Suzuki Dzire',
-      plate: 'DEMO 3061',
-      latitude: baseLat + 0.005 + Math.cos(driverTickAngle * 0.8) * 0.002,
-      longitude: baseLng - 0.003 + Math.sin(driverTickAngle * 0.8) * 0.003,
-      etaSeconds: Math.max(25, Math.round(45 + Math.cos(driverTickAngle) * 15)),
-    },
-  ];
+  const origin = pickupZones[0];
+  const drivers = demoDrivers.slice(0, 2).map((driver, index) => ({
+    id: driver.id,
+    name: driver.name,
+    car: driver.car,
+    plate: driver.plate,
+    latitude: origin.latitude + index * 0.005 + Math.sin(driverTickAngle) * 0.003,
+    longitude: origin.longitude - index * 0.003 + Math.cos(driverTickAngle) * 0.004,
+    etaSeconds: Math.max(15, Math.round(driver.etaSeconds + Math.sin(driverTickAngle) * 10)),
+  }));
 
   broadcastEvent('global', {
     type: 'driver_tick',

@@ -276,7 +276,7 @@ export default function StreetMap({
         <strong>
           <Icon name="pin" size={16} /> Your journey, on the map
         </strong>
-        <span className="map-badge-tag">REAL STREETS · SIMULATED DEMAND</span>
+        <span className="map-badge-tag">STREETS · AREA ACTIVITY</span>
       </div>
       <div style={{ position: 'relative', width: '100%' }}>
         <div
@@ -296,7 +296,7 @@ export default function StreetMap({
           aria-label="Street map. Drag A or B raindrop pins to move your route."
         />
         <div className="map-overlay-box bottom-right">
-          <p className="map-legend-note">Simulated locations · no live passengers</p>
+          <p className="map-legend-note">Approximate area totals · no live passenger locations</p>
           <button
             type="button"
             className="map-collapse-btn-bordered"

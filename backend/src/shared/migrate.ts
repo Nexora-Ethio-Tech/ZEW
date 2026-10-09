@@ -3,9 +3,9 @@ import { readdirSync, readFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { env } from '../config/env.js';
 
-export function runMigrations(databasePath: string = env.DATABASE_PATH) {
+export function runMigrations(databasePath: string = env.DATABASE_PATH, connection?: DatabaseSync) {
   if (databasePath !== ':memory:') mkdirSync(dirname(databasePath), { recursive: true });
-  const db = new DatabaseSync(databasePath);
+  const db = connection ?? new DatabaseSync(databasePath);
   try {
     db.exec(
       'CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, executed_at TEXT NOT NULL)',
@@ -34,7 +34,7 @@ export function runMigrations(databasePath: string = env.DATABASE_PATH) {
       }
     }
   } finally {
-    db.close();
+    if (!connection) db.close();
   }
 }
 if (process.argv[1]?.endsWith('migrate.ts') || process.argv[1]?.endsWith('migrate.js'))

@@ -54,7 +54,9 @@ The demo works without an account at `/demo` and `/planned`. Account sign-in is 
 3. Set matching `SUPABASE_URL` and `SUPABASE_KEY` on the API. A public publishable key is sufficient for server-side user-token verification. No database mirroring or service-role key is needed.
 4. Redeploy both applications. Sign up with a new test email, follow the actual confirmation link, and sign in. The API calls Supabase to verify the access token and requires `email_confirmed_at` before issuing its own session. Invalid and unconfirmed identities are rejected. Account metadata cannot grant driver/operator/admin permissions.
 
-Accounts open a private demo workspace, not a production driver console. Sessions expire after 30 days. API logout revokes the session; different login sessions have isolated ride data. Seeded local passwords have been retired. Migration 005 removes legacy local identities and their associated sessions while preserving guest demo sessions; back up existing data before applying it.
+Accounts reopen their durable workspaces across sign-ins; guest workspaces remain separate. Migration 010 adds driver invitations and assignments, with new test requests routed to the nominated Nexora driver. The confirmed invited account opens `/driver`; other accounts use the passenger workspace. These are test transport operations and simulated payments. Allow `https://YOUR-FRONTEND/auth/callback` in Supabase redirect URLs and configure working SMTP delivery before inviting the driver. Use the local operator scripts documented in the README to select or disable test routing and revoke access.
+
+Sessions expire after 30 days. API logout revokes the session without deleting account ride data. Seeded local passwords have been retired. Back up existing SQLite data before upgrading through migrations 010–013. See the [operations runbook](operations.md) for consistent backup, verified restore into a new file and a recovery drill.
 
 ## 4. Release checks
 
@@ -83,3 +85,9 @@ Verify the landing page, demo fare changes, booking/completion/receipt, saved co
 ## Demo boundaries
 
 People, arrival times, driver actions, dispatch controls, fare estimates, and receipts are simulated. Real-payment endpoints fail closed with 501; no PIN is collected, no USSD request is sent, and no real payment is marked successful. An optional OSRM route is provider data; the built-in distance fallback is illustrative and does not verify route safety. Production transport requires a durable multi-user data model, approved driver/operator roles, provider integrations, operational controls, and payment reconciliation.
+
+## Operational checks
+
+Deploy frontend and API together: booking confirmation now requires a server-issued quote ID. Migrations 011–013 run at API startup; the new frontend uses shared departure controls and retry keys. Existing workspaces are preserved. A rollback must use a matching application release and a verified pre-upgrade snapshot; do not run old dispatch code against the expanded schema.
+
+Use `scripts/operations.mjs status` from the backend directory for aggregate route/status counts and average latency. Persisted limits use socket peer and workspace identity; because the Next.js proxy aggregates socket peers, configure edge throttling and review limits for expected traffic. Do not enable arbitrary forwarded-IP trust. Request IDs are returned in `X-Request-Id`; do not add bearer headers or booking bodies to proxy logs. Metric cleanup retains 30 days when maintenance runs.

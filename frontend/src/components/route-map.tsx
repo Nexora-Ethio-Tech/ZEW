@@ -47,7 +47,7 @@ export function RouteMap({
             <small>Illustrative stop order · not a road route</small>
           </span>
         </div>
-        <span className="schematic">Demo corridor</span>
+        <span className="schematic">Schematic corridor</span>
       </div>
     </div>
   );

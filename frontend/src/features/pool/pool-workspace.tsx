@@ -8,7 +8,7 @@ import { usePool } from './use-pool';
 import { PlaceSearch } from './place-search';
 import { FarePanel } from './fare-panel';
 import { Avatar } from './avatar';
-import { DriverSpace, PoolHelp, RideHistory, type PoolDialog } from './pool-details';
+import { PoolHelp, RideHistory, type PoolDialog } from './pool-details';
 import { money } from './types';
 import { TelebirrModal } from '../payments/telebirr-modal';
 import { useEventStream } from '@/lib/use-event-stream';
@@ -22,16 +22,15 @@ const StreetMap = dynamic(() => import('./street-map'), {
     </div>
   ),
 });
-type View = 'discover' | 'history' | 'driver';
+type View = 'discover' | 'history';
 const navigation: { id: View; label: string; icon: IconName }[] = [
   { id: 'discover', label: 'Find your circle', icon: 'route' },
   { id: 'history', label: 'My rides', icon: 'rides' },
-  { id: 'driver', label: 'Driver space', icon: 'car' },
 ];
 export function PoolWorkspace() {
   const searchParams = useSearchParams();
   const param = searchParams.get('view');
-  const view: View = param === 'history' || param === 'driver' ? param : 'discover';
+  const view: View = param === 'history' ? param : 'discover';
   const navigate = (next: View) => {
     const url = new URL(window.location.href);
     if (next === 'discover') url.searchParams.delete('view');
@@ -55,7 +54,6 @@ export function PoolWorkspace() {
   const busy = updating || locating || !online;
   const [modal, setModal] = useState<PoolDialog | null>(null);
   const [telebirrOpen, setTelebirrOpen] = useState(false);
-  const [driverId, setDriverId] = useState('hana');
   const { isConnected: sseConnected } = useEventStream();
   const draft = pool?.status === 'draft';
   const members = pool?.riders.filter((rider) => rider.selected) ?? [];
@@ -130,7 +128,7 @@ export function PoolWorkspace() {
             <Avatar name="You" size={37} />
             <span>
               <strong>Your little corner</strong>
-              <small>Private demo workspace</small>
+              <small>Private workspace</small>
             </span>
             <Icon name="chevron" size={15} />
           </button>
@@ -147,7 +145,7 @@ export function PoolWorkspace() {
             </button>
             <button
               className="account-button"
-              aria-label="Your demo account"
+              aria-label="Your account"
               onClick={() => setModal('account')}
             >
               <Avatar name="You" size={33} />
@@ -179,10 +177,10 @@ export function PoolWorkspace() {
               </h1>
               <p className="pool-intro">
                 {view === 'discover'
-                  ? 'Choose your journey, group size and fare limit. The demo system forms your group.'
+                  ? 'Choose your journey, group size and fare limit. Matching forms your group.'
                   : view === 'history'
-                    ? 'Your completed demo rides, with every share accounted for.'
-                    : 'Explore the driver experience in your private demo.'}
+                    ? 'Your completed rides, with every share accounted for.'
+                    : 'Review your system-assigned staged driver.'}
               </p>
             </div>
             <div className="pool-title-sticker">
@@ -224,14 +222,14 @@ export function PoolWorkspace() {
               <p>
                 {error
                   ? 'Your workspace will be here when the connection returns.'
-                  : 'Opening your private demo workspace.'}
+                  : 'Opening your private workspace.'}
               </p>
             </section>
           ) : (
             <>
               {view === 'discover' && (
                 <ol className="journey-steps" aria-label="Ride progress">
-                  {['Apply for a ride', 'Meet your demo driver', 'Go together'].map(
+                  {['Apply for a ride', 'Meet your driver', 'Go together'].map(
                     (label, index) => (
                       <li
                         key={label}
@@ -296,7 +294,7 @@ export function PoolWorkspace() {
                           </button>
                           <span>
                             {pool.locationSource === 'demo'
-                              ? 'Example journey · choose any place'
+                              ? 'Choose any pickup or destination'
                               : 'Search, then select a result to confirm'}
                           </span>
                           <button
@@ -330,38 +328,38 @@ export function PoolWorkspace() {
                         <div className="neighbours-heading">
                           <div>
                             <p className="section-eyebrow">02 / AUTOMATED RIDE CIRCLE</p>
-                            <h2>{draft ? 'Apply, then we group you' : 'Your matched demo group'}</h2>
+                            <h2>{draft ? 'Apply, then we group you' : 'Your matched group'}</h2>
                             <p>
                               {draft
-                                ? 'Choose your group-size and fare limits in the panel, then apply. The API checks direction, readiness, seats and demo pickup times before forming your group.'
-                                : 'The system selected this group and locked its example fare. These people and times are simulated.'}
+                                ? 'Choose your group size and fare limit, then apply. Matching checks direction, readiness, seats and pickup times.'
+                                : 'Matching selected this group and locked its projected fare. These are preview records, not live applications.'}
                             </p>
                           </div>
                           <button
                             className="refresh-neighbours"
                             disabled={busy || !draft}
                             onClick={() => void action('/refresh')}
-                            title="Restart fictional availability for two minutes"
+                            title="Refresh the two-minute availability window"
                           >
                             <Icon name="clock" size={14} />
-                            Refresh demo
+                            Refresh availability
                           </button>
                         </div>
                         <div className="pool-empty" role="status">
                           <Icon name="people" size={32} />
-                          <h3>{draft ? 'Your application is ready' : `${pool.quote.count} in your demo group`}</h3>
+                          <h3>{draft ? 'Your application is ready' : `${pool.quote.count} in your group`}</h3>
                           <p>{draft
-                            ? 'No need to choose other passengers. Apply from the fare panel and the system will select compatible sample riders.'
+                            ? 'Apply from the fare panel and matching will select compatible applications.'
                             : members.length
-                              ? `Matched with ${members.map((rider) => rider.name.split(' ')[0]).join(', ')}. Your example share is ${money(pool.lockedFare ?? pool.quote.yourFare)} ETB.`
-                              : 'No compatible sample rider was available for this journey, so this demo request is for one person.'}</p>
+                              ? `Matched with ${members.map((rider) => rider.name.split(' ')[0]).join(', ')}. Your projected share is ${money(pool.lockedFare ?? pool.quote.yourFare)} ETB.`
+                              : 'No compatible application was available for this journey, so this request is for one person.'}</p>
                         </div>
                         <div className="pickup-limit-note">
                           <span>
                             02<span>MIN</span>
                           </span>
                           <p>
-                            Close by, in the demo.
+                            Within the pickup window.
                             <small>
                               Pickup windows are simulated. Actual roads and safe boarding points
                               still need verification.
@@ -375,26 +373,14 @@ export function PoolWorkspace() {
                   {view === 'history' && (
                     <RideHistory pool={pool} discover={() => navigate('discover')} />
                   )}
-                  {view === 'driver' && (
-                    <DriverSpace
-                      pool={pool}
-                      driverId={driverId}
-                      setDriverId={setDriverId}
-                      busy={busy}
-                      now={now}
-                      action={action}
-                      discover={() => navigate('discover')}
-                    />
-                  )}
                 </div>
                 <FarePanel
                   pool={pool}
                   busy={busy}
                   now={now}
                   action={action}
-                  driverView={() => navigate('driver')}
                   explain={() => setModal('fare')}
-                  onTelebirrPay={() => setTelebirrOpen(true)}
+                  onPaymentInfo={() => setTelebirrOpen(true)}
                 />
               </div>
             </>
@@ -405,7 +391,7 @@ export function PoolWorkspace() {
               <Icon name="leaf" size={12} />
             </span>
             <div>
-              <span>Demo riders · No real payments</span>
+              <span>Preview records · No live payments</span>
               <button onClick={() => setModal('how')}>How it works</button>
               <button onClick={() => setModal('location')}>Your location</button>
             </div>
@@ -439,10 +425,6 @@ export function PoolWorkspace() {
           modal={modal}
           pool={pool}
           close={() => setModal(null)}
-          driverView={() => {
-            setModal(null);
-            navigate('driver');
-          }}
         />
       )}
       {pool && (

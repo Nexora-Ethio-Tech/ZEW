@@ -1,0 +1,118 @@
+.planned-journey-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+.planned-journey-options .field {
+  min-width: 0;
+}
+.planned-journey-options input,
+.planned-journey-options select {
+  width: 100%;
+  min-width: 0;
+}
+.location-field label input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+}
+.planned-place-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 240px;
+  overflow: auto;
+  background: var(--surface, #fff);
+  border: 1px solid #cbd5c6;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px #152f201a;
+}
+.planned-place-results .place-result {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 4px;
+  text-align: left;
+  padding: 12px;
+  border: 0;
+  border-bottom: 1px solid #e3e8df;
+  color: #183c2b;
+  background: #fff;
+}
+.planned-place-results .place-result[aria-selected='true'] {
+  background: #eaf1e0;
+}
+.planned-place-results p {
+  padding: 12px;
+}
+.planned-driver-profile .account-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+@media (max-width: 480px) {
+  .planned-journey-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+.planned-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.planned-toolbar select {
+  border: 1px solid #ccd6c5;
+  padding: 9px;
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: inherit;
+}
+.planned-profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 4px;
+  border-radius: 12px;
+  color: inherit;
+  cursor: pointer;
+}
+.topbar-slogan {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .page-shell > .topbar {
+    min-height: 64px;
+    height: auto;
+    padding: 12px 20px;
+  }
+  .page-shell > .topbar .topbar-left {
+    display: none;
+  }
+  .planned-toolbar {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .planned-toolbar select {
+    min-width: 96px;
+    flex: 1;
+  }
+  .planned-toolbar button {
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 12px;
+    padding: 10px;
+  }
+}

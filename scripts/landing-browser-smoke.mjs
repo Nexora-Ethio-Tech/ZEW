@@ -90,7 +90,7 @@ try {
     'document.querySelector(".hero-city-img")?.complete && document.querySelector(".hero-city-img")?.naturalWidth > 0',
   );
   await evaluate('document.fonts.ready.then(()=>true)');
-  assert.equal(await evaluate(`!!document.querySelector('a[href="/demo"]')`), true);
+  assert.equal(await evaluate(`!!document.querySelector('a[href="/rides"]')`), true);
   await screenshot('zew-landing-desktop');
   for (const [count, fare] of [
     [1, 360],

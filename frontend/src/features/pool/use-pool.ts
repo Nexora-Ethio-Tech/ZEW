@@ -65,7 +65,7 @@ export function usePool() {
     const tick = setInterval(() => setNow(Date.now() + offset.current), 1000);
     const poll = setInterval(() => {
       if (!document.hidden) void refresh();
-    }, 15000);
+    }, 5000);
     const reconnect = () => {
       setOnline(true);
       void refresh();

@@ -8,12 +8,12 @@ export const translations: Record<Language, Record<string, string>> = {
     heroTitleLine1: 'Every journey.',
     heroTitleLine2: 'Better together.',
     heroDesc:
-      'A new shared-ride idea for Addis Ababa. Explore a private demo, build a circle of simulated riders, and see what happens when everyone shares the fare.',
-    signInToRide: 'Explore the demo',
+      'Plan a shared journey in Addis Ababa. Set your route, group size, and fare limit in one place.',
+    signInToRide: 'Explore rides',
     createAccount: 'Create Account',
-    maxFareSavings: 'Example fare savings',
+    maxFareSavings: 'Projected fare savings',
     maxPickupSpan: 'Max Pickup Span',
-    corridorVerified: 'Private demo',
+    corridorVerified: 'Preview environment',
     howItWorks: 'How It Works',
     fareSplitting: 'Fare Splitting',
     logIn: 'Log In',
@@ -25,19 +25,19 @@ export const translations: Record<Language, Record<string, string>> = {
       'Pick any pickup and destination in Addis Ababa using place search, Leaflet map pins, or GPS location.',
     step2Title: 'System Auto-Grouping',
     step2Desc:
-      'Choose your group size and try matching with sample riders. All availability and pickup times are simulated.',
+      'Choose your group size and fare limit. Matching checks applications and available seats.',
     step3Title: 'Try the driver side',
     step3Desc:
-      'Let a sample driver accept your circle. Start and finish the simulated journey, then explore your demo receipt.',
+      'Review the driver side, follow the journey state, and see your ride record.',
 
     showcaseKicker: 'DYNAMIC FARE SPLITTING',
     showcaseTitle: 'Shared Comfort. Unbeatable Value.',
     showcaseDesc:
-      'Our illustrative 360 ETB example splits into 90 ETB each with four people. This is a demo fare, not a live quote.',
+      'See how a projected trip total changes as passengers share the fare. Road pricing is not connected.',
     showcaseItem1: 'Transparent Fare Splits: Total route fare split equally among passengers.',
     showcaseItem2:
-      'Direction matching is simulated; it does not verify road safety or reachability.',
-    showcaseItem3: 'Driver and support controls are demonstrations, not transport operations.',
+      'Direction matching does not verify road safety or reachability.',
+    showcaseItem3: 'Driver and support controls are available only in the preview environment.',
     joinZew: 'Join Zew Today',
 
     planAhead: 'Plan ahead',
@@ -46,10 +46,10 @@ export const translations: Record<Language, Record<string, string>> = {
     passengerRequests: 'Passenger requests',
     earningsPayouts: 'Earnings & Payouts',
     phoneDispatch: 'Phone Dispatch Desk',
-    liveRadar: 'Simulated driver radar',
+    liveRadar: 'Driver radar',
     systemOverview: 'System Overview',
-    driverVerification: 'Demo driver profiles',
-    auditLog: 'Demo activity log',
+    driverVerification: 'Driver profiles',
+    auditLog: 'Activity log',
 
     whereHeading: 'Where are you heading?',
     pickup: 'PICKUP',
@@ -70,8 +70,8 @@ export const translations: Record<Language, Record<string, string>> = {
 
     lightTheme: 'Light Theme',
     darkTheme: 'Dark Theme',
-    exploreDemo: 'Explore the demo',
-    demoNotice: 'Private demo. Simulated people and rides. No real payments.',
+    exploreDemo: 'Explore rides',
+    demoNotice: 'Preview environment. No live rides or payments.',
   },
   am: {
     cityBadge: 'አዲስ አበባ',

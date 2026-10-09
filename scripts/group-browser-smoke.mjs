@@ -88,7 +88,7 @@ try {
       ...(process.env.ZEW_LIVE_PLACES === '1' ? [] : [{ urlPattern: '*/api/v1/places/search' }]),
     ],
   });
-  await send('Page.navigate', { url: `${origin}/demo` });
+  await send('Page.navigate', { url: `${origin}/rides` });
   await send('Emulation.setDeviceMetricsOverride', {
     width: 1440,
     height: 1080,
@@ -103,16 +103,16 @@ try {
   await wait('!document.querySelector(".group-fare") && !!document.querySelector("#maximum-fare")');
   assert.equal(await evaluate('document.querySelector(".group-seats") === null'), true);
   await screenshot('zew-circle-desktop');
-  await labelled('Your demo account');
+  await labelled('Your account');
   assert.equal(
     await evaluate('document.querySelectorAll("dialog[open]").length'),
     1,
     'Account opens exactly one dialog',
   );
   await labelled('Close dialog');
-  assert.equal(await evaluate('document.body.innerText.includes("SIMULATED DEMAND")'), true);
+  assert.equal(await evaluate('document.body.innerText.includes("AREA ACTIVITY")'), true);
   await wait('document.querySelectorAll(".leaflet-overlay-pane path").length >= 5');
-  assert.equal(await evaluate('document.querySelector(".map-overlay-box")?.textContent.includes("Simulated locations")'), true);
+  assert.equal(await evaluate('document.querySelector(".map-overlay-box")?.textContent.includes("no live passenger locations")'), true);
   assert.equal(await evaluate('document.querySelector(".map-overlay-box")?.textContent.includes("Red dots")'), false);
   await input('#minimum-people', '2');
   await wait('document.querySelector("#minimum-people")?.value === "2" && !document.querySelector("#minimum-people").disabled');
@@ -124,19 +124,12 @@ try {
   await fare(90);
   await screenshot('zew-circle-full');
   await wait('document.body.innerText.includes("Your group is ready to go.")');
-  await click('Try the driver view');
-  await wait('!!document.querySelector(".group-call-card")');
-  await select('#demo-driver', 'abel');
-  await wait('document.body.innerText.includes("Last pickup would exceed 2 minutes")');
-  await select('#demo-driver', 'hana');
-  await click('Accept group request');
-  await wait('document.body.innerText.includes("Hana T. accepted your group!")');
-  await click('Start demo ride');
-  await wait('document.body.innerText.includes("Enjoy the shared journey.")');
-  await click('Complete demo ride');
-  await wait('document.body.innerText.includes("Demo trip completed.")');
+  assert.equal(await evaluate('document.body.innerText.includes("Driver space")'), false);
+  assert.equal(await evaluate('document.body.innerText.includes("Start ride")'), false);
   await evaluate('document.querySelectorAll(".pool-sidebar nav button")[1].click()');
-  await wait('document.querySelectorAll(".pool-history-card").length===3');
+  await wait('document.querySelectorAll(".pool-history-card").length===2');
+  await evaluate('document.querySelector(".pool-sidebar nav button").click()');
+  await click('Cancel request');
   await click('Build another group');
   await wait('!document.querySelector(".group-fare") && document.querySelector("#maximum-fare")?.value === "125"');
   await evaluate('document.querySelector(".pool-sidebar nav button").click()');
@@ -204,7 +197,7 @@ try {
   await click('Use my location');
   await wait('document.body.innerText.includes("Location permission was declined")');
   await labelled('Dismiss error');
-  await click('Refresh demo');
+  await click('Refresh availability');
   await wait('!document.querySelector(".group-fare") && !!document.querySelector(".request-group")');
   await send('Page.reload');
   await pause(400);
@@ -229,7 +222,7 @@ try {
   await evaluate('document.querySelector(".group-card").scrollIntoView()');
   await pause(250);
   await screenshot('zew-circle-mobile-fare');
-  await labelled('Your demo account');
+  await labelled('Your account');
   assert.equal(await evaluate('document.querySelectorAll("dialog[open]").length'), 1);
   assert.equal(
     await evaluate(

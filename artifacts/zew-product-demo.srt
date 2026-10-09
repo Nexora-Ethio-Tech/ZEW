@@ -1,0 +1,75 @@
+1
+00:00:00,000 --> 00:00:09,047
+Shared journeys in Addis Ababa. One request, two separate workspaces.
+
+2
+00:00:09,047 --> 00:00:19,056
+The passenger starts with a pickup and destination. Here: Bole to Meskel Square.
+
+3
+00:00:19,056 --> 00:00:31,146
+Choose 2–4 people and a maximum fare of 125 ETB. Review the projected split.
+
+4
+00:00:31,146 --> 00:00:40,283
+The total is shared equally. Matching locks the fare for the selected group.
+
+5
+00:00:40,283 --> 00:00:50,320
+Apply once. The API checks compatible direction, readiness, capacity and fare limits.
+
+6
+00:00:50,320 --> 00:00:59,344
+Four people share a 360 ETB trip: 90 ETB each. The request now awaits its assigned driver.
+
+7
+00:00:59,344 --> 00:01:09,359
+A separate driver account sees the assigned journey, passenger seats and projected payout.
+
+8
+00:01:09,359 --> 00:01:17,442
+The driver accepts the request. Only the assigned driver can update this ride.
+
+9
+00:01:17,442 --> 00:01:27,497
+The passenger receives a boarding code and shares it with the driver when boarding.
+
+10
+00:01:27,497 --> 00:01:37,509
+Entering the passenger’s code starts the ride. The fare stays locked.
+
+11
+00:01:37,509 --> 00:01:45,568
+Both workspaces reflect the same trip state. No additional riders are added.
+
+12
+00:01:45,568 --> 00:01:54,666
+At the end of the journey, the driver completes the ride and a record is saved.
+
+13
+00:01:54,666 --> 00:02:04,741
+My rides keeps the completed journey and fare details in the passenger’s workspace.
+
+14
+00:02:04,741 --> 00:02:14,742
+A 360 ETB trip produces a projected 324 ETB driver payout after the 10% platform fee.
+
+15
+00:02:14,742 --> 00:02:24,760
+Passengers can also choose a departure time and search for a planned commute.
+
+16
+00:02:24,760 --> 00:02:34,824
+Review the driver, departure and seat fare before confirming a preview reservation.
+
+17
+00:02:34,824 --> 00:02:43,857
+The reservation holds a seat and creates another request for the assigned driver.
+
+18
+00:02:43,857 --> 00:02:52,926
+Ride circles and planned reservations arrive in the same dedicated driver workspace.
+
+19
+00:02:52,926 --> 00:03:01,000
+Working product preview · Staged matching and transport estimates · No real payments

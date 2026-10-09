@@ -94,21 +94,11 @@ try {
   await waitFor('document.querySelectorAll(".match-card").length===2');
   await click('Choose ride');
   await waitFor('!!document.querySelector("dialog[open]")');
-  await click('Confirm demo reservation');
+  await click('Confirm preview reservation');
   await waitFor('!!document.querySelector(".boarding-code strong")');
-  const code = await evaluate('document.querySelector(".boarding-code strong").textContent');
-  await click('Switch to Driver Mode');
-  await click('Enter boarding code');
-  await input('input[name="code"]', code);
-  await click('Confirm boarding');
-  await waitFor('document.body.innerText.includes("Complete demo trip")');
-  await click('Complete demo trip');
-  await click('Earnings & Payouts');
-  await waitFor('document.body.innerText.includes("90 ETB")');
-  await click('Switch to Passenger Mode');
+  assert.equal(await evaluate('document.body.innerText.includes("Switch to Driver Mode")'), false);
   await click('My rides');
-  await click('Past rides');
-  await waitFor('document.body.innerText.includes("Demo payment recorded")');
+  await waitFor('!!document.querySelector(".boarding-code strong")');
   await click('Plan ahead');
   await click('Save this commute');
   await input('input[name="name"]', 'Morning commute');
@@ -169,7 +159,7 @@ try {
   }
   assert.deepEqual(exceptions, [], 'No unhandled browser exceptions');
   console.log(
-    'PASS: match → reserve → board → complete → receipt; saved commute survives reload; mobile layout.',
+    'PASS: match → reserve; driver switch unavailable; saved commute survives reload; mobile layout.',
   );
   console.log('Screenshots: /tmp/zew-desktop.png, /tmp/zew-mobile.png');
 } finally {

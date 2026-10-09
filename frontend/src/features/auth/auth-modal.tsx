@@ -26,6 +26,17 @@ export function AuthModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [verificationSent, setVerificationSent] = useState(false);
+  async function sendEmailLink() {
+    setError(''); setBusy(true);
+    try {
+      const { error } = await getSupabase().auth.signInWithOtp({ email: email.trim(), options: {
+        emailRedirectTo: window.location.origin + '/auth/callback',
+      } });
+      if (error) throw error;
+      setPassword(''); setVerificationSent(true);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Could not send your email link.'); }
+    finally { setBusy(false); }
+  }
   useEffect(() => {
     if (isOpen) {
       setTab(initialTab);
@@ -44,7 +55,7 @@ export function AuthModal({
           email,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: window.location.origin + '/auth/callback',
             data: { name: name.trim() },
           },
         });
@@ -102,9 +113,8 @@ export function AuthModal({
             </span>
             <h2 id="auth-title">Check your inbox.</h2>
             <p>
-              If this address can receive a sign-up email, look for a confirmation link at{' '}
-              <strong>{email}</strong>. Follow the link, then sign in. Checking your inbox alone
-              does not activate your account.
+              Look for a sign-in or confirmation link at <strong>{email}</strong>.
+              Open it to verify your email and continue to your account.
             </p>
             <button
               className="auth-submit-btn"
@@ -122,8 +132,8 @@ export function AuthModal({
             <h2 id="auth-title">{tab === 'login' ? 'Good to see you.' : 'Your next chapter.'}</h2>
             <p>
               {tab === 'login'
-                ? 'Sign in with your confirmed email to open your private workspace.'
-                : 'Create a rider account. Confirm your email before you sign in.'}
+                ? 'Sign in to open the workspace assigned to your account.'
+                : 'Create your account, then confirm your email. Driver access requires an invitation.'}
             </p>
             <div className="auth-tabs" aria-label="Account action">
               {(['login', 'signup'] as const).map((action) => (
@@ -144,7 +154,7 @@ export function AuthModal({
             {!authConfigured && (
               <p className="auth-config-note" role="status">
                 Account sign-in is not available on this installation yet.{' '}
-                <a href="/demo">Explore the private demo instead</a>
+                <a href="/rides">Explore ride circles instead</a>
               </p>
             )}
             {error && (
@@ -212,7 +222,10 @@ export function AuthModal({
                 <Icon name="arrow" size={18} />
               </button>
             </form>
-            <p className="auth-footnote">Private demo · simulated rides · no real payments</p>
+            <button type="button" className="auth-submit-btn" disabled={busy || !authConfigured || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())} onClick={() => void sendEmailLink()}>
+              Email me a sign-in link
+            </button>
+            <p className="auth-footnote">Preview environment · no live rides or payments</p>
           </>
         )}
       </div>

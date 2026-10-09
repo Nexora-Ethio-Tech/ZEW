@@ -20,8 +20,12 @@ export interface Trip extends Journey {
   availableSeats: number;
   differenceMinutes?: number;
   totalFare?: number;
+  quoteId?: string;
+  quoteExpiresAt?: string;
 }
 export interface Booking extends Journey {
+  driverAccepted?: boolean;
+  boardingVerified?: boolean;
   id: string;
   tripId: string;
   driver: string;
@@ -53,80 +57,38 @@ export interface Matches {
   matches: Trip[];
   rejected: { tripId: string; reason: string }[];
 }
-const key = 'zew-demo-session';
-export const userKey = 'zew-user-account';
+export { userKey, getStoredUser, setAuthSession, clearAuthSession, getAuthToken } from './session';
+import { retryKey } from './retry-key';
+import { getAuthToken, expireSession, assertCurrentSession } from './session';
 
-export function getStoredUser(): { id: string; email: string; name: string; role: string } | null {
-  if (typeof window === 'undefined') return null;
-  const raw = localStorage.getItem(userKey);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-export function setAuthSession(
-  tokenStr: string,
-  user: { id: string; email: string; name: string; role: string },
-) {
-  localStorage.setItem(key, tokenStr);
-  localStorage.setItem(userKey, JSON.stringify(user));
-}
-
-export function clearAuthSession() {
-  localStorage.removeItem(key);
-  localStorage.removeItem(userKey);
-}
-
-let pendingSession: Promise<string> | undefined;
-async function token() {
-  const existing = localStorage.getItem(key);
-  if (existing) return existing;
-  if (!pendingSession)
-    pendingSession = fetch('/api/v1/session', {
-      method: 'POST',
-      signal: AbortSignal.timeout(15000),
-    })
-      .then(async (response) => {
-        if (!response.ok)
-          throw new Error('Could not start your demo. Check that the backend is running.');
-        const data = await response.json();
-        localStorage.setItem(key, data.token);
-        return data.token as string;
-      })
-      .finally(() => {
-        pendingSession = undefined;
-      });
-  return pendingSession;
-}
 export async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  const token = await getAuthToken();
+  const retry = method !== 'GET' ? await retryKey(token, path, method, body) : undefined;
   let response: Response;
   try {
     response = await fetch(`/api/v1${path}`, {
       method,
       headers: {
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        Authorization: `Bearer ${await token()}`,
+        Authorization: `Bearer ${token}`,
+        ...(retry ? { 'Idempotency-Key': retry.key } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(15000),
     });
-  } catch (error) {
-    throw new Error(
-      error instanceof Error && error.message.includes('demo')
-        ? error.message
-        : 'Cannot reach Zew. Check your connection and that the backend is running.',
-    );
+  } catch {
+    throw new Error('Cannot reach Zew. Check your connection and try again.');
   }
+  assertCurrentSession(token);
   if (response.status === 401) {
-    localStorage.removeItem(key);
-    throw new Error('Your session expired. Refresh to start a new demo.');
+    expireSession(token);
+    throw new Error('Your session expired. Sign in again to continue.');
   }
-  const data = await response.json().catch(() => ({
-    message: 'The API is unavailable. Check that the backend is running on port 4000.',
-  }));
+  const data = await response.json().catch(() => {
+    throw new Error('Could not read the response. Try again to check this request.');
+  });
+  if (response.status < 500 && response.status !== 429) retry?.finish();
+  assertCurrentSession(token);
   if (!response.ok) throw new Error(data.message || 'Please try again.');
   return data as T;
 }
@@ -144,10 +106,6 @@ export const day = (date: string) =>
   });
 export function localDeparture(iso: string) {
   return new Date(new Date(iso).getTime() + 3 * 3600000).toISOString().slice(0, 16);
-}
-
-export async function getAuthToken(): Promise<string> {
-  return token();
 }
 
 export async function calculateRoadRoute(

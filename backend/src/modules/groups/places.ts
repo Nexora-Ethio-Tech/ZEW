@@ -65,7 +65,7 @@ export async function placeRoutes(app: FastifyInstance) {
     try {
       const response = await fetch(url, {
         signal: AbortSignal.timeout(8000),
-        headers: { 'User-Agent': 'Zew-Ride-Demo/0.1', Accept: 'application/json' },
+        headers: { 'User-Agent': 'Zew/0.1', Accept: 'application/json' },
       });
       if (!response.ok) throw new Error('Provider unavailable');
       const places = parsePlaces(await response.json());
