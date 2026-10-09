@@ -72,12 +72,12 @@ export function LandingPage({
         <nav className="landing-nav-links" aria-label="Main navigation">
           <a href="#how-it-works">{t('howItWorks')}</a>
           <a href="#showcase">{t('fareSplitting')}</a>
-          <Link href="/planned">
+          <button type="button" className="landing-nav-action" onClick={() => setAuth('signup')}>
             Find a ride{' '}
             <span className="diagonal-arrow">
               <Icon name="arrow" size={22} />
             </span>
-          </Link>
+          </button>
         </nav>
         <div className="landing-auth-actions">
           <select
@@ -123,10 +123,14 @@ export function LandingPage({
             </h1>
             <p className="landing-hero-desc">{t('heroDesc')}</p>
             <div className="landing-hero-cta">
-              <Link className="landing-btn-primary" href="/planned">
+              <button
+                type="button"
+                className="landing-btn-primary"
+                onClick={() => setAuth('signup')}
+              >
                 {t('exploreDemo')}
                 <Icon name="arrow" size={20} />
-              </Link>
+              </button>
               <button className="landing-btn-text" onClick={() => setAuth('signup')}>
                 {t('createAccount')}{' '}
                 <span className="diagonal-arrow">
@@ -190,9 +194,13 @@ export function LandingPage({
                   </span>
                   <p>{farePreview?.maxPeople ?? '—'} people · projected shared fare</p>
                 </div>
-                <Link href="/planned" aria-label="Explore this journey">
+                <button
+                  type="button"
+                  onClick={() => setAuth('signup')}
+                  aria-label="Find a ride for this journey"
+                >
                   <Icon name="arrow" size={22} />
-                </Link>
+                </button>
               </div>
             </div>
           </div>
@@ -287,9 +295,9 @@ export function LandingPage({
               <span>Compared with the solo fare</span>
               <strong>{Math.round((1 - 1 / riders) * 100)}% less</strong>
             </div>
-            <Link href="/planned">
+            <button type="button" onClick={() => setAuth('signup')}>
               Find a ride <Icon name="arrow" size={19} />
-            </Link>
+            </button>
           </div>
         </section>
         <section className="landing-cta-section">
@@ -302,10 +310,14 @@ export function LandingPage({
             <br />
             Your way.<em> Together.</em>
           </h2>
-          <Link className="landing-btn-primary" href="/planned">
+          <button
+            type="button"
+            className="landing-btn-primary"
+            onClick={() => setAuth('signup')}
+          >
             Find a ride <Icon name="arrow" size={20} />
-          </Link>
-          <p>Explore ride sharing. No account or payment needed.</p>
+          </button>
+          <p>Sign up to explore ride sharing.</p>
         </section>
       </main>
       <footer className="landing-footer">
@@ -319,9 +331,9 @@ export function LandingPage({
           <p>A shared-ride idea, made for Addis.</p>
         </div>
         <div className="landing-footer-links">
-          <Link href="/planned">
+          <button type="button" onClick={() => setAuth('signup')}>
             Planned commutes <Icon name="arrow" size={14} />
-          </Link>
+          </button>
           <button onClick={() => setAuth('login')}>
             Account sign-in <Icon name="arrow" size={14} />
           </button>

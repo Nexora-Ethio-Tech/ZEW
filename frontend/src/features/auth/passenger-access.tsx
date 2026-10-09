@@ -16,8 +16,11 @@ export function PassengerAccess({ children }: { children: ReactNode }) {
     restoreAccount()
       .then((account) => {
         if (!active) return;
-        if (account?.role === 'driver') router.replace('/driver');
-        else {
+        if (!account) {
+          router.replace('/login?tab=signup');
+        } else if (account.role === 'driver') {
+          router.replace('/driver');
+        } else {
           setAccount(account);
           setReady(true);
         }

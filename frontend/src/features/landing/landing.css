@@ -63,10 +63,17 @@
   font-size: 12px;
   font-weight: 600;
 }
-.landing-nav-links a {
+.landing-nav-links a,
+.landing-nav-links button {
   padding: 12px 0;
+  background: transparent;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
-.landing-nav-links a:hover {
+.landing-nav-links a:hover,
+.landing-nav-links button:hover {
   color: #7d9846;
 }
 .landing-auth-actions {
@@ -387,7 +394,8 @@
   color: var(--landing-muted);
   margin: 4px 0 0;
 }
-.hero-card-bottom > a {
+.hero-card-bottom > a,
+.hero-card-bottom > button {
   width: 35px;
   height: 35px;
   display: grid;
@@ -395,6 +403,8 @@
   border-radius: 50%;
   background: var(--landing-lime);
   color: #203d32;
+  border: none;
+  cursor: pointer;
 }
 .landing-city-strip {
   max-width: 1224px;
@@ -638,7 +648,8 @@
   font-size: 11px;
   color: #315931;
 }
-.fare-calculator > a {
+.fare-calculator > a,
+.fare-calculator > button {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -649,6 +660,9 @@
   font-size: 11px;
   font-weight: 600;
   margin-top: 6px;
+  border: none;
+  cursor: pointer;
+  width: 100%;
 }
 .landing-cta-section {
   text-align: center;

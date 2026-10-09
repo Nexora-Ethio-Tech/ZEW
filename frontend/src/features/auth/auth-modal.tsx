@@ -224,8 +224,7 @@ export function AuthModal({
             </div>
             {!authConfigured && (
               <p className="auth-config-note" role="status">
-                Account sign-in is not available on this installation yet.{' '}
-                <a href="/planned">Browse planned rides</a>
+                Account sign-in is not available on this installation yet.
               </p>
             )}
             {error && (
