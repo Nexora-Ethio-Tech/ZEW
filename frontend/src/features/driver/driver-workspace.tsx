@@ -152,7 +152,7 @@ export function DriverWorkspace() {
         </p>
         {error && <p role="alert">{error}</p>}
         <button onClick={() => setLogin(true)}>Driver sign in</button>
-        {account && <Link href="/rides">Open passenger workspace</Link>}
+        {account && <Link href="/planned">Open passenger workspace</Link>}
         <AuthModal isOpen={login} onClose={() => setLogin(false)} onSuccess={setAccount} />
       </main>
     );

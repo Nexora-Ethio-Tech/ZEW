@@ -225,8 +225,8 @@ try {
   await evaluate(
     `localStorage.clear();localStorage.setItem('zew-demo-session',${JSON.stringify(rider.token)})`,
   );
-  await send('Page.navigate', { url: origin + '/rides?view=driver' });
-  await wait('!!document.querySelector(".pool-sidebar")');
+  await send('Page.navigate', { url: origin + '/planned?view=driver' });
+  await wait('document.body.innerText.includes("Find my ride")');
   assert.equal(await evaluate('document.body.innerText.includes("Driver space")'), false);
   assert.equal(await evaluate('document.body.innerText.includes("Complete ride")'), false);
   await send('Page.navigate', { url: origin + '/driver' });

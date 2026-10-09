@@ -27,12 +27,14 @@ const allowed = new Set(
     .filter(Boolean),
 );
 allowed.add(origin + '/auth/callback');
+allowed.add(origin + '/auth/reset-password');
 allowed.add(origin + '/');
 await request('PATCH', { site_url: origin, uri_allow_list: [...allowed].join(',') });
 const after = await request();
 if (
   after.site_url !== origin ||
   !after.uri_allow_list.split(',').includes(origin + '/auth/callback') ||
+  !after.uri_allow_list.split(',').includes(origin + '/auth/reset-password') ||
   after.mailer_autoconfirm !== before.mailer_autoconfirm
 )
   throw new Error('Saved callback settings did not pass verification.');

@@ -1,5 +1,9 @@
 # Zew product brief
 
+## Current product scope (2026-10-09)
+
+The passenger product uses `/planned` only. The founder explicitly removed the separate ride-circle experience; `/ride`, `/rides` and `/demo` redirect to the planned workspace. Passenger onboarding uses email/password registration with email confirmation. Drivers retain a separate `/driver` workspace.
+
 ## Problem and promise
 
 Founder update (2026-10-01): **Zew is for any journey, not only daily commutes.** Anyone can choose an arbitrary pickup and destination using place search, a map pin or device location. Eligibility depends on compatible direction, seats, rider readiness and a maximum two-minute pickup—not membership in a fixed list of places. The original deck below is historical context, not a restriction on the current product.
@@ -19,11 +23,11 @@ The deck’s planning assumptions—not facts to claim publicly—are 80–120 E
 
 ## Roles
 
-| Role | Core job | First-pilot access |
-| --- | --- | --- |
-| Rider | Save commute, accept match, board, pay | invited/approved only |
-| Driver | Offer planned commute and seats, start/end trip | vetted/approved only |
-| Operator | Verify people, approve trips/matches, resolve incidents/refunds | internal only |
+| Role     | Core job                                                        | First-pilot access    |
+| -------- | --------------------------------------------------------------- | --------------------- |
+| Rider    | Save commute, accept match, board, pay                          | invited/approved only |
+| Driver   | Offer planned commute and seats, start/end trip                 | vetted/approved only  |
+| Operator | Verify people, approve trips/matches, resolve incidents/refunds | internal only         |
 
 ## Success gates
 

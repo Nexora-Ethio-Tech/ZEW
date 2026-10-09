@@ -13,10 +13,10 @@ export default function AuthCallback() {
       const { data, error } = await getSupabase().auth.getSession();
       if (error || !data.session)
         throw new Error(
-          'This sign-in link has expired or was already used. Request a new email link.',
+          'This confirmation link has expired or was already used. Sign in, or resend your confirmation email.',
         );
       const account = await establishSession(data.session);
-      if (active) router.replace(account.role === 'driver' ? '/driver' : '/rides');
+      if (active) router.replace(account.role === 'driver' ? '/driver' : '/planned');
     }
     void complete().catch((e) => {
       if (active) setError(e.message);

@@ -2,7 +2,7 @@
 
 A shared-ride product for Ethiopia, with journey planning, group matching, fare splitting, and ride records. The hosted private preview runs on Vercel with Supabase PostgreSQL. SQLite remains available for local development.
 
-Hosted frontend: https://zew-blue.vercel.app — passenger routes `/rides` and `/planned`, separate driver workspace `/driver`.
+Hosted frontend: https://zew-blue.vercel.app — passenger workspace `/planned`, separate driver workspace `/driver`.
 
 **Live transport is not connected.** Seeded rider and driver records, availability, arrival times, dispatch actions, and fares are staged. No real payment is collected.
 
@@ -20,18 +20,9 @@ Without `DATABASE_URL`, local development uses SQLite. If `backend/.env` contain
 The frontend runs on port 3000 and the API on port 4000. Stop both with Ctrl+C. No payment credentials, Docker or Supabase account is required to explore the passenger preview. Migrations 001–013 run transactionally on API startup; 006–009 populate the transport catalog and 010 adds account workspaces and driver assignments, 011 adds shared departures, retry receipts, durable limits and simulated settlements, 012 adds private booking quotes, and 013 adds aggregate request metrics and operator audit records. Back up an existing `backend/data/zew.sqlite` before upgrading. App-specific options are in `frontend/.env.example` and `backend/.env.example`.
 
 - `/`: public landing page, interactive API-backed fare calculator, optional account sign-in.
-- `/rides`: passenger ride-circle workspace with staged applications. `/demo` redirects here for existing links.
-- `/planned`: planned-commute workspace.
+- `/planned`: the passenger workspace for searching, reservations, My rides and saved commutes.
+- `/ride`, `/rides` and `/demo`: permanent redirects to `/planned`; the old ride-circle UI has been removed.
 - `/driver`: separate driver sign-in and assigned-request workspace.
-
-## Try a ride circle
-
-1. Open `/rides`. Choose a pickup and destination by search, map pin or one-time device location, or keep the initial Bole → Meskel Square journey. Staged applications are stored in the database catalog for 13 journey pairs; the form does not display a route list.
-2. Enter a positive minimum and maximum group size and any positive fare ceiling in ETB. Review the API-calculated projected shares, then apply. Matching selects eligible records and locks the projected fare. Configured vehicles currently have up to four passenger seats.
-3. The API assigns the configured test driver. In a separate browser profile, the driver opens `/driver` and accepts the request.
-4. The passenger sees a boarding code. The driver enters it to start the ride, then completes it. Both accounts receive the final state; My rides stores the passenger receipt.
-
-Riders have a two-minute readiness window. Refresh availability restarts the staged window. Distant, wrong-way and expired records are rejected; driver acceptance also checks capacity and arrival before readiness ends. Matching is available near catalogued pickup and destination pairs; other Ethiopia journeys can apply but may receive a solo result. Map dots show approximate area totals, never live or exact passenger locations. These checks do not verify actual roads, traffic, safe boarding points or legal pickup reachability. Custom journeys use a projected total from the database catalog.
 
 ## Planned commutes
 
@@ -43,7 +34,9 @@ Sample departures use shared 15-minute time slots derived from the database cata
 
 Migration 010 creates an invitation for `nexoratechnologyplc@gmail.com` and sets it as the target for **new test requests**, including ride circles and planned reservations. This is explicit test routing, not live fleet matching. The invitation binds to the confirmed Supabase user ID on the first successful sign-in. Browser role selection, URL parameters and provider user metadata cannot grant driver access.
 
-Configure Supabase email delivery and allow `http://localhost:3000/auth/callback` under Auth redirect URLs. The sign-in screen supports email links as well as passwords. To send the invited driver a confirmation/sign-in email, run from `backend/` after starting the API once:
+Configure Supabase email delivery and allow `http://localhost:3000/auth/callback` under Auth redirect URLs. The sign-in screen uses email and password. New accounts receive a confirmation email before access. Existing accounts created through an email link can choose **Forgot password?** to set a password. Confirmation emails can be resent from the sign-up confirmation screen or after an unconfirmed sign-in. Password recovery returns to `/auth/reset-password`.
+
+The legacy operator invitation command remains available for existing invitations, but it is not offered as a public sign-in method:
 
 ```bash
 node --env-file=.env scripts/invite-driver.mjs nexoratechnologyplc@gmail.com http://localhost:3000/auth/callback
@@ -51,7 +44,7 @@ node --env-file=.env scripts/invite-driver.mjs nexoratechnologyplc@gmail.com htt
 
 For operator-managed SMTP setup, populate the optional management-token and SMTP variables from `backend/.env.example` in the ignored `backend/.env`, then run `node --env-file=.env scripts/configure-auth-email.mjs` from `backend/`. It updates only email configuration and adds the current frontend callback to the existing redirect allowlist, then verifies the saved settings. Email confirmation stays enabled. These credentials are never needed by the frontend.
 
-Open the email link in the browser used for driving. It opens `/driver` after verification. Use a different browser profile or an incognito window for the passenger. The driver can accept, decline, verify the four-digit boarding code, complete rides, and inspect history and simulated earnings. One vehicle trip can be active at a time. Planned reservations for the same departure can be accepted together; each passenger supplies their own boarding code. All accepted passengers start and complete together, and undecided requests must first be accepted or declined. Boarding closes the departure to new reservations. Passengers may cancel before their boarding code is confirmed. The existing two-minute circle readiness rule still applies.
+After email confirmation, the invited account opens `/driver`; passenger accounts open `/planned`. Use a different browser profile or an incognito window for the passenger. The driver can accept, decline, verify the four-digit boarding code, complete rides, and inspect history and simulated earnings. One vehicle trip can be active at a time. Planned reservations for the same departure can be accepted together; each passenger supplies their own boarding code. All accepted passengers start and complete together, and undecided requests must first be accepted or declined. Boarding closes the departure to new reservations. Passengers may cancel before their boarding code is confirmed. The existing two-minute circle readiness rule still applies.
 
 Operator commands, run from `backend/` after `npm run build`, manage invitations and the temporary routing target. There is no public role-grant endpoint:
 
@@ -81,21 +74,23 @@ npm run build # Both production builds
 
 After building, run `npm --prefix backend start` and `npm --prefix frontend start` in separate terminals. The production frontend registers an offline-notice service worker; it never caches API responses or queues bookings/payment actions.
 
+The old circle browser check and circle demo recorder are retired with that UI. Existing demo video artifacts represent the earlier product.
+
 Browser acceptance scripts use a dedicated headless Chromium profile with debugging port 9235. Run sequentially against running applications:
 
 ```bash
 node scripts/landing-browser-smoke.mjs
-node scripts/group-browser-smoke.mjs
+node scripts/account-browser-smoke.mjs
 ZEW_CHECK_PWA=1 node scripts/browser-smoke.mjs
 node --import ./backend/node_modules/tsx/dist/loader.mjs scripts/driver-browser-smoke.mjs
 node --import ./backend/node_modules/tsx/dist/loader.mjs scripts/planned-browser-smoke.mjs
 ```
 
-Set `ZEW_BASE_URL` to override the frontend origin. Screenshots are written to `/tmp`. Circle tests stub public tiles and place search; `ZEW_LIVE_PLACES=1` enables optional live search. No test reads the user's actual GPS position.
+Set `ZEW_BASE_URL` to override the frontend origin. Screenshots are written to `/tmp`. Planned browser tests stub public map tiles. No test reads the user's actual GPS position.
 
 ## Maps and providers
 
-The ride map uses Leaflet with configurable OpenStreetMap tiles and a Photon search proxy. Search results must be tagged as Ethiopia; map pins and device locations are limited to a coarse Ethiopia bounding box, which does not establish the exact border or road reachability. Network access is required. The public Photon service has low-volume usage limits; production needs a suitable managed or self-hosted provider. Set `PHOTON_URL`, `NEXT_PUBLIC_MAP_TILE_URL` and `NEXT_PUBLIC_MAP_ATTRIBUTION` to configure providers. Respect [Photon limits](https://github.com/komoot/photon#demo-server) and the [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/): visible attribution, normal caching, no prefetch/offline tile downloading. Search text and an Addis Ababa ranking point reach Photon; the viewed map area reaches the tile provider. Device GPS is not reverse-geocoded.
+The planned-ride map uses Leaflet with configurable tiles. The former circle UI and its place-search form have been removed. The legacy API retains its Photon search proxy for historical compatibility. Search results must be tagged as Ethiopia; map pins and device locations are limited to a coarse Ethiopia bounding box, which does not establish the exact border or road reachability. Network access is required. The public Photon service has low-volume usage limits; production needs a suitable managed or self-hosted provider. Set `PHOTON_URL`, `NEXT_PUBLIC_MAP_TILE_URL` and `NEXT_PUBLIC_MAP_ATTRIBUTION` to configure providers. Respect [Photon limits](https://github.com/komoot/photon#demo-server) and the [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/): visible attribution, normal caching, no prefetch/offline tile downloading. Search text and an Addis Ababa ranking point reach Photon; the viewed map area reaches the tile provider. Device GPS is not reverse-geocoded.
 
 Fonts and marker icons are served locally. Tile errors are shown without silently changing providers or attribution. Optional OSRM routing has an illustrative fallback; neither indicates verified road safety. Real-payment endpoints return 501 until a provider and durable ledger are integrated. Zew never collects a payment PIN.
 
@@ -104,8 +99,8 @@ Fonts and marker icons are served locally. Tile errors are shown without silentl
 [Deploy to Vercel](docs/deployment.md): separate Next.js and Fastify Vercel projects share the Supabase PostgreSQL database through the API. Set the server-only `DATABASE_URL` to a restricted transaction-pooler login. `API_URL` must be the API’s public HTTPS origin. A Dockerfile and Render blueprint remain available for the local SQLite hosting alternative.
 
 ```text
-frontend/src/app/        Public, rides and planned routes
-frontend/src/features/   Landing, verified auth, circles, planned journey UI
+frontend/src/app/        Public, authentication and planned routes
+frontend/src/features/   Landing, verified auth and planned journey UI
 frontend/src/lib/        API, auth, theme and localization
 backend/src/modules/     Auth verification, trips, matching, groups, routing, stream
 backend/src/shared/      PostgreSQL/SQLite adapters and transactional persistence

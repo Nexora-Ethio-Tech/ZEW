@@ -11,7 +11,7 @@ export default function LoginPage() {
       <AuthModal
         isOpen
         onClose={() => router.push('/')}
-        onSuccess={user => router.push(user.role === 'driver' ? '/driver' : '/rides')}
+        onSuccess={(user) => router.push(user.role === 'driver' ? '/driver' : '/planned')}
       />
     </main>
   );

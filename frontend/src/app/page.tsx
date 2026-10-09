@@ -9,7 +9,7 @@ export default function Home() {
   const [user, setUser] = useState<Account | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
-    if (user) router.replace(user.role === 'driver' ? '/driver' : '/rides');
+    if (user) router.replace(user.role === 'driver' ? '/driver' : '/planned');
   }, [user, router]);
   useEffect(() => {
     let active = true;

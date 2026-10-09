@@ -57,7 +57,7 @@ Run from `backend/` using the local management token:
 node --env-file=.env scripts/configure-auth-origin.mjs https://zew-blue.vercel.app
 ```
 
-This sets the Supabase site URL and adds `/auth/callback` while preserving existing redirects, SMTP and email-confirmation settings. The invited `nexoratechnologyplc@gmail.com` account signs in at `/driver`. Other verified accounts use passenger workspaces. Confirmation is required, and frontend role selection cannot grant driver access. Existing requests and driver routing remain simulated.
+This sets the Supabase site URL and adds `/auth/callback` and `/auth/reset-password` while preserving existing redirects, SMTP and email-confirmation settings. The invited `nexoratechnologyplc@gmail.com` account signs in at `/driver`. Other verified accounts use passenger workspaces. Confirmation is required, and frontend role selection cannot grant driver access. Existing requests and driver routing remain simulated.
 
 Driver administration and email invitation eligibility use PostgreSQL whenever `DATABASE_URL` is set. Build the backend before running these operator scripts. See the README for commands; only request a sign-in email when the driver is ready to open it in the intended browser.
 
@@ -71,7 +71,7 @@ npm --prefix backend run test:postgres
 
 The PostgreSQL regression creates a separate temporary schema, copies only catalogs and test driver configuration, runs two independent API instances, and removes the fixture. It requires the locally configured management token and runtime database URL. Ordinary tests use isolated SQLite fixtures and skip that external regression.
 
-Check API health directly and through the frontend proxy. Verify private guest sessions, quote/reservation/retry/cancellation, denied passenger driver access, and the landing/planned/driver pages. Cancel live smoke-test reservations afterward. Browser smoke scripts and their dedicated Chromium setup are documented in the README; fixture-backed checks do not prove hosted database connectivity. Email-link completion requires the actual recipient to follow the link.
+Check API health directly and through the frontend proxy. Verify private guest sessions, quote/reservation/retry/cancellation, denied passenger driver access, and the landing/planned/driver pages. Cancel live smoke-test reservations afterward. Browser smoke scripts and their dedicated Chromium setup are documented in the README; fixture-backed checks do not prove hosted database connectivity. Email confirmation requires the actual recipient to follow the link.
 
 ## Optional SQLite host
 

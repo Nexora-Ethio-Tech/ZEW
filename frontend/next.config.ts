@@ -32,6 +32,13 @@ const config: NextConfig = {
   poweredByHeader: false,
   turbopack: { root: resolve(process.cwd()) },
   allowedDevOrigins: ['localhost', '127.0.0.1'],
+  async redirects() {
+    return ['/ride', '/rides', '/demo'].map((source) => ({
+      source,
+      destination: '/planned',
+      permanent: true,
+    }));
+  },
   async rewrites() {
     return [{ source: '/api/v1/:path*', destination: `${api.origin}/api/v1/:path*` }];
   },

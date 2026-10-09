@@ -91,7 +91,7 @@ try {
   );
   await evaluate('document.fonts.ready.then(()=>true)');
   await wait('document.querySelectorAll(".fare-people-selector button").length === 4');
-  assert.equal(await evaluate(`!!document.querySelector('a[href="/rides"]')`), true);
+  assert.equal(await evaluate(`!!document.querySelector('a[href="/planned"]')`), true);
   await screenshot('zew-landing-desktop');
   for (const [count, fare] of [
     [1, 360],

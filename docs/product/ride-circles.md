@@ -1,5 +1,7 @@
 # Ride circles: group first, driver second
 
+**Historical design:** the passenger circle UI was removed on 2026-10-09 at the founder’s request. `/planned` is the only passenger workspace. These rules document the retained legacy API/data, not a current user-facing feature.
+
 Implemented from the founder's updated direction on 2026-10-01. The main page is now a circle builder; the planned commute flow remains at `/planned`.
 
 ## Rider journey
@@ -62,6 +64,6 @@ Authenticated, session-owned endpoints under `/api/v1/pool`:
 - `POST /action`: the passenger can cancel or create a new group after a terminal state. Start/complete return 403.
 - `POST /api/v1/driver/requests/:id/action`: the assigned driver can accept, decline, start with the passenger's boarding code, or complete the ride. Assignment and account privileges are checked by the API.
 
-Backend matching rules live in `backend/src/modules/groups/`, and assignment transitions live in `backend/src/modules/dispatch/`. The passenger UI is in `frontend/src/features/pool/`; the separate driver UI is in `frontend/src/features/driver/`. SQLite stores each passenger's state, server-owned driver assignment and action audit atomically. Passenger accounts cannot access each other's state; a driver receives only the summary of their assigned request. The configured test driver receives new requests while matching applicants, road estimates and payments remain simulated.
+Backend matching rules live in `backend/src/modules/groups/`, and assignment transitions live in `backend/src/modules/dispatch/`. The former passenger circle UI has been removed; the driver UI is in `frontend/src/features/driver/`. SQLite stores each passenger's state, server-owned driver assignment and action audit atomically. Passenger accounts cannot access each other's state; a driver receives only the summary of their assigned request. The configured test driver receives new requests while matching applicants, road estimates and payments remain simulated.
 
 Authenticated `POST /api/v1/places/search` accepts `{query}` and returns validated `{places}`. Search failure never substitutes invented results.

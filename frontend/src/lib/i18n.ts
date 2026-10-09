@@ -8,8 +8,8 @@ export const translations: Record<Language, Record<string, string>> = {
     heroTitleLine1: 'Every journey.',
     heroTitleLine2: 'Better together.',
     heroDesc:
-      'Plan a shared journey in Addis Ababa. Set your route, group size, and fare limit in one place.',
-    signInToRide: 'Explore rides',
+      'Plan a shared journey in Addis Ababa. Choose your route, departure time and seats, then review matching rides.',
+    signInToRide: 'Find a ride',
     createAccount: 'Create Account',
     maxFareSavings: 'Projected fare savings',
     maxPickupSpan: 'Max Pickup Span',
@@ -21,22 +21,19 @@ export const translations: Record<Language, Record<string, string>> = {
     signOut: 'Log Out',
 
     step1Title: 'Set Your Journey',
-    step1Desc:
-      'Pick any pickup and destination in Addis Ababa using place search, Leaflet map pins, or GPS location.',
-    step2Title: 'System Auto-Grouping',
+    step1Desc: 'Choose your pickup, destination, departure time and number of seats.',
+    step2Title: 'Review Matching Rides',
     step2Desc:
-      'Choose your group size and fare limit. Matching checks applications and available seats.',
-    step3Title: 'Try the driver side',
-    step3Desc:
-      'Review the driver side, follow the journey state, and see your ride record.',
+      'Compare available departures and review the total fare before confirming your reservation.',
+    step3Title: 'Follow Your Ride',
+    step3Desc: 'See driver acceptance, your boarding code and trip updates in My rides.',
 
     showcaseKicker: 'DYNAMIC FARE SPLITTING',
     showcaseTitle: 'Shared Comfort. Unbeatable Value.',
     showcaseDesc:
       'See how a projected trip total changes as passengers share the fare. Road pricing is not connected.',
     showcaseItem1: 'Transparent Fare Splits: Total route fare split equally among passengers.',
-    showcaseItem2:
-      'Direction matching does not verify road safety or reachability.',
+    showcaseItem2: 'Direction matching does not verify road safety or reachability.',
     showcaseItem3: 'Driver and support controls are available only in the preview environment.',
     joinZew: 'Join Zew Today',
 
@@ -70,7 +67,7 @@ export const translations: Record<Language, Record<string, string>> = {
 
     lightTheme: 'Light Theme',
     darkTheme: 'Dark Theme',
-    exploreDemo: 'Explore rides',
+    exploreDemo: 'Find a ride',
     demoNotice: 'Preview environment. No live rides or payments.',
   },
   am: {
@@ -92,10 +89,10 @@ export const translations: Record<Language, Record<string, string>> = {
 
     step1Title: 'ጉዞዎን ያቅዱ',
     step1Desc: 'በአዲስ አበባ ውስጥ መነሻና መድረሻ ቦታዎን በካርታ ወይም በቦታ ፍለጋ ይምረጡ።',
-    step2Title: 'ራሱ በራሱ የሚመድብ ቡድን',
-    step2Desc: 'የቡድን ብዛት ይምረጡ እና ከምሳሌ ተጓዦች ጋር የጋራ ጉዞ ይሞክሩ። ይህ ቀጥታ አገልግሎት አይደለም።',
-    step3Title: 'የሙከራ አሽከርካሪ',
-    step3Desc: 'በምሳሌ አሽከርካሪ ጉዞዎን ይጀምሩ እና ያጠናቅቁ። እውነተኛ ጉዞ ወይም ክፍያ የለም።',
+    step2Title: 'የሚስማሙ ጉዞዎችን ይመልከቱ',
+    step2Desc: 'የሚገኙ ጉዞዎችን ያወዳድሩ፤ ቦታ ከማስያዝዎ በፊት ጠቅላላ ክፍያውን ይመልከቱ።',
+    step3Title: 'ጉዞዎን ይከታተሉ',
+    step3Desc: 'የአሽከርካሪውን ማረጋገጫ፣ የመሳፈሪያ ኮድ እና የጉዞ ሁኔታ በየእኔ ጉዞዎች ይመልከቱ።',
 
     showcaseKicker: 'ተለዋዋጭ የክፍያ ክፍፍል',
     showcaseTitle: 'የጋራ ምቾት። አነስተኛ ክፍያ።',
@@ -135,7 +132,7 @@ export const translations: Record<Language, Record<string, string>> = {
 
     lightTheme: 'ብሩህ ገጽታ',
     darkTheme: 'ጨለምተኝነት ገጽታ',
-    exploreDemo: 'ማሳያውን ይሞክሩ',
+    exploreDemo: 'ጉዞ ይፈልጉ',
     demoNotice: 'የሙከራ ማሳያ። እውነተኛ ጉዞ ወይም ክፍያ የለም።',
   },
   om: {
@@ -158,11 +155,11 @@ export const translations: Record<Language, Record<string, string>> = {
 
     step1Title: 'Imala Keessan Karoorsaa',
     step1Desc: 'Iddoo ka’umsaa fi ga’umsaa Finfinnee keessa kaartaa ykn barbaachaan filadhaa.',
-    step2Title: 'Garee Ofumaan Wal-gongomu',
-    step2Desc:
-      'Baayyina garee filadhaa; imaltoota fakkeenyaa waliin yaalaa. Kun tajaajila geejjibaa dhugaa miti.',
-    step3Title: 'Konkolaachisaa fakkeenyaa',
-    step3Desc: 'Imala yaalii jalqabaa fi xumuraa. Imalli fi kaffaltiin dhugaa hin jiru.',
+    step2Title: 'Imaloota Walsiman Ilaalaa',
+    step2Desc: 'Imaloota jiran wal bira qabaa; teessoo qabachuu dura kaffaltii waliigalaa ilaalaa.',
+    step3Title: 'Imala Keessan Hordofaa',
+    step3Desc:
+      'Fudhatama konkolaachisaa, koodii yaabbannoo fi haala imalaa Imaloota Koo keessatti ilaalaa.',
 
     showcaseKicker: 'QOODINSA KAFFALTII JIJJIIRAMA A',
     showcaseTitle: 'Mijaawummaa Waliinii. Gatiin Muraasa.',
@@ -204,7 +201,7 @@ export const translations: Record<Language, Record<string, string>> = {
 
     lightTheme: 'Bariisaa (Light)',
     darkTheme: 'Dukkana (Dark)',
-    exploreDemo: 'Agarsiisa yaalaa',
+    exploreDemo: 'Imala barbaadaa',
     demoNotice: 'Agarsiisa yaalii. Imalli fi kaffaltiin dhugaa hin jiru.',
   },
 };

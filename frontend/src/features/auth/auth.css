@@ -164,3 +164,32 @@
   vertical-align: middle;
   margin-left: 5px;
 }
+
+.auth-secondary-btn {
+  display: block;
+  margin: 14px auto 0;
+  color: #194b3a;
+  font-size: 13px;
+  text-decoration: underline;
+}
+.auth-reset-page {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f7f8f2;
+}
+.auth-reset-card {
+  width: min(100%, 420px);
+  padding: 28px;
+  border: 1px solid #d6ded2;
+  border-radius: 16px;
+  background: white;
+}
+.auth-reset-card h1 {
+  font-size: 26px;
+  margin-bottom: 12px;
+}
+.auth-reset-card p {
+  margin-bottom: 18px;
+}
