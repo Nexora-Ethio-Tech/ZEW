@@ -15,19 +15,32 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
   useEffect(() => {
     let active = true;
-    void getSupabase()
-      .auth.getSession()
-      .then(({ data, error }) => {
+    async function verifyLink() {
+      try {
+        const supabase = getSupabase();
+        const hash = new URLSearchParams(window.location.hash.slice(1));
+        const accessToken = hash.get('access_token');
+        const refreshToken = hash.get('refresh_token');
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+        const { data, error } = await supabase.auth.getSession();
         if (!active) return;
         if (error || !data.session)
           setError(
             'This password reset link is invalid or expired. Request a new one from Sign in.',
           );
         else setReady(true);
-      })
-      .catch(() => {
+      } catch {
         if (active) setError('Could not verify this reset link. Try opening it again.');
-      });
+      }
+    }
+    void verifyLink();
     return () => {
       active = false;
     };
@@ -36,6 +49,10 @@ export default function ResetPasswordPage() {
     event.preventDefault();
     if (password !== confirmation) {
       setError('Passwords do not match.');
+      return;
+    }
+    if (password.length < 12) {
+      setError('Use at least 12 characters for your new password.');
       return;
     }
     setBusy(true);
