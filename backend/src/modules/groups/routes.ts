@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { Store } from '../../shared/store.js';
+import type { DataStore as Store } from '../../shared/data-store.js';
 import { seedPool, pickupZones, destinations, type PoolState } from './model.js';
 import {
   GroupError,
@@ -21,49 +21,48 @@ import {
 } from './service.js';
 
 export async function groupRoutes(app: FastifyInstance, { store }: { store: Store }) {
-  const get = (sessionId: string) => {
-    const pool = store.read(sessionId).pool;
+  const get = async (sessionId: string) => {
+    const pool = (await store.read(sessionId)).pool;
     if (!pool) throw new GroupError('Open your group workspace first.', 404);
     return pool;
   };
-  const mutate = (sessionId: string, event: string, change: (pool: PoolState) => void) => {
-    store.mutate(sessionId, event, (state) => {
+  const mutate = async (sessionId: string, event: string, change: (pool: PoolState) => void) => {
+    await store.mutate(sessionId, event, (state) => {
       if (!state.pool) throw new GroupError('Open your group workspace first.', 404);
       syncExpiry(state.pool);
       change(state.pool);
       return { value: null, entityId: state.pool.id };
     });
-    return poolView(get(sessionId));
+    return poolView(await get(sessionId));
   };
-  app.post('/pool/bootstrap', async (req) => {
-    const existing = store.read(req.sessionId).pool;
-    if (existing) {
-      syncExpiry(existing);
-      return store.mutate(req.sessionId, 'group.opened', (state) => {
-        state.pool = existing;
-        return { value: poolView(existing), entityId: existing.id };
-      });
-    }
-    return store.mutate(req.sessionId, 'group.created', (state) => {
-      state.pool = seedPool();
+  app.post('/pool/bootstrap', async (req) =>
+    store.mutate(req.sessionId, 'group.opened', (state) => {
+      state.pool ??= seedPool();
+      syncExpiry(state.pool);
       return { value: poolView(state.pool), entityId: state.pool.id };
-    });
-  });
+    }),
+  );
   app.get('/pool', async (req) => {
-    const pool = get(req.sessionId),
+    const pool = await get(req.sessionId),
       oldVersion = pool.version;
     syncExpiry(pool);
     if (oldVersion !== pool.version)
       return store.mutate(req.sessionId, 'group.availability_changed', (state) => {
-        state.pool = pool;
-        return { value: poolView(pool), entityId: pool.id };
+        if (!state.pool) throw new GroupError('Open your group workspace first.', 404);
+        syncExpiry(state.pool);
+        return { value: poolView(state.pool), entityId: state.pool.id };
       });
     return poolView(pool);
   });
   app.post('/pool/location', async (req) => {
     const input = z
       .discriminatedUnion('source', [
-        z.object({ source: z.literal('demo'), zoneId: z.string().refine((id) => pickupZones.some((zone) => zone.id === id)) }).strict(),
+        z
+          .object({
+            source: z.literal('demo'),
+            zoneId: z.string().refine((id) => pickupZones.some((zone) => zone.id === id)),
+          })
+          .strict(),
         z
           .object({
             source: z.literal('device'),
@@ -93,7 +92,9 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
   });
   app.post('/pool/destination', async (req) => {
     const { destination } = z
-      .object({ destination: z.string().refine((id) => destinations.some((place) => place.id === id)) })
+      .object({
+        destination: z.string().refine((id) => destinations.some((place) => place.id === id)),
+      })
       .strict()
       .parse(req.body);
     return mutate(req.sessionId, 'group.destination_updated', (pool) => {
@@ -121,8 +122,13 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
     return mutate(req.sessionId, 'group.place_updated', (pool) => setPlace(pool, target, place));
   });
   app.post('/pool/demo-route', async (req) => {
-    const { routeId } = z.object({ routeId: z.string().min(1).max(80) }).strict().parse(req.body);
-    return mutate(req.sessionId, 'group.demo_route_selected', (pool) => setDemoRoute(pool, routeId));
+    const { routeId } = z
+      .object({ routeId: z.string().min(1).max(80) })
+      .strict()
+      .parse(req.body);
+    return mutate(req.sessionId, 'group.demo_route_selected', (pool) =>
+      setDemoRoute(pool, routeId),
+    );
   });
   app.post('/pool/members', async (req) => {
     const { riderId, action } = z
@@ -171,31 +177,51 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
     return mutate(req.sessionId, 'group.requested', (pool) => requestGroup(pool, version));
   });
   app.post('/pool/apply', async (req) => {
-    const input = z.object({
-      version: z.number().int().positive(),
-      minSeats: z.number().int().positive().safe().optional(),
-      maxSeats: z.number().int().positive().safe().optional(),
-      maxFare: z.number().finite().positive().optional(),
-    }).strict().parse(req.body);
+    const input = z
+      .object({
+        version: z.number().int().positive(),
+        minSeats: z.number().int().positive().safe().optional(),
+        maxSeats: z.number().int().positive().safe().optional(),
+        maxFare: z.number().finite().positive().optional(),
+      })
+      .strict()
+      .parse(req.body);
     return mutate(req.sessionId, 'group.applied', (pool) => {
-      if (pool.version !== input.version) throw new GroupError('Your journey changed. Review it and apply again.');
-      if (input.minSeats !== undefined && input.maxSeats !== undefined && input.maxFare !== undefined) {
-        setGroupCriteria(pool, { minSeats: input.minSeats, maxSeats: input.maxSeats, maxFare: input.maxFare });
-      } else if (input.minSeats !== undefined || input.maxSeats !== undefined || input.maxFare !== undefined) {
+      if (pool.version !== input.version)
+        throw new GroupError('Your journey changed. Review it and apply again.');
+      if (
+        input.minSeats !== undefined &&
+        input.maxSeats !== undefined &&
+        input.maxFare !== undefined
+      ) {
+        setGroupCriteria(pool, {
+          minSeats: input.minSeats,
+          maxSeats: input.maxSeats,
+          maxFare: input.maxFare,
+        });
+      } else if (
+        input.minSeats !== undefined ||
+        input.maxSeats !== undefined ||
+        input.maxFare !== undefined
+      ) {
         throw new GroupError('Provide all group and fare limits together.', 400);
       }
       applyForGroup(pool, pool.version);
     });
   });
   app.post('/pool/criteria', async (req) => {
-    const input = z.object({
-      version: z.number().int().positive(),
-      minSeats: z.number().int().positive().safe(),
-      maxSeats: z.number().int().positive().safe(),
-      maxFare: z.number().finite().positive(),
-    }).strict().parse(req.body);
+    const input = z
+      .object({
+        version: z.number().int().positive(),
+        minSeats: z.number().int().positive().safe(),
+        maxSeats: z.number().int().positive().safe(),
+        maxFare: z.number().finite().positive(),
+      })
+      .strict()
+      .parse(req.body);
     return mutate(req.sessionId, 'group.criteria_updated', (pool) => {
-      if (pool.version !== input.version) throw new GroupError('Your journey changed. Review your preferences and try again.');
+      if (pool.version !== input.version)
+        throw new GroupError('Your journey changed. Review your preferences and try again.');
       setGroupCriteria(pool, input);
     });
   });
@@ -207,7 +233,8 @@ export async function groupRoutes(app: FastifyInstance, { store }: { store: Stor
       .object({ action: z.enum(['cancel', 'start', 'complete', 'new']) })
       .strict()
       .parse(req.body);
-    if (action === 'start' || action === 'complete') throw new GroupError('Use the assigned driver account for this action.', 403);
+    if (action === 'start' || action === 'complete')
+      throw new GroupError('Use the assigned driver account for this action.', 403);
     return mutate(req.sessionId, `group.${action}`, (pool) => {
       if (action === 'new') {
         newGroup(pool);

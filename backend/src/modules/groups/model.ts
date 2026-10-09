@@ -12,7 +12,9 @@ export let demoRoutePlaces = groupCatalog.routePlaces;
 export let demoRoutes = groupCatalog.routes;
 export let demoDrivers = groupCatalog.drivers;
 export let customFare = groupCatalog.customFare;
-export let DEMO_APPLICANTS_PER_ROUTE = groupCatalog.riders.filter((r) => r.corridorId === groupCatalog.routes[0].id).length;
+export let DEMO_APPLICANTS_PER_ROUTE = groupCatalog.riders.filter(
+  (r) => r.corridorId === groupCatalog.routes[0].id,
+).length;
 export let demoDemandZones = demandZones(groupCatalog);
 
 function demandZones(source: GroupCatalog) {
@@ -21,20 +23,29 @@ function demandZones(source: GroupCatalog) {
     name: place.name,
     latitude: place.latitude,
     longitude: place.longitude,
-    pickupCount: source.riders.filter((r) => source.routes.some((route) => route.id === r.corridorId && route.from === id)).length,
-    destinationCount: source.riders.filter((r) => source.routes.some((route) => route.id === r.corridorId && route.to === id)).length,
+    pickupCount: source.riders.filter((r) =>
+      source.routes.some((route) => route.id === r.corridorId && route.from === id),
+    ).length,
+    destinationCount: source.riders.filter((r) =>
+      source.routes.some((route) => route.id === r.corridorId && route.to === id),
+    ).length,
   }));
 }
 
 export function activateGroupCatalog(db: DatabaseSync) {
-  groupCatalog = loadGroupCatalog(db);
+  setGroupCatalog(loadGroupCatalog(db));
+}
+export function setGroupCatalog(catalog: GroupCatalog) {
+  groupCatalog = catalog;
   pickupZones = groupCatalog.pickupZones;
   destinations = groupCatalog.destinations;
   demoRoutePlaces = groupCatalog.routePlaces;
   demoRoutes = groupCatalog.routes;
   demoDrivers = groupCatalog.drivers;
   customFare = groupCatalog.customFare;
-  DEMO_APPLICANTS_PER_ROUTE = groupCatalog.riders.filter((r) => r.corridorId === groupCatalog.routes[0].id).length;
+  DEMO_APPLICANTS_PER_ROUTE = groupCatalog.riders.filter(
+    (r) => r.corridorId === groupCatalog.routes[0].id,
+  ).length;
   demoDemandZones = demandZones(groupCatalog);
 }
 export interface DeviceLocation {

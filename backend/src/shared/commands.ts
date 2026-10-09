@@ -4,6 +4,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { ApiError } from './http-error.js';
 
 const context = new AsyncLocalStorage<{ key: string; fingerprint: string }>();
+export const currentCommand = () => context.getStore();
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
   if (value && typeof value === 'object')

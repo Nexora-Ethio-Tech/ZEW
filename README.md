@@ -1,6 +1,8 @@
 # Zew
 
-A shared-ride product for Ethiopia, with journey planning, group matching, fare splitting, and ride records. The current environment is a private preview backed by SQLite.
+A shared-ride product for Ethiopia, with journey planning, group matching, fare splitting, and ride records. The hosted private preview runs on Vercel with Supabase PostgreSQL. SQLite remains available for local development.
+
+Hosted frontend: https://zew-blue.vercel.app — passenger routes `/rides` and `/planned`, separate driver workspace `/driver`.
 
 **Live transport is not connected.** Seeded rider and driver records, availability, arrival times, dispatch actions, and fares are staged. No real payment is collected.
 
@@ -13,6 +15,8 @@ npm run setup
 npm run dev
 ```
 
+Without `DATABASE_URL`, local development uses SQLite. If `backend/.env` contains the hosted `DATABASE_URL`, local API changes affect that Supabase database; use a separate project for development.
+
 The frontend runs on port 3000 and the API on port 4000. Stop both with Ctrl+C. No payment credentials, Docker or Supabase account is required to explore the passenger preview. Migrations 001–013 run transactionally on API startup; 006–009 populate the transport catalog and 010 adds account workspaces and driver assignments, 011 adds shared departures, retry receipts, durable limits and simulated settlements, 012 adds private booking quotes, and 013 adds aggregate request metrics and operator audit records. Back up an existing `backend/data/zew.sqlite` before upgrading. App-specific options are in `frontend/.env.example` and `backend/.env.example`.
 
 - `/`: public landing page, interactive API-backed fare calculator, optional account sign-in.
@@ -22,18 +26,18 @@ The frontend runs on port 3000 and the API on port 4000. Stop both with Ctrl+C. 
 
 ## Try a ride circle
 
-1. Open `/rides`. Choose a pickup and destination by search, map pin or one-time device location, or keep the initial Bole → Meskel Square journey. Staged applications are stored in the SQLite catalog for 13 journey pairs; the form does not display a route list.
+1. Open `/rides`. Choose a pickup and destination by search, map pin or one-time device location, or keep the initial Bole → Meskel Square journey. Staged applications are stored in the database catalog for 13 journey pairs; the form does not display a route list.
 2. Enter a positive minimum and maximum group size and any positive fare ceiling in ETB. Review the API-calculated projected shares, then apply. Matching selects eligible records and locks the projected fare. Configured vehicles currently have up to four passenger seats.
 3. The API assigns the configured test driver. In a separate browser profile, the driver opens `/driver` and accepts the request.
 4. The passenger sees a boarding code. The driver enters it to start the ride, then completes it. Both accounts receive the final state; My rides stores the passenger receipt.
 
-Riders have a two-minute readiness window. Refresh availability restarts the staged window. Distant, wrong-way and expired records are rejected; driver acceptance also checks capacity and arrival before readiness ends. Matching is available near catalogued pickup and destination pairs; other Ethiopia journeys can apply but may receive a solo result. Map dots show approximate area totals, never live or exact passenger locations. These checks do not verify actual roads, traffic, safe boarding points or legal pickup reachability. Custom journeys use a projected total from the SQLite catalog.
+Riders have a two-minute readiness window. Refresh availability restarts the staged window. Distant, wrong-way and expired records are rejected; driver acceptance also checks capacity and arrival before readiness ends. Matching is available near catalogued pickup and destination pairs; other Ethiopia journeys can apply but may receive a solo result. Map dots show approximate area totals, never live or exact passenger locations. These checks do not verify actual roads, traffic, safe boarding points or legal pickup reachability. Custom journeys use a projected total from the database catalog.
 
 ## Planned commutes
 
-Open `/planned`, keep the initial Bole → Meskel Square journey and click Find my ride. Choose the number of seats to reserve, select a listed example trip, review the seat count and total, confirm a preview reservation, and find the boarding code in My rides. The assigned driver accepts and verifies boarding from their separate `/driver` workspace. Seats are reserved across passenger workspaces in the same SQLite transaction as the assignment. Save and reuse a commute from the rider form.
+Open `/planned`, keep the initial Bole → Meskel Square journey and click Find my ride. Choose the number of seats to reserve, select a listed example trip, review the seat count and total, confirm a preview reservation, and find the boarding code in My rides. The assigned driver accepts and verifies boarding from their separate `/driver` workspace. Seats are reserved across passenger workspaces in the same database transaction as the assignment. Save and reuse a commute from the rider form.
 
-Sample departures use shared 15-minute time slots derived from the SQLite catalog for the requested date. The same route can be reserved on different departure dates; accounts share inventory for the same trip and departure. Passenger workspaces are private. Drivers can read a limited request summary and perform authorized transitions only for requests assigned to them. Confirmed accounts reuse their durable workspace across sign-ins; guest workspaces remain isolated. State survives refreshes and API restarts in `backend/data/zew.sqlite`. Tokens are stored as hashes in SQLite, sessions expire after 30 days, and bearer tokens must remain private.
+Sample departures use shared 15-minute time slots derived from the database catalog for the requested date. The same route can be reserved on different departure dates; accounts share inventory for the same trip and departure. Passenger workspaces are private. Drivers can read a limited request summary and perform authorized transitions only for requests assigned to them. Confirmed accounts reuse their durable workspace across sign-ins; guest workspaces remain isolated. State survives refreshes and API restarts in Supabase PostgreSQL when `DATABASE_URL` is set, or `backend/data/zew.sqlite` for local SQLite. Tokens are stored as hashes in the database, sessions expire after 30 days, and bearer tokens must remain private.
 
 ## Driver test account
 
@@ -49,7 +53,7 @@ For operator-managed SMTP setup, populate the optional management-token and SMTP
 
 Open the email link in the browser used for driving. It opens `/driver` after verification. Use a different browser profile or an incognito window for the passenger. The driver can accept, decline, verify the four-digit boarding code, complete rides, and inspect history and simulated earnings. One vehicle trip can be active at a time. Planned reservations for the same departure can be accepted together; each passenger supplies their own boarding code. All accepted passengers start and complete together, and undecided requests must first be accepted or declined. Boarding closes the departure to new reservations. Passengers may cancel before their boarding code is confirmed. The existing two-minute circle readiness rule still applies.
 
-Local operator commands, run from `backend/`, manage invitations and the temporary routing target. There is no public role-grant endpoint:
+Operator commands, run from `backend/` after `npm run build`, manage invitations and the temporary routing target. There is no public role-grant endpoint:
 
 ```bash
 node --env-file=.env scripts/driver-admin.mjs route nexoratechnologyplc@gmail.com
@@ -66,7 +70,7 @@ Accounts are optional and require a configured Supabase Auth project with email 
 
 Sign-up does not create a local account or grant API access. After the actual confirmation link is followed, sign-in sends the provider access token to the API, which independently verifies the user and email confirmation. The API assigns the driver role only from a server-owned invitation; all other accounts are riders. API logout revokes the session without deleting the account's ride records. Confirmed accounts still operate in a preview environment, without live transport or real payments.
 
-Hard-coded local password accounts and automatic password resets have been removed. Migration 005 removes legacy local identities and their sessions while retaining guest preview data; back up existing databases before upgrading. SQLite is authoritative; the old remote mirroring has been removed.
+Hard-coded local password accounts and automatic password resets have been removed. Migration 005 removes legacy local identities and their sessions while retaining guest preview data; back up existing databases before upgrading. The configured database is authoritative; there is no asynchronous mirroring between SQLite and Supabase.
 
 ## Checks
 
@@ -97,14 +101,14 @@ Fonts and marker icons are served locally. Tile errors are shown without silentl
 
 ## Deployment and structure
 
-[Deploy to Vercel](docs/deployment.md): the Next.js frontend runs on Vercel; the separate SQLite API needs persistent hosting. A backend Dockerfile and optional paid Render blueprint are included. Setting `API_URL` to a reachable public HTTPS backend is required for Vercel builds.
+[Deploy to Vercel](docs/deployment.md): separate Next.js and Fastify Vercel projects share the Supabase PostgreSQL database through the API. Set the server-only `DATABASE_URL` to a restricted transaction-pooler login. `API_URL` must be the API’s public HTTPS origin. A Dockerfile and Render blueprint remain available for the local SQLite hosting alternative.
 
 ```text
 frontend/src/app/        Public, rides and planned routes
 frontend/src/features/   Landing, verified auth, circles, planned journey UI
 frontend/src/lib/        API, auth, theme and localization
 backend/src/modules/     Auth verification, trips, matching, groups, routing, stream
-backend/src/shared/      Transactional SQLite store and migrations
+backend/src/shared/      PostgreSQL/SQLite adapters and transactional persistence
 backend/tests/           API and regression tests
 scripts/                 Dev launcher and browser acceptance checks
 infrastructure/          Reserved future PostGIS schema
@@ -112,7 +116,7 @@ infrastructure/          Reserved future PostGIS schema
 
 See [implementation status](docs/implementation-status.md), [architecture](docs/architecture.md) and [ride-circle rules](docs/product/ride-circles.md). Passenger-to-driver assignments and account role enforcement are implemented for testing. Live fleet matching, real payments and operational safety workflows are future work.
 
-The isolated driver and planned browser checks use an in-memory API with test identities and never alter your configured database. The planned check covers a two-seat quote and reservation, cancellation, saved routes, search focus during polling and mobile layout. Frontend session tests use the already-installed backend TypeScript loader; run `npm run setup` before checking. Migrations 011–013 preserve existing workspaces and backfill prior dispatch records. No runtime dependency is added. The browser checks also cover a lost confirmation response and a shared departure with two private passenger reservations.
+The isolated driver and planned browser checks use an in-memory API with test identities and never alter your configured database. The planned check covers a two-seat quote and reservation, cancellation, saved routes, search focus during polling and mobile layout. Frontend session tests use the already-installed backend TypeScript loader; run `npm run setup` before checking. Migrations 011–013 preserve existing workspaces and backfill prior dispatch records. The PostgreSQL adapter uses `pg`. The browser checks also cover a lost confirmation response and a shared departure with two private passenger reservations.
 
 ## Reliable reservations and recovery
 
@@ -120,4 +124,4 @@ Search results include a private quote valid for five minutes. Confirmation uses
 
 Boarding allows five failed code guesses per driver/request in 15 minutes, persisted across restarts and new sign-ins. The API also persists socket-peer and workspace request limits. Earnings come from append-only simulated settlement rows, in integer ETB minor units; one shared departure counts as one completed driver trip.
 
-Use the [operations and recovery runbook](docs/operations.md) for consistent online backups, verified restores into a new file, aggregate request metrics, maintenance and account-session revocation. Run the recovery drill before a deployment. Browser bearer storage and 30-day sessions still need a hardened production session policy; operator session revocation does not disable a Supabase identity or prevent a fresh provider sign-in.
+Use the [operations and recovery runbook](docs/operations.md) for Supabase recovery planning, local SQLite backup/restore, aggregate request metrics, maintenance and account-session revocation. Browser bearer storage and 30-day sessions still need a hardened production session policy; operator session revocation does not disable a Supabase identity or prevent a fresh provider sign-in.

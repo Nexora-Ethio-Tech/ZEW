@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { Store } from '../../shared/store.js';
+import type { DataStore as Store } from '../../shared/data-store.js';
 import { ApiError } from '../../shared/http-error.js';
 import {
   dashboard,
@@ -17,10 +17,10 @@ export async function plannedRoutes(app: FastifyInstance, { store }: { store: St
   app.get('/dashboard', async (req) => dashboard(store, req.sessionId));
   app.post('/matches', async (req) => matches(store, req.sessionId, journeyInput.parse(req.body)));
   app.post('/booking-quotes', async (req, reply) =>
-    reply.code(201).send(quote(store, req.sessionId, quoteInput.parse(req.body))),
+    reply.code(201).send(await quote(store, req.sessionId, quoteInput.parse(req.body))),
   );
   app.post('/bookings', async (req, reply) =>
-    reply.code(201).send(reserve(store, req.sessionId, bookingInput.parse(req.body).quoteId)),
+    reply.code(201).send(await reserve(store, req.sessionId, bookingInput.parse(req.body).quoteId)),
   );
   app.post('/bookings/:id/action', async (req) => {
     const input = z
@@ -36,7 +36,7 @@ export async function plannedRoutes(app: FastifyInstance, { store }: { store: St
     return cancel(store, req.sessionId, id);
   });
   app.post('/commutes', async (req, reply) =>
-    reply.code(201).send(saveCommute(store, req.sessionId, commuteInput.parse(req.body))),
+    reply.code(201).send(await saveCommute(store, req.sessionId, commuteInput.parse(req.body))),
   );
   app.delete('/commutes/:id', async (req) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);

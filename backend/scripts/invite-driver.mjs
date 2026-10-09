@@ -9,11 +9,27 @@ if (!email || !process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
   );
   process.exit(1);
 }
-const db = new DatabaseSync(process.env.DATABASE_PATH ?? './data/zew.sqlite', { readOnly: true });
-const approved = db
-  .prepare('SELECT id FROM driver_access WHERE email = ? COLLATE NOCASE AND active = 1')
-  .get(email);
-db.close();
+let approved;
+if (process.env.DATABASE_URL) {
+  const { postgresPool } = await import('../dist/shared/postgres-pool.js');
+  const pool = postgresPool(process.env.DATABASE_URL);
+  try {
+    approved = (
+      await pool.query(
+        'SELECT id FROM zew.driver_access WHERE lower(email) = lower($1) AND active = 1',
+        [email],
+      )
+    ).rows[0];
+  } finally {
+    await pool.end();
+  }
+} else {
+  const db = new DatabaseSync(process.env.DATABASE_PATH ?? './data/zew.sqlite', { readOnly: true });
+  approved = db
+    .prepare('SELECT id FROM driver_access WHERE email = ? COLLATE NOCASE AND active = 1')
+    .get(email);
+  db.close();
+}
 if (!approved) {
   console.error('Create an approved driver invitation before sending email.');
   process.exit(1);

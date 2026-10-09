@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { Store } from '../../shared/store.js';
+import type { DataStore as Store } from '../../shared/data-store.js';
 import { verifyIdentity as defaultVerifier, type IdentityVerifier } from './service.js';
 
 export async function authRoutes(
@@ -25,21 +25,21 @@ export async function authRoutes(
       return reply.code(403).send({ message: 'Confirm your email before signing in.' });
     // Self-selected provider metadata never grants driver or operator permissions.
     const user = { id: identity.id, email: identity.email, name: identity.name, role: 'rider' };
-    return reply.code(201).send(store.createSessionForUser(user));
+    return reply.code(201).send(await store.createSessionForUser(user));
   });
   app.get('/api/v1/auth/me', async (req, reply) => {
     const header = req.headers.authorization;
     const token = header?.startsWith('Bearer ') ? header.slice(7) : '';
-    const id = token.length === 64 ? store.session(token) : undefined;
+    const id = token.length === 64 ? await store.session(token) : undefined;
     if (!id) return reply.code(401).send({ message: 'Sign in to continue.' });
-    const state = store.read(id);
+    const state = await store.read(id);
     if (!state.user) return reply.code(401).send({ message: 'This is a private guest session.' });
     return { user: state.user };
   });
   app.post('/api/v1/auth/logout', async (req, reply) => {
     const header = req.headers.authorization;
     const token = header?.startsWith('Bearer ') ? header.slice(7) : '';
-    if (token.length === 64) store.revoke(token);
+    if (token.length === 64) await store.revoke(token);
     return reply.code(204).send();
   });
 }

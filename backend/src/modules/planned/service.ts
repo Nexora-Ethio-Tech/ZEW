@@ -1,5 +1,5 @@
 import { randomInt, randomUUID } from 'node:crypto';
-import type { Store } from '../../shared/store.js';
+import type { DataStore as Store } from '../../shared/data-store.js';
 import { ApiError } from '../../shared/http-error.js';
 import {
   corridors,
@@ -10,24 +10,26 @@ import {
 } from '../trips/model.js';
 import { availableSeats, findMatches, rejectionReason } from '../matching/service.js';
 
-export function dashboard(store: Store, sessionId: string) {
-  const state = store.read(sessionId);
-  const driver = store.dispatchDriver();
+export async function dashboard(store: Store, sessionId: string) {
+  const state = await store.read(sessionId);
+  const driver = await store.dispatchDriver();
   const completed = state.bookings.filter((b) => b.status === 'completed');
   const totalFare = completed.reduce((sum, b) => sum + b.fare, 0);
   const platformFee = Math.round(totalFare * 10) / 100;
   return {
     mode: 'demo',
     corridors,
-    trips: state.trips.map((trip) => ({
-      ...trip,
-      ...(driver ? { driver: driver.name, vehicle: driver.vehicle } : {}),
-      availableSeats: Math.min(availableSeats(state, trip), store.availableSeats(trip)),
-    })),
+    trips: await Promise.all(
+      state.trips.map(async (trip) => ({
+        ...trip,
+        ...(driver ? { driver: driver.name, vehicle: driver.vehicle } : {}),
+        availableSeats: Math.min(availableSeats(state, trip), await store.availableSeats(trip)),
+      })),
+    ),
     bookings: state.bookings,
     commutes: state.commutes,
     waitlistJoined: !!state.waitlist,
-    events: store.events(sessionId),
+    events: await store.events(sessionId),
     demoEarnings: {
       completedTrips: completed.length,
       totalFare,
@@ -47,18 +49,22 @@ function departures(state: State, referenceTime: string): State {
   };
 }
 
-export function matches(store: Store, sessionId: string, input: Journey) {
-  const result = findMatches(departures(store.read(sessionId), input.departure), input);
-  const driver = store.dispatchDriver();
-  const candidates = result.matches.map((trip) => ({
-    ...trip,
-    ...(driver ? { driver: driver.name, vehicle: driver.vehicle } : {}),
-    availableSeats: Math.min(trip.availableSeats, store.availableSeats(trip)),
-  }));
+export async function matches(store: Store, sessionId: string, input: Journey) {
+  const result = findMatches(departures(await store.read(sessionId), input.departure), input);
+  const driver = await store.dispatchDriver();
+  const candidates = await Promise.all(
+    result.matches.map(async (trip) => ({
+      ...trip,
+      ...(driver ? { driver: driver.name, vehicle: driver.vehicle } : {}),
+      availableSeats: Math.min(trip.availableSeats, await store.availableSeats(trip)),
+    })),
+  );
   return {
-    matches: candidates
-      .filter((trip) => trip.availableSeats >= input.seats)
-      .map((trip) => ({ ...trip, ...store.issueQuote(sessionId, input, trip) })),
+    matches: await Promise.all(
+      candidates
+        .filter((trip) => trip.availableSeats >= input.seats)
+        .map(async (trip) => ({ ...trip, ...(await store.issueQuote(sessionId, input, trip)) })),
+    ),
     rejected: [
       ...result.rejected,
       ...candidates
@@ -71,14 +77,14 @@ export function matches(store: Store, sessionId: string, input: Journey) {
   };
 }
 
-export function quote(store: Store, sessionId: string, input: Journey & { tripId: string }) {
-  const candidates = departures(store.read(sessionId), input.departure);
+export async function quote(store: Store, sessionId: string, input: Journey & { tripId: string }) {
+  const candidates = departures(await store.read(sessionId), input.departure);
   const trip = candidates.trips.find((t) => t.id === input.tripId);
   if (!trip) throw new ApiError(404, 'Trip not found');
   const reason = rejectionReason(candidates, trip, input);
   if (reason) throw new ApiError(409, reason);
   return {
-    ...store.issueQuote(sessionId, input, trip),
+    ...(await store.issueQuote(sessionId, input, trip)),
     fare: trip.fare * input.seats,
     departure: trip.departure,
     seats: input.seats,
@@ -86,8 +92,7 @@ export function quote(store: Store, sessionId: string, input: Journey & { tripId
 }
 
 export function reserve(store: Store, sessionId: string, quoteId: string) {
-  return store.mutate(sessionId, 'booking.confirmed', (state) => {
-    const snapshot = store.quote(sessionId, quoteId);
+  return store.reserveQuoted(sessionId, quoteId, (state, snapshot) => {
     if (snapshot.bookingId) {
       const booked = state.bookings.find((booking) => booking.id === snapshot.bookingId);
       if (!booked) throw new ApiError(409, 'Reservation needs operator review.');
@@ -112,7 +117,6 @@ export function reserve(store: Store, sessionId: string, quoteId: string) {
     };
     state.trips = [...state.trips.filter((t) => t.id !== trip.id), trip];
     state.bookings.unshift(booking);
-    store.consumeQuote(quoteId, booking.id);
     // Store commits the seat allocation and dispatch assignment in this same transaction.
     return { value: booking, entityId: booking.id };
   });

@@ -1,12 +1,15 @@
 import type { PoolState } from '../groups/model.js';
 import type { DatabaseSync } from 'node:sqlite';
-import { initialPlannedCatalog, loadPlannedCatalog } from './catalog.js';
+import { initialPlannedCatalog, loadPlannedCatalog, type PlannedCatalog } from './catalog.js';
 
 let plannedCatalog = initialPlannedCatalog;
 export let corridors = plannedCatalog.corridors;
 
 export function activatePlannedCatalog(db: DatabaseSync) {
-  plannedCatalog = loadPlannedCatalog(db);
+  setPlannedCatalog(loadPlannedCatalog(db));
+}
+export function setPlannedCatalog(catalog: PlannedCatalog) {
+  plannedCatalog = catalog;
   corridors = plannedCatalog.corridors;
 }
 

@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "engines": {
-    "node": ">=24"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "node --env-file-if-exists=.env --import tsx --watch src/server.ts",
@@ -12,16 +12,20 @@
     "start": "node --env-file-if-exists=.env dist/server.js",
     "typecheck": "tsc --noEmit",
     "migrate": "node --import tsx src/shared/migrate.ts",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:postgres": "node --env-file=.env scripts/test-postgres.mjs",
+    "db:import": "node --env-file=.env --import tsx scripts/migrate-to-postgres.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.0",
     "@supabase/supabase-js": "^2.117.2",
     "fastify": "^5.0.0",
+    "pg": "^8.23.1",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/pg": "^8.23.1",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }

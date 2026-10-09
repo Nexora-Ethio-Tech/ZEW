@@ -1,93 +1,84 @@
-# Deploy the Zew demo
+# Deploy Zew to Vercel and Supabase
 
-Zew has two applications: a Next.js frontend for Vercel and a Fastify API that needs a persistent SQLite disk. Deploying only the frontend does not deploy the API. This release is a polished **private demo**, not a live transport or payment service.
+Deploy two applications: Next.js (`frontend/`) and the Fastify Node function (`backend/`). Supabase PostgreSQL holds application state; Supabase Auth verifies accounts. This is a private transport preview with staged matching and simulated payments.
 
-## 1. Deploy the persistent API
+Production frontend: **https://zew-blue.vercel.app**. API project: `zew-api`, intended origin **https://zew-api.vercel.app**. Keep secrets in ignored operator environment files and encrypted Vercel settings.
 
-The repository includes `backend/Dockerfile` and an optional Render blueprint (`render.yaml`). The Render blueprint uses a paid starter service because persistent disks are not available on the free service; review the provider's current pricing before creating it. You can use another Docker host with persistent storage instead.
+## Database setup and migration
 
-Build from the repository root:
+Use Node 24. In `backend/.env`, configure the existing Supabase project URL and an operator management token, then run from `backend/`:
 
 ```bash
-docker build -t zew-api ./backend
-docker volume create zew-data
-docker run -d --name zew-api -p 4000:4000 \
-  --mount source=zew-data,target=/app/data \
-  -e FRONTEND_ORIGIN=https://YOUR-FRONTEND.vercel.app \
-  zew-api
+node --env-file=.env scripts/provision-postgres.mjs
 ```
 
-The application runs as the non-root `node` user; a mounted disk must be writable by UID 1000. `DATABASE_PATH` defaults to `/app/data/zew.sqlite` in the container. Migrations run on startup and must remain bundled in the image. Use one API instance for this SQLite adapter. Put HTTPS in front of the API, preserve the volume on redeployment, and back up the database with SQLite's backup mechanism (not a copy of a live WAL file).
+This applies `postgres/001_schema.sql`, creates the private `zew` schema and a restricted `zew_runtime` login, and saves a transaction-pooler `DATABASE_URL` in the ignored environment file. It does not reset an existing role password. The API runtime cannot change schemas or administer Auth. PostgreSQL connections verify TLS using the bundled public Supabase CA; do not disable verification.
 
-For a build behind an existing HTTPS proxy, pass the environment's proxy variables by name and its trusted certificate as a BuildKit secret. Never disable TLS verification:
+For an existing local installation, stop local writes and capture a consistent snapshot:
 
 ```bash
-docker build --build-arg HTTP_PROXY --build-arg HTTPS_PROXY --build-arg NO_PROXY \
-  --secret id=network_ca,src="$NODE_EXTRA_CA_CERTS" -t zew-api ./backend
+node scripts/database-recovery.mjs backup data/zew.sqlite data/backups/before-supabase.sqlite
+node scripts/database-recovery.mjs verify data/backups/before-supabase.sqlite
+npm run db:import -- data/backups/before-supabase.sqlite
 ```
 
-Check `https://YOUR-API/api/v1/health`: expect `status: ok`, `service: zew-api`, `mode: demo`.
+The import verifies integrity, checks row counts and commits all tables together. It refuses populated destinations and records the snapshot digest. Preserve the snapshot and checksum. For a fresh installation, first start the local API without `DATABASE_URL` to generate its SQLite catalog, stop it, then follow the same import. Startup requires a seeded PostgreSQL catalog; it does not seed silently.
 
-## 2. Deploy the frontend to Vercel
+The current project was imported on 2026-10-09, preserving three account records and the nominated driver grant. This import must not be repeated on the live database. Follow [operations](operations.md) for hosted recovery planning.
 
-Import `Nexora-Ethio-Tech/ZEW` into your Vercel account:
+## Vercel configuration
 
-| Setting | Value |
-| --- | --- |
-| Framework | Next.js |
-| Root Directory | `frontend` |
-| Node.js | 24.x |
-| Install command | `npm ci` |
-| Build command | `npm run build` |
-| `API_URL` | Your persistent API's public HTTPS **origin**, without `/api/v1` |
+Link each directory to its own Vercel project. Use Node 24.x and `npm ci` / `npm run build` in both. The frontend uses the Next.js preset. The backend uses no framework preset, the `api/index.ts` Node handler, and the empty `public` output directory. Its function runs in `dub1`, close to the Supabase eu-west-1 database.
 
-`frontend/vercel.json` records the build settings. The Vercel build fails with a specific message if `API_URL` is missing, includes credentials or a path, or points to localhost. The browser uses same-origin `/api/v1`; only the server sees `API_URL`. Set it for both Preview and Production environments and rebuild after changing it.
+| Project          | Production variables                                                                                     |
+| ---------------- | -------------------------------------------------------------------------------------------------------- |
+| API (`zew-api`)  | `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_KEY`, `FRONTEND_ORIGIN=https://zew-blue.vercel.app`            |
+| Frontend (`zew`) | `API_URL=https://zew-api.vercel.app`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` |
 
-Deploy from Vercel's Git integration, or from `frontend/` with an authenticated Vercel CLI (`vercel --prod`). Never commit deployment tokens or `.env.local`. No Vercel deployment is implied by a successful local build.
+The Supabase keys above are public publishable keys, sufficient for verified user-token exchange. The database URL is server-only. Do not deploy the Supabase management token or SMTP credentials to either app. `.vercelignore` excludes environment files, local data and build caches.
 
-## 3. Optional verified accounts
+`API_URL` is a public HTTPS **origin**, without `/api/v1`; the frontend validates it during the build and proxies same-origin `/api/v1` requests. Vercel API startup refuses to use ephemeral SQLite. Configure preview projects with an isolated database and explicit callback URLs before enabling preview deployments; the setup script currently writes production settings only.
 
-The demo works without an account at `/demo` and `/planned`. Account sign-in is deliberately unavailable until an identity provider is configured.
+After authenticating Vercel CLI and linking both directories, `node scripts/configure-vercel.mjs` from the repository root configures the strict environment allowlist from the local backend settings. It reads the CLI token without printing it.
 
-1. Use a Supabase project with email/password authentication and **Confirm email** enabled. Configure your site's Production and Preview URLs in the project's allowed redirect URLs, and configure email delivery for your deployment.
-2. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` on the Vercel frontend. These are public client settings; never put a service-role key in `NEXT_PUBLIC_*`.
-3. Set matching `SUPABASE_URL` and `SUPABASE_KEY` on the API. A public publishable key is sufficient for server-side user-token verification. No database mirroring or service-role key is needed.
-4. Redeploy both applications. Sign up with a new test email, follow the actual confirmation link, and sign in. The API calls Supabase to verify the access token and requires `email_confirmed_at` before issuing its own session. Invalid and unconfirmed identities are rejected. Account metadata cannot grant driver/operator/admin permissions.
-
-Accounts reopen their durable workspaces across sign-ins; guest workspaces remain separate. Migration 010 adds driver invitations and assignments, with new test requests routed to the nominated Nexora driver. The confirmed invited account opens `/driver`; other accounts use the passenger workspace. These are test transport operations and simulated payments. Allow `https://YOUR-FRONTEND/auth/callback` in Supabase redirect URLs and configure working SMTP delivery before inviting the driver. Use the local operator scripts documented in the README to select or disable test routing and revoke access.
-
-Sessions expire after 30 days. API logout revokes the session without deleting account ride data. Seeded local passwords have been retired. Back up existing SQLite data before upgrading through migrations 010–013. See the [operations runbook](operations.md) for consistent backup, verified restore into a new file and a recovery drill.
-
-## 4. Release checks
-
-From the repository root:
+Deploy the API, verify health, then deploy the frontend, running this separately in each application directory:
 
 ```bash
-npm run setup
+vercel deploy --prod --yes
+```
+
+The current Hobby account rejected automatic Git integration for the private organization repository. Direct CLI deployments are configured. Commit-author permission checks still apply; resolve account identity or team access through Vercel rather than rewriting authorship or removing repository metadata.
+
+## Account sign-in
+
+Run from `backend/` using the local management token:
+
+```bash
+node --env-file=.env scripts/configure-auth-origin.mjs https://zew-blue.vercel.app
+```
+
+This sets the Supabase site URL and adds `/auth/callback` while preserving existing redirects, SMTP and email-confirmation settings. The invited `nexoratechnologyplc@gmail.com` account signs in at `/driver`. Other verified accounts use passenger workspaces. Confirmation is required, and frontend role selection cannot grant driver access. Existing requests and driver routing remain simulated.
+
+Driver administration and email invitation eligibility use PostgreSQL whenever `DATABASE_URL` is set. Build the backend before running these operator scripts. See the README for commands; only request a sign-in email when the driver is ready to open it in the intended browser.
+
+## Release checks
+
+```bash
 npm run check
 npm run build
+npm --prefix backend run test:postgres
 ```
 
-Start the API and frontend, then run the existing browser checks against the deployed frontend (or a dedicated local production instance). Launch a dedicated headless Chromium profile first:
+The PostgreSQL regression creates a separate temporary schema, copies only catalogs and test driver configuration, runs two independent API instances, and removes the fixture. It requires the locally configured management token and runtime database URL. Ordinary tests use isolated SQLite fixtures and skip that external regression.
 
-```bash
-chromium --headless --no-sandbox --disable-dev-shm-usage \
-  --remote-debugging-port=9235 --user-data-dir=/tmp/zew-acceptance about:blank
-ZEW_BASE_URL=https://YOUR-FRONTEND node scripts/landing-browser-smoke.mjs
-ZEW_BASE_URL=https://YOUR-FRONTEND node scripts/group-browser-smoke.mjs
-ZEW_BASE_URL=https://YOUR-FRONTEND ZEW_CHECK_PWA=1 node scripts/browser-smoke.mjs
-```
+Check API health directly and through the frontend proxy. Verify private guest sessions, quote/reservation/retry/cancellation, denied passenger driver access, and the landing/planned/driver pages. Cancel live smoke-test reservations afterward. Browser smoke scripts and their dedicated Chromium setup are documented in the README; fixture-backed checks do not prove hosted database connectivity. Email-link completion requires the actual recipient to follow the link.
 
-Run browser checks sequentially: they share the dedicated test profile and create test-only demo data. Map tiles are stubbed and place search is mocked by default in the circle test; set `ZEW_LIVE_PLACES=1` only for the optional provider check. Account-provider email delivery needs a separate live check with your configured project.
+## Optional SQLite host
 
-Verify the landing page, demo fare changes, booking/completion/receipt, saved commute persistence, mobile layout, production offline fallback, and `/api/v1/health` through the frontend proxy.
+Without `DATABASE_URL`, the standalone API uses `DATABASE_PATH` and applies SQLite migrations on startup. Use one process with a persistent volume. `backend/Dockerfile` and `render.yaml` retain this alternative; it is not the Vercel architecture. Use consistent SQLite backups and verified restores as described in the operations runbook.
 
-## Demo boundaries
+## Operating limits
 
-People, arrival times, driver actions, dispatch controls, fare estimates, and receipts are simulated. Real-payment endpoints fail closed with 501; no PIN is collected, no USSD request is sent, and no real payment is marked successful. An optional OSRM route is provider data; the built-in distance fallback is illustrative and does not verify route safety. Production transport requires a durable multi-user data model, approved driver/operator roles, provider integrations, operational controls, and payment reconciliation.
+Supabase stores private application data outside its public Data API. Domain writes currently use one advisory transaction lock across instances; load-test before increasing traffic. API limits persist in PostgreSQL, but socket-peer limits can aggregate requests behind proxies. Configure appropriate edge limits rather than trusting arbitrary forwarded IP headers.
 
-## Operational checks
-
-Deploy frontend and API together: booking confirmation now requires a server-issued quote ID. Migrations 011–013 run at API startup; the new frontend uses shared departure controls and retry keys. Existing workspaces are preserved. A rollback must use a matching application release and a verified pre-upgrade snapshot; do not run old dispatch code against the expanded schema.
-
-Use `scripts/operations.mjs status` from the backend directory for aggregate route/status counts and average latency. Persisted limits use socket peer and workspace identity; because the Next.js proxy aggregates socket peers, configure edge throttling and review limits for expected traffic. Do not enable arbitrary forwarded-IP trust. Request IDs are returned in `X-Request-Id`; do not add bearer headers or booking bodies to proxy logs. Metric cleanup retains 30 days when maintenance runs.
+Real fleet scheduling, transport approval, payments, notifications, external alerting, hardened session policies and verified hosted recovery remain additional work. Request IDs and aggregate metrics are available; never add bearer tokens, passenger codes or booking bodies to logs.

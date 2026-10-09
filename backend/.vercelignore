@@ -1,0 +1,9 @@
+.env
+.env.*
+data
+node_modules
+dist
+.vercel
+coverage
+*.log
+*.tsbuildinfo

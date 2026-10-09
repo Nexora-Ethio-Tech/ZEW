@@ -1,3 +1,5 @@
+import type { DataStore, QuoteSnapshot } from './data-store.js';
+import type { Booking } from '../modules/trips/model.js';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, chmodSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -26,7 +28,7 @@ class AccessError extends Error {
     super(message);
   }
 }
-export class Store {
+export class Store implements DataStore {
   private db: DatabaseSync;
   private lastCleanup = 0;
   constructor(path: string) {
@@ -360,6 +362,18 @@ export class Store {
     if (!row.booking_id && snapshot.driverId !== this.dispatchDriver()?.id)
       throw new AccessError(409, 'The assigned driver changed. Search again to review this ride.');
     return { ...snapshot, bookingId: row.booking_id as string | null };
+  }
+  reserveQuoted(
+    sessionId: string,
+    quoteId: string,
+    change: (state: State, quote: QuoteSnapshot) => { value: Booking; entityId: string },
+  ) {
+    return this.mutate(sessionId, 'booking.confirmed', (state) => {
+      const quote = this.quote(sessionId, quoteId);
+      const result = change(state, quote);
+      if (!quote.bookingId) this.consumeQuote(quoteId, result.entityId);
+      return result;
+    });
   }
   consumeQuote(quoteId: string, bookingId: string) {
     // Called only from reserve(), within the same transaction as inventory and dispatch.

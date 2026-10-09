@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { ZodError } from 'zod';
+import type { DataStore } from './shared/data-store.js';
 import { Store } from './shared/store.js';
 import { env } from './config/env.js';
 import { groupRoutes } from './modules/groups/routes.js';
@@ -21,14 +22,23 @@ export function buildApp({
   databasePath = ':memory:',
   logger = false,
   verifyIdentity,
-}: { databasePath?: string; logger?: boolean; verifyIdentity?: IdentityVerifier } = {}) {
+  store: providedStore,
+}: {
+  databasePath?: string;
+  logger?: boolean;
+  verifyIdentity?: IdentityVerifier;
+  store?: DataStore;
+} = {}) {
   const app = Fastify({
     logger: logger
       ? { serializers: { req: (req) => ({ method: req.method, id: req.id }) } }
       : false,
     bodyLimit: 16384,
   });
-  const store = new Store(databasePath);
+  const store: DataStore = providedStore ?? new Store(databasePath);
+  app.addHook('onReady', async () => {
+    await store.initialize?.();
+  });
   app.register(cors, { origin: env.FRONTEND_ORIGIN });
   app.addHook('onClose', async () => store.close());
   app.addHook('onRequest', async (req, reply) => {
@@ -36,12 +46,12 @@ export function buildApp({
       .header('X-Request-Id', req.id)
       .header('Cache-Control', 'no-store')
       .header('X-Content-Type-Options', 'nosniff');
-    store.limitRequests(req.ip);
+    await store.limitRequests(req.ip);
   });
   app.addHook('onResponse', async (req, reply) => {
     // The route template excludes path parameters, queries, credentials and boarding codes.
     try {
-      store.metric(req.routeOptions.url ?? 'unmatched', reply.statusCode, reply.elapsedTime);
+      await store.metric(req.routeOptions.url ?? 'unmatched', reply.statusCode, reply.elapsedTime);
     } catch {
       req.log.error({ requestId: req.id }, 'Metric write failed');
     }
@@ -59,7 +69,7 @@ export function buildApp({
       .send({ message: status >= 500 ? 'Something went wrong. Please try again.' : known.message });
   });
   app.get('/api/v1/health', async () => ({
-    status: store.ready() ? 'ok' : 'unavailable',
+    status: (await store.ready()) ? 'ok' : 'unavailable',
     service: 'zew-api',
     mode: 'demo',
   }));
@@ -69,7 +79,7 @@ export function buildApp({
     total: destinations.find((place) => place.id === 'meskel')?.fare ?? destinations[0].fare,
     maxPeople: MAX_MEMBERS,
   }));
-  app.post('/api/v1/session', async (_, reply) => reply.code(201).send(store.create()));
+  app.post('/api/v1/session', async (_, reply) => reply.code(201).send(await store.create()));
   app.register(authRoutes, { store, verifyIdentity });
   app.register(
     async (api) => {
@@ -85,11 +95,14 @@ export function buildApp({
       api.addHook('preHandler', async (req) => {
         const header = req.headers.authorization;
         const token = header?.startsWith('Bearer ') ? header.slice(7) : '';
-        const id = token.length === 64 ? store.session(token) : undefined;
+        const id = token.length === 64 ? await store.session(token) : undefined;
         if (!id) throw new ApiError(401, 'Your session has expired. Refresh to start again.');
         req.sessionId = id;
-        store.limitActor(id);
-        if (store.read(id).user?.role === 'driver' && !req.url.startsWith('/api/v1/driver/'))
+        await store.limitActor(id);
+        if (
+          (await store.read(id)).user?.role === 'driver' &&
+          !req.url.startsWith('/api/v1/driver/')
+        )
           throw new ApiError(403, 'Use your driver workspace for this account.');
       });
       api.register(groupRoutes, { store });

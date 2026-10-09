@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import type { Store } from '../../shared/store.js';
+import type { DataStore as Store } from '../../shared/data-store.js';
 
 export const paymentRoutes: FastifyPluginAsync<{ store: Store }> = async (api) => {
   // A demo must never claim to send USSD pushes, verify PINs, or settle real money.

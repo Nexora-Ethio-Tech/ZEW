@@ -1,24 +1,24 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { Store } from '../../shared/store.js';
+import type { DataStore as Store } from '../../shared/data-store.js';
 
 export async function dispatchRoutes(app: FastifyInstance, { store }: { store: Store }) {
   app.get('/driver/dashboard', async (req) => {
-    const driver = store.driver(req.sessionId);
+    const driver = await store.driver(req.sessionId);
     // Synchronize expiry in the same persisted passenger workspace before displaying a queue.
-    for (const request of store.listAssigned(req.sessionId)) {
+    for (const request of await store.listAssigned(req.sessionId)) {
       if (
         request.kind === 'circle' &&
         ['requested', 'accepted'].includes(request.status) &&
         (request.requestedUntil ?? 0) <= Date.now()
       )
-        store.mutateAssigned(req.sessionId, request.id, 'expire', () => null);
+        await store.mutateAssigned(req.sessionId, request.id, 'expire', () => null);
     }
-    const requests = store.listAssigned(req.sessionId);
+    const requests = await store.listAssigned(req.sessionId);
     return {
       driver,
       requests,
-      earnings: store.earnings(req.sessionId),
+      earnings: await store.earnings(req.sessionId),
     };
   });
   app.post('/driver/departures/:id/start', async (req) => {
@@ -29,7 +29,7 @@ export async function dispatchRoutes(app: FastifyInstance, { store }: { store: S
     return store.startDeparture(req.sessionId, id);
   });
   app.post('/driver/requests/:id/action', async (req) => {
-    store.driver(req.sessionId);
+    await store.driver(req.sessionId);
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const input = z
       .object({
