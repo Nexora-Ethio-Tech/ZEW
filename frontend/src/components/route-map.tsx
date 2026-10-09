@@ -18,6 +18,7 @@ export function RouteMap({
   demandPoints,
   demandLabel,
   demandDescription,
+  liveDemand,
 }: {
   corridor?: Corridor;
   originId?: string;
@@ -27,6 +28,7 @@ export function RouteMap({
   demandPoints?: DemandPoint[];
   demandLabel?: string;
   demandDescription?: string;
+  liveDemand?: boolean;
 }) {
   return (
     <div
@@ -39,6 +41,7 @@ export function RouteMap({
           originId={originId}
           destinationId={destinationId}
           demandPoints={demandPoints}
+          liveDemand={liveDemand}
         />
         {onToggleCollapse && (
           <div className="map-overlay-box bottom-right">

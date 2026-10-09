@@ -9,17 +9,22 @@ export default function LeafletRouteMap({
   originId,
   destinationId,
   demandPoints = [],
+  liveDemand = false,
 }: {
   corridor?: Corridor;
   originId?: string;
   destinationId?: string;
   demandPoints?: DemandPoint[];
+  liveDemand?: boolean;
 }) {
   const corridorKey = corridor?.stops
     .map((stop) => `${stop.id}:${stop.latitude}:${stop.longitude}`)
     .join('|');
   const demandKey = demandPoints
-    .map((point) => `${point.id}:${point.latitude}:${point.longitude}:${point.pickupCount}:${point.destinationCount}`)
+    .map(
+      (point) =>
+        `${point.id}:${point.latitude}:${point.longitude}:${point.pickupCount}:${point.destinationCount}`,
+    )
     .join('|');
   const node = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -178,36 +183,26 @@ export default function LeafletRouteMap({
     }
 
     for (const point of demandPoints) {
-      if (point.pickupCount > 0) {
-        const latLng: L.LatLngExpression = [point.latitude, point.longitude];
-        bounds.push(latLng);
-        L.circleMarker(latLng, {
-          radius: Math.min(18, 7 + point.pickupCount),
-          color: '#047857',
-          fillColor: '#22c55e',
-          fillOpacity: 0.78,
-          weight: 2,
-        })
-          .bindPopup(`${point.name}: ${point.pickupCount} simulated pickup requests`)
-          .addTo(layers.current);
-      }
-      if (point.destinationCount > 0) {
-        const latLng: L.LatLngExpression = [point.latitude, point.longitude];
-        bounds.push(latLng);
-        L.circleMarker(latLng, {
-          radius: Math.min(18, 7 + point.destinationCount),
-          color: '#b91c1c',
-          fillColor: '#ef4444',
-          fillOpacity: 0.78,
-          weight: 2,
-        })
-          .bindPopup(`${point.name}: ${point.destinationCount} simulated destination requests`)
-          .addTo(layers.current);
-      }
+      const total = point.pickupCount + point.destinationCount;
+      if (!total) continue;
+      const latLng: L.LatLngExpression = [point.latitude, point.longitude];
+      bounds.push(latLng);
+      const size = Math.min(40, 26 + Math.sqrt(total) * 2);
+      const marker = L.marker(latLng, {
+        icon: L.divIcon({
+          className: 'demand-hotspot-marker',
+          html: `<svg viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#fff"/><path d="M20 3 A17 17 0 0 0 20 37 Z" fill="#22c55e"/><path d="M20 3 A17 17 0 0 1 20 37 Z" fill="#ef4444"/><circle cx="20" cy="20" r="17" fill="none" stroke="#fff" stroke-width="2"/><text x="20" y="24" text-anchor="middle" font-size="10" font-weight="800" font-family="system-ui" fill="#111827">${total}</text></svg>`,
+          iconSize: [size, size],
+          iconAnchor: [size / 2, size / 2],
+        }),
+      }).bindPopup(
+        `${point.name}: ${point.pickupCount} pickup · ${point.destinationCount} destination requests${liveDemand ? '' : ' (simulated preview)'}`,
+      );
+      marker.addTo(layers.current);
     }
     if (bounds.length)
       map.current.fitBounds(L.latLngBounds(bounds), { padding: [30, 30], animate: false });
-  }, [corridorKey, originId, destinationId, demandKey]);
+  }, [corridorKey, originId, destinationId, demandKey, liveDemand]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '100%' }}>

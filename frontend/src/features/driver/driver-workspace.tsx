@@ -32,6 +32,7 @@ interface Request {
 interface Dashboard {
   driver: { name: string; vehicle: string; seats: number };
   requests: Request[];
+  demandPoints: DemandPoint[];
   earnings: { completed: number; payout: number; simulated: true };
 }
 type Tab = 'requests' | 'active' | 'history' | 'earnings';
@@ -190,29 +191,6 @@ export function DriverWorkspace() {
     companions.length > 0 &&
     companions.every((ride) => ride.status === 'accepted' && ride.boardingVerified);
   const shown = tab === 'requests' ? incoming : tab === 'active' ? active : history;
-  const assignedPoints = new Map<string, DemandPoint>();
-  for (const request of requests.filter((ride) =>
-    ['requested', 'accepted', 'in_progress'].includes(status(ride)),
-  )) {
-    for (const [point, type] of [
-      [request.pickupPoint, 'pickup'],
-      [request.destinationPoint, 'destination'],
-    ] as const) {
-      if (!point) continue;
-      const key = `${point.latitude.toFixed(5)}:${point.longitude.toFixed(5)}`;
-      const current = assignedPoints.get(key) ?? {
-        id: key,
-        name: point.label,
-        latitude: point.latitude,
-        longitude: point.longitude,
-        pickupCount: 0,
-        destinationCount: 0,
-      };
-      if (type === 'pickup') current.pickupCount += request.seats;
-      else current.destinationCount += request.seats;
-      assignedPoints.set(key, current);
-    }
-  }
   return (
     <div className="driver-app">
       <aside className="driver-sidebar">
@@ -283,11 +261,12 @@ export function DriverWorkspace() {
           </div>
         )}
         {data && tab !== 'earnings' && (
-          <section className="driver-map-panel" aria-label="Assigned passenger stops map">
+          <section className="driver-map-panel" aria-label="Current ride demand map">
             <RouteMap
-              demandPoints={[...assignedPoints.values()]}
-              demandLabel="Assigned passenger stops"
-              demandDescription="Green: pickups · red: destinations · only requests assigned to you"
+              demandPoints={data.demandPoints}
+              demandLabel="Current passenger demand"
+              demandDescription="Green: pending pickup passengers · red: destinations · boarding removes that passenger"
+              liveDemand
             />
           </section>
         )}

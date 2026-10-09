@@ -63,9 +63,42 @@ export async function dispatchRoutes(app: FastifyInstance, { store }: { store: S
               : undefined),
       };
     });
+    const demand = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        latitude: number;
+        longitude: number;
+        pickupCount: number;
+        destinationCount: number;
+      }
+    >();
+    for (const request of requests) {
+      if (!['requested', 'accepted'].includes(request.status) || request.boardingVerified) continue;
+      for (const [point, kind] of [
+        [request.pickupPoint, 'pickup'],
+        [request.destinationPoint, 'destination'],
+      ] as const) {
+        if (!point) continue;
+        const key = `${point.latitude.toFixed(5)}:${point.longitude.toFixed(5)}`;
+        const item = demand.get(key) ?? {
+          id: key,
+          name: point.label,
+          latitude: point.latitude,
+          longitude: point.longitude,
+          pickupCount: 0,
+          destinationCount: 0,
+        };
+        if (kind === 'pickup') item.pickupCount += request.seats;
+        else item.destinationCount += request.seats;
+        demand.set(key, item);
+      }
+    }
     return {
       driver,
       requests,
+      demandPoints: [...demand.values()],
       earnings: await store.earnings(req.sessionId),
     };
   });

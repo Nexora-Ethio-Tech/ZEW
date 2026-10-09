@@ -47,6 +47,17 @@ test('verified driver receives passenger circle, verifies boarding, completes on
   assert.equal(dashboard.requests[0].id, group.id);
   assert.ok(Number.isFinite(dashboard.requests[0].pickupPoint.latitude));
   assert.ok(Number.isFinite(dashboard.requests[0].destinationPoint.longitude));
+  assert.equal(
+    dashboard.demandPoints.reduce(
+      (sum: number, point: { pickupCount: number }) => sum + point.pickupCount,
+      0,
+    ),
+    dashboard.requests[0].seats,
+  );
+  assert.equal(
+    dashboard.demandPoints.some((point: { name: string }) => point.name === 'Test passenger'),
+    false,
+  );
   assert.equal('code' in dashboard.requests[0], false);
   assert.equal('workspace_id' in dashboard.requests[0], false);
   const action = (action: string, code?: string) =>
@@ -58,6 +69,7 @@ test('verified driver receives passenger circle, verifies boarding, completes on
   assert.match(accepted.boardingCode, /^\d{4}$/);
   assert.equal((await action('start', '0000')).statusCode, 400);
   assert.equal((await action('start', accepted.boardingCode)).statusCode, 200);
+  assert.deepEqual((await call(driver, '/driver/dashboard')).json().demandPoints, []);
   assert.equal((await call(rider, '/pool')).json().status, 'in_progress');
   assert.equal((await action('complete')).statusCode, 200);
   assert.equal((await action('complete')).statusCode, 409);
