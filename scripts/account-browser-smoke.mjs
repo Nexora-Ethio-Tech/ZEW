@@ -98,20 +98,21 @@ try {
   await send('Page.enable');
   await send('Runtime.enable');
   await send('Fetch.enable', { patterns: [{ urlPattern: 'https://*.supabase.co/auth/v1/*' }] });
+  await send('Page.navigate', { url: origin + '/planned' });
+  await wait('location.pathname === "/login" && !!document.querySelector("#auth-name")');
+  assert.equal(await evaluate('new URLSearchParams(location.search).get("tab")'), 'signup');
+  assert.equal(await evaluate('localStorage.getItem("zew-demo-session")'), null);
   await send('Page.navigate', { url: origin });
   await wait('!!document.querySelector(".landing-btn-text")');
   await wait('document.querySelectorAll(".fare-people-selector button").length === 4');
-  assert.equal(
-    await evaluate('document.querySelector(".landing-btn-primary").getAttribute("href")'),
-    '/planned',
-  );
+  assert.equal(await evaluate('document.querySelector(".landing-btn-primary").tagName'), 'BUTTON');
   assert.equal(
     await evaluate(
       '[...document.querySelectorAll("a")].some(a=>["/ride","/rides","/demo"].includes(a.getAttribute("href")))',
     ),
     false,
   );
-  await evaluate('document.querySelector(".landing-btn-text").click()');
+  await evaluate('document.querySelector(".landing-btn-primary").click()');
   await wait('!!document.querySelector("#auth-name")');
   assert.equal(
     await evaluate('document.body.innerText.includes("Email me a sign-in link")'),

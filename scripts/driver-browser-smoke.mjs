@@ -6,9 +6,9 @@ import { writeFileSync } from 'node:fs';
 import { buildApp } from '../backend/src/app.ts';
 
 const app = buildApp({
-  verifyIdentity: async () => ({
-    id: 'browser-fixture-driver',
-    email: 'nexoratechnologyplc@gmail.com',
+  verifyIdentity: async (id) => ({
+    id,
+    email: id === 'browser-fixture' ? 'nexoratechnologyplc@gmail.com' : id + '@example.test',
     name: 'Nexora',
     emailConfirmed: true,
   }),
@@ -20,7 +20,13 @@ const driver = (
     headers: { authorization: 'Bearer browser-fixture' },
   })
 ).json();
-const rider = (await app.inject({ method: 'POST', url: '/api/v1/session' })).json();
+const rider = (
+  await app.inject({
+    method: 'POST',
+    url: '/api/v1/auth/session',
+    headers: { authorization: 'Bearer browser-rider-one' },
+  })
+).json();
 const riderHeaders = { authorization: 'Bearer ' + rider.token };
 const riderCall = async (path, payload) =>
   app.inject({
@@ -149,7 +155,13 @@ try {
   await click('Earnings');
   await wait('document.querySelector(".driver-earnings")?.textContent.includes("324")');
   // Two independent passenger reservations now travel as one shared departure.
-  const second = (await app.inject({ method: 'POST', url: '/api/v1/session' })).json();
+  const second = (
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/session',
+      headers: { authorization: 'Bearer browser-rider-two' },
+    })
+  ).json();
   const secondHeaders = { authorization: 'Bearer ' + second.token };
   const listing = (await riderCall('/dashboard')).json().trips.find((t) => t.id === 'sample-hana');
   const journey = {
@@ -223,7 +235,7 @@ try {
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
   await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: script.identifier });
   await evaluate(
-    `localStorage.clear();localStorage.setItem('zew-demo-session',${JSON.stringify(rider.token)})`,
+    `localStorage.clear();localStorage.setItem('zew-demo-session',${JSON.stringify(rider.token)});localStorage.setItem('zew-user-account',${JSON.stringify(JSON.stringify(rider.user))})`,
   );
   await send('Page.navigate', { url: origin + '/planned?view=driver' });
   await wait('document.body.innerText.includes("Find my ride")');

@@ -7,7 +7,7 @@ export const authConfigured = Boolean(
 export function getSupabase() {
   if (!authConfigured)
     throw new Error(
-      'Account sign-in is not available yet. You can browse planned rides without an account.',
+      'Account sign-in is not available yet. Please try again later.',
     );
   return (client ??= createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -41,13 +41,13 @@ The Supabase keys above are public publishable keys, sufficient for verified use
 
 After authenticating Vercel CLI and linking both directories, `node scripts/configure-vercel.mjs` from the repository root configures the strict environment allowlist from the local backend settings. It reads the CLI token without printing it.
 
-Deploy the API, verify health, then deploy the frontend, running this separately in each application directory:
+Both projects are connected to the public GitHub repository `Nexora-Ethio-Tech/ZEW`. Their production branch is `master`; their root directories are `frontend` for `zew` and `backend` for `zew-api`. Push reviewed changes to deploy automatically:
 
 ```bash
-vercel deploy --prod --yes
+git push origin master
 ```
 
-The current Hobby account rejected automatic Git integration for the private organization repository. Direct CLI deployments are configured. Commit-author permission checks still apply; resolve account identity or team access through Vercel rather than rewriting authorship or removing repository metadata.
+Check both projects in Vercel after pushing. A successful frontend build does not prove the API deployed successfully. Production environment variables are configured; other branches need isolated preview settings before their deployments can operate. Commit-author permission checks still apply; resolve account identity or team access through Vercel while preserving existing history.
 
 ## Account sign-in
 
@@ -71,7 +71,7 @@ npm --prefix backend run test:postgres
 
 The PostgreSQL regression creates a separate temporary schema, copies only catalogs and test driver configuration, runs two independent API instances, and removes the fixture. It requires the locally configured management token and runtime database URL. Ordinary tests use isolated SQLite fixtures and skip that external regression.
 
-Check API health directly and through the frontend proxy. Verify private guest sessions, quote/reservation/retry/cancellation, denied passenger driver access, and the landing/planned/driver pages. Cancel live smoke-test reservations afterward. Browser smoke scripts and their dedicated Chromium setup are documented in the README; fixture-backed checks do not prove hosted database connectivity. Email confirmation requires the actual recipient to follow the link.
+Check API health directly and through the frontend proxy. Verify denied guest access, confirmed account sessions, quote/reservation/retry/cancellation, denied passenger driver access, and the landing/planned/driver pages. Cancel live smoke-test reservations afterward. Browser smoke scripts and their dedicated Chromium setup are documented in the README; fixture-backed checks do not prove hosted database connectivity. Email confirmation requires the actual recipient to follow the link.
 
 ## Optional SQLite host
 

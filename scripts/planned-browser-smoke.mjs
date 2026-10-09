@@ -3,9 +3,10 @@
 // No provider account or production authentication bypass is created.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
-import { buildApp } from '../backend/src/app.ts';
+import { buildAccountApp as buildApp, passengerSession } from '../backend/tests/helpers.ts';
 
 const app = buildApp();
+const rider = (await passengerSession(app)).json();
 const origin = process.env.ZEW_BASE_URL || 'http://localhost:3000';
 const tab = await fetch('http://127.0.0.1:9235/json/new?about:blank', { method: 'PUT' }).then((r) =>
   r.json(),
@@ -105,7 +106,7 @@ try {
     patterns: [{ urlPattern: '*/api/v1/*' }, { urlPattern: '*tile.openstreetmap.org/*' }],
   });
   const script = await send('Page.addScriptToEvaluateOnNewDocument', {
-    source: 'localStorage.clear();',
+    source: `localStorage.clear();localStorage.setItem('zew-demo-session',${JSON.stringify(rider.token)});localStorage.setItem('zew-user-account',${JSON.stringify(JSON.stringify(rider.user))});`,
   });
   await send('Emulation.setDeviceMetricsOverride', {
     width: 1440,

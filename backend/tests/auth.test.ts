@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildApp } from '../src/app.js';
+import { Store } from '../src/shared/store.js';
 import type { IdentityVerifier } from '../src/modules/auth/service.js';
 
 const verifier: IdentityVerifier = async (token) => {
@@ -74,13 +75,30 @@ test('confirmed identity uses server-owned profile and rider permissions; logout
   assert.equal((await app.inject({ url: '/api/v1/dashboard', headers })).statusCode, 401);
 });
 
-test('private demo session cannot claim a confirmed account', async (t) => {
-  const app = buildApp({ verifyIdentity: verifier });
+test('guest creation is disabled and previously issued guest tokens cannot access domain routes', async (t) => {
+  const store = new Store(':memory:');
+  const { token } = store.create();
+  const app = buildApp({ store, verifyIdentity: verifier });
   t.after(() => app.close());
-  const { token } = (await app.inject({ method: 'POST', url: '/api/v1/session' })).json();
-  assert.equal(
-    (await app.inject({ url: '/api/v1/auth/me', headers: { authorization: `Bearer ${token}` } }))
-      .statusCode,
-    401,
-  );
+  const created = await app.inject({ method: 'POST', url: '/api/v1/session' });
+  assert.equal(created.statusCode, 401);
+  assert.equal('token' in created.json(), false);
+  const headers = { authorization: 'Bearer ' + token };
+  for (const [method, url, payload] of [
+    ['GET', '/auth/me', undefined],
+    ['GET', '/dashboard', undefined],
+    ['GET', '/driver/dashboard', undefined],
+    ['POST', '/matches', {}],
+    ['POST', '/booking-quotes', {}],
+    ['POST', '/bookings', {}],
+    ['POST', '/pool/bootstrap', {}],
+    ['POST', '/commutes', {}],
+  ] as const)
+    assert.equal(
+      (await app.inject({ method, url: '/api/v1' + url, headers, payload })).statusCode,
+      401,
+      url,
+    );
+  assert.equal((await app.inject({ url: '/api/v1/health' })).statusCode, 200);
+  assert.equal((await app.inject({ url: '/api/v1/fare-preview' })).statusCode, 200);
 });

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildApp } from '../src/app.js';
+import { buildAccountApp as buildApp, passengerSession } from './helpers.js';
 
 test('stream uses bearer headers, sends simulation events and shuts down cleanly', async (t) => {
   const app = buildApp();
@@ -13,7 +13,7 @@ test('stream uses bearer headers, sends simulation events and shuts down cleanly
   const address = app.server.address();
   assert.ok(address && typeof address !== 'string');
   const base = `http://127.0.0.1:${address.port}/api/v1`;
-  const { token } = (await app.inject({ method: 'POST', url: '/api/v1/session' })).json();
+  const { token } = (await passengerSession(app)).json();
   assert.equal((await fetch(`${base}/stream?token=${token}`)).status, 401);
   const response = await fetch(`${base}/stream`, {
     headers: { Authorization: `Bearer ${token}` },

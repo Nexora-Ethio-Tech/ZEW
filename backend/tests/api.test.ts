@@ -4,13 +4,13 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { reserveTrip } from './helpers.js';
-import { buildApp } from '../src/app.js';
+import { buildAccountApp as buildApp, passengerSession } from './helpers.js';
 import { findMatches } from '../src/modules/matching/service.js';
 import { seedState } from '../src/modules/trips/model.js';
 
 async function setup(databasePath = ':memory:') {
   const app = buildApp({ databasePath });
-  const session = await app.inject({ method: 'POST', url: '/api/v1/session' });
+  const session = await passengerSession(app);
   assert.equal(session.statusCode, 201);
   const headers = { authorization: `Bearer ${session.json().token}` };
   const dashboard = (await app.inject({ url: '/api/v1/dashboard', headers })).json();
@@ -129,7 +129,7 @@ test('cancellation releases seats and another browser cannot read or mutate a bo
   const booking = (
     await request('/bookings', { ...journey, seats: 3, tripId: 'sample-hana' })
   ).json();
-  const other = (await app.inject({ method: 'POST', url: '/api/v1/session' })).json();
+  const other = (await passengerSession(app)).json();
   const otherHeaders = { authorization: `Bearer ${other.token}` };
   assert.deepEqual(
     (await app.inject({ url: '/api/v1/dashboard', headers: otherHeaders })).json().bookings,

@@ -2,7 +2,7 @@
 
 ## Current product scope (2026-10-09)
 
-The passenger product uses `/planned` only. The founder explicitly removed the separate ride-circle experience; `/ride`, `/rides` and `/demo` redirect to the planned workspace. Passenger onboarding uses email/password registration with email confirmation. Drivers retain a separate `/driver` workspace.
+The passenger product uses `/planned` only. The founder explicitly removed the separate ride-circle experience; `/ride`, `/rides` and `/demo` redirect to the planned workspace. Passenger onboarding uses email/password registration with email confirmation. Drivers retain a separate `/driver` workspace. Passenger access requires a confirmed account; landing journey buttons open registration, and direct workspace visits redirect visitors to sign-up.
 
 ## Problem and promise
 

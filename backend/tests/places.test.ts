@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildApp } from '../src/app.js';
+import { buildAccountApp as buildApp, passengerSession } from './helpers.js';
 import { parsePlaces } from '../src/modules/groups/places.js';
 
 test('arbitrary places persist, invalidate groups and preserve rider rules', async (t) => {
   const app = buildApp();
   t.after(() => app.close());
-  const token = (await app.inject({ method: 'POST', url: '/api/v1/session' })).json().token;
+  const token = (await passengerSession(app)).json().token;
   const headers = { authorization: `Bearer ${token}` };
   const post = (path: string, payload?: object) =>
     app.inject({ method: 'POST', url: `/api/v1/pool${path}`, headers, payload });
@@ -30,7 +30,8 @@ test('arbitrary places persist, invalidate groups and preserve rider rules', asy
     400,
   );
   assert.equal(
-    (await post('/place', { target: 'pickup', place: { ...pickup, latitude: 51, longitude: 0 } })).statusCode,
+    (await post('/place', { target: 'pickup', place: { ...pickup, latitude: 51, longitude: 0 } }))
+      .statusCode,
     400,
   );
   assert.equal(
@@ -69,7 +70,7 @@ test('place search authenticates, validates, caches, throttles and handles provi
     calls++;
     return new Response(JSON.stringify(fixture));
   });
-  const token = (await app.inject({ method: 'POST', url: '/api/v1/session' })).json().token;
+  const token = (await passengerSession(app)).json().token;
   const headers = { authorization: `Bearer ${token}` };
   const search = (query: string) =>
     app.inject({ method: 'POST', url: '/api/v1/places/search', headers, payload: { query } });
@@ -93,17 +94,26 @@ test('place search authenticates, validates, caches, throttles and handles provi
   assert.throws(() =>
     parsePlaces({ features: [{ geometry: { coordinates: [999, 90] }, properties: {} }] }),
   );
-  assert.deepEqual(parsePlaces({ features: [
-    { geometry: { coordinates: [39.27, 8.54] }, properties: { name: 'Adama' } },
-    { geometry: { coordinates: [39.27, 8.54] }, properties: { name: 'Elsewhere', country: 'Kenya' } },
-    { geometry: { coordinates: [39.27, 8.54] }, properties: { name: 'Adama', countrycode: 'ET' } },
-    { geometry: { coordinates: [0, 51] }, properties: { name: 'London', country: 'Ethiopia' } },
-  ] }), [
-    { name: 'Adama', longitude: 39.27, latitude: 8.54 },
-  ]);
+  assert.deepEqual(
+    parsePlaces({
+      features: [
+        { geometry: { coordinates: [39.27, 8.54] }, properties: { name: 'Adama' } },
+        {
+          geometry: { coordinates: [39.27, 8.54] },
+          properties: { name: 'Elsewhere', country: 'Kenya' },
+        },
+        {
+          geometry: { coordinates: [39.27, 8.54] },
+          properties: { name: 'Adama', countrycode: 'ET' },
+        },
+        { geometry: { coordinates: [0, 51] }, properties: { name: 'London', country: 'Ethiopia' } },
+      ],
+    }),
+    [{ name: 'Adama', longitude: 39.27, latitude: 8.54 }],
+  );
   const other = buildApp();
   t.after(() => other.close());
-  const otherToken = (await other.inject({ method: 'POST', url: '/api/v1/session' })).json().token;
+  const otherToken = (await passengerSession(other)).json().token;
   t.mock.method(globalThis, 'fetch', async () => {
     throw new Error('offline');
   });

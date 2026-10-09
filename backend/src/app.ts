@@ -79,7 +79,11 @@ export function buildApp({
     total: destinations.find((place) => place.id === 'meskel')?.fare ?? destinations[0].fare,
     maxPeople: MAX_MEMBERS,
   }));
-  app.post('/api/v1/session', async (_, reply) => reply.code(201).send(await store.create()));
+  app.post('/api/v1/session', async (_, reply) =>
+    reply
+      .code(401)
+      .send({ message: 'Create an account and confirm your email, or sign in to continue.' }),
+  );
   app.register(authRoutes, { store, verifyIdentity });
   app.register(
     async (api) => {
@@ -96,13 +100,16 @@ export function buildApp({
         const header = req.headers.authorization;
         const token = header?.startsWith('Bearer ') ? header.slice(7) : '';
         const id = token.length === 64 ? await store.session(token) : undefined;
-        if (!id) throw new ApiError(401, 'Your session has expired. Refresh to start again.');
+        if (!id) throw new ApiError(401, 'Sign in to continue.');
         req.sessionId = id;
+        const account = (await store.read(id)).user;
+        if (!account)
+          throw new ApiError(
+            401,
+            'Create an account and confirm your email, or sign in to continue.',
+          );
         await store.limitActor(id);
-        if (
-          (await store.read(id)).user?.role === 'driver' &&
-          !req.url.startsWith('/api/v1/driver/')
-        )
+        if (account.role === 'driver' && !req.url.startsWith('/api/v1/driver/'))
           throw new ApiError(403, 'Use your driver workspace for this account.');
       });
       api.register(groupRoutes, { store });

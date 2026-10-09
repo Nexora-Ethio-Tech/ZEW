@@ -39,15 +39,16 @@ function deferredResponse() {
   });
   return { promise, resolve };
 }
-test('a delayed guest session cannot overwrite a verified login', async () => {
-  const response = deferredResponse();
-  globalThis.fetch = async () => response.promise;
-  const guest = getAuthToken();
-  setAuthSession(newToken, account);
-  response.resolve(Response.json({ token: oldToken }));
-  await assert.rejects(guest, /account changed/);
-  assert.equal(storedToken(), newToken);
-  assert.equal(getStoredUser()?.id, account.id);
+test('signed-out requests cannot create guest sessions, including with a legacy cached token', async () => {
+  let requests = 0;
+  globalThis.fetch = async () => {
+    requests++;
+    return Response.json({ token: oldToken });
+  };
+  await assert.rejects(getAuthToken(), /Create an account or sign in/);
+  localStorage.setItem('zew-demo-session', oldToken);
+  await assert.rejects(getAuthToken(), /Create an account or sign in/);
+  assert.equal(requests, 0);
 });
 test('a delayed unauthorized response cannot clear a newer account session', async () => {
   setAuthSession(oldToken, account);
@@ -80,16 +81,6 @@ test('expired authenticated polling does not create a replacement guest workspac
   assert.equal(storedToken(), null);
   assert.equal(getStoredUser()?.id, account.id);
 });
-test('simultaneous guest reads share one session request', async () => {
-  let requests = 0;
-  globalThis.fetch = async () => {
-    requests++;
-    return Response.json({ token: oldToken });
-  };
-  assert.deepEqual(await Promise.all([getAuthToken(), getAuthToken()]), [oldToken, oldToken]);
-  assert.equal(requests, 1);
-});
-
 test('concurrent account restoration shares one verification request', async () => {
   setAuthSession(oldToken, account);
   let requests = 0;

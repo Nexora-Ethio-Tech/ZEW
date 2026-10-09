@@ -58,6 +58,8 @@ for (const [directory, values] of Object.entries(settings)) {
   const { projectId, orgId } = projects[directory];
   await api('/v9/projects/' + projectId + '?teamId=' + orgId, 'PATCH', {
     nodeVersion: '24.x',
+    rootDirectory: directory,
+    sourceFilesOutsideRootDirectory: false,
     framework: directory === 'frontend' ? 'nextjs' : null,
     buildCommand: 'npm run build',
     installCommand: 'npm ci',

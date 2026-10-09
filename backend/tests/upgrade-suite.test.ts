@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildApp } from '../src/app.js';
+import { buildAccountApp as buildApp, passengerSession } from './helpers.js';
 import {
   generateTelebirrSignature,
   verifyTelebirrSignature,
@@ -47,7 +47,7 @@ test('OSRM and Addis Ababa road matrix calculates true road distance & ETA', asy
 test('unconfigured real payments fail closed and do not accept a client payment outcome', async (t) => {
   const app = buildApp();
   t.after(() => app.close());
-  const { token } = (await app.inject({ method: 'POST', url: '/api/v1/session' })).json();
+  const { token } = (await passengerSession(app)).json();
   const headers = { authorization: `Bearer ${token}` };
   for (const url of ['/api/v1/payments/telebirr/initiate', '/api/v1/payments/telebirr/webhook']) {
     const response = await app.inject({

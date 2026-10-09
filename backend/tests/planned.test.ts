@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { reserveTrip } from './helpers.js';
-import { buildApp } from '../src/app.js';
+import { buildAccountApp as buildApp, passengerSession } from './helpers.js';
 
 async function fixture(t: TestContext) {
   const directory = mkdtempSync(join(tmpdir(), 'zew-planned-'));
@@ -17,7 +17,7 @@ async function fixture(t: TestContext) {
     await app.close();
     rmSync(directory, { recursive: true, force: true });
   });
-  const { token } = (await app.inject({ method: 'POST', url: '/api/v1/session' })).json();
+  const { token } = (await passengerSession(app)).json();
   const headers = { authorization: 'Bearer ' + token };
   const call = (path: string, payload?: object) =>
     path === '/bookings'
@@ -98,7 +98,7 @@ test('future commutes use shared departure slots and past bookings do not block 
   assert.equal(booked.json().departure, match.departure);
   assert.equal(booked.json().fare, match.totalFare);
   assert.equal((await call('/bookings', { ...request, tripId: match.id })).statusCode, 409);
-  const token = (await app.inject({ method: 'POST', url: '/api/v1/session' })).json().token;
+  const token = (await passengerSession(app)).json().token;
   const other = await reserveTrip(
     app,
     { authorization: 'Bearer ' + token },
