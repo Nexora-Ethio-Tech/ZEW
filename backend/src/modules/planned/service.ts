@@ -9,6 +9,7 @@ import {
   type State,
 } from '../trips/model.js';
 import { availableSeats, findMatches, rejectionReason } from '../matching/service.js';
+import { demoDemandZones } from '../groups/model.js';
 
 export async function dashboard(store: Store, sessionId: string) {
   const state = await store.read(sessionId);
@@ -19,6 +20,8 @@ export async function dashboard(store: Store, sessionId: string) {
   return {
     mode: 'demo',
     corridors,
+    // Aggregate points from the seeded preview catalog; never expose rider identities.
+    previewDemand: demoDemandZones,
     trips: await Promise.all(
       state.trips.map(async (trip) => ({
         ...trip,
@@ -87,7 +90,11 @@ export async function reserveWithinBudget(
   const selected = results.matches
     .filter((trip) => trip.fare <= maxFare)
     .sort((a, b) => a.fare - b.fare || a.differenceMinutes - b.differenceMinutes)[0];
-  if (!selected) throw new ApiError(409, 'No group match is available within that fare limit. Try a higher limit or another departure.');
+  if (!selected)
+    throw new ApiError(
+      409,
+      'No group match is available within that fare limit. Try a higher limit or another departure.',
+    );
   const booking = await reserve(store, sessionId, selected.quoteId!);
   return { booking, assignedFarePerSeat: selected.fare, assignedDeparture: selected.departure };
 }

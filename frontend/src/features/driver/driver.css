@@ -6,6 +6,12 @@
   grid-template-columns: 240px 1fr;
   font-family: var(--font-body, Arial, sans-serif);
 }
+.driver-map-panel {
+  height: 500px;
+  margin-bottom: 28px;
+  border-radius: 16px;
+  overflow: hidden;
+}
 .driver-sidebar {
   padding: 36px 24px;
   background: #fff;

@@ -2,17 +2,25 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { Corridor } from '@/lib/api';
+import type { Corridor, DemandPoint } from '@/lib/api';
 
 export default function LeafletRouteMap({
   corridor,
   originId,
   destinationId,
+  demandPoints = [],
 }: {
   corridor?: Corridor;
-  originId: string;
-  destinationId: string;
+  originId?: string;
+  destinationId?: string;
+  demandPoints?: DemandPoint[];
 }) {
+  const corridorKey = corridor?.stops
+    .map((stop) => `${stop.id}:${stop.latitude}:${stop.longitude}`)
+    .join('|');
+  const demandKey = demandPoints
+    .map((point) => `${point.id}:${point.latitude}:${point.longitude}:${point.pickupCount}:${point.destinationCount}`)
+    .join('|');
   const node = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layers = useRef<L.LayerGroup | null>(null);
@@ -75,7 +83,7 @@ export default function LeafletRouteMap({
   }, []);
 
   useEffect(() => {
-    if (!map.current || !layers.current || !corridor) return;
+    if (!map.current || !layers.current) return;
     layers.current.clearLayers();
 
     const isDark =
@@ -83,45 +91,43 @@ export default function LeafletRouteMap({
       (document.documentElement.getAttribute('data-theme') === 'dark' ||
         document.documentElement.classList.contains('dark-theme'));
 
-    const originIdx = corridor.stops.findIndex((s) => s.id === originId);
-    const destIdx = corridor.stops.findIndex((s) => s.id === destinationId);
-    if (originIdx === -1 || destIdx === -1) return;
+    const originIdx = corridor?.stops.findIndex((s) => s.id === originId) ?? -1;
+    const destIdx = corridor?.stops.findIndex((s) => s.id === destinationId) ?? -1;
+    const bounds: L.LatLngExpression[] = [];
 
-    const reverse = originIdx > destIdx;
-    const startIndex = Math.min(originIdx, destIdx);
-    const endIndex = Math.max(originIdx, destIdx);
+    if (corridor && originIdx >= 0 && destIdx >= 0) {
+      const startIndex = Math.min(originIdx, destIdx);
+      const endIndex = Math.max(originIdx, destIdx);
 
-    // Draw the full corridor line lightly
-    const allLatLngs = corridor.stops.map((s) => [s.latitude, s.longitude] as [number, number]);
-    L.polyline(allLatLngs, {
-      color: isDark ? '#334155' : '#d4dfc7',
-      weight: 6,
-      opacity: 0.6,
-    }).addTo(layers.current);
+      const allLatLngs = corridor.stops.map((s) => [s.latitude, s.longitude] as [number, number]);
+      bounds.push(...allLatLngs);
+      L.polyline(allLatLngs, {
+        color: isDark ? '#334155' : '#d4dfc7',
+        weight: 6,
+        opacity: 0.6,
+      }).addTo(layers.current);
 
-    // Draw the active route segment bolder
-    const activeStops = corridor.stops.slice(startIndex, endIndex + 1);
-    const activeLatLngs = activeStops.map((s) => [s.latitude, s.longitude] as [number, number]);
-    L.polyline(activeLatLngs, {
-      color: isDark ? '#10b981' : '#285943',
-      weight: 6,
-      opacity: 0.9,
-    }).addTo(layers.current);
+      const activeStops = corridor.stops.slice(startIndex, endIndex + 1);
+      const activeLatLngs = activeStops.map((s) => [s.latitude, s.longitude] as [number, number]);
+      L.polyline(activeLatLngs, {
+        color: isDark ? '#10b981' : '#285943',
+        weight: 6,
+        opacity: 0.9,
+      }).addTo(layers.current);
 
-    // Draw markers for origin and destination
-    const origin = corridor.stops[originIdx];
-    const destination = corridor.stops[destIdx];
+      const origin = corridor.stops[originIdx];
+      const destination = corridor.stops[destIdx];
 
-    for (const [place, letter] of [
-      [origin, 'A'],
-      [destination, 'B'],
-    ] as const) {
-      const isPickup = letter === 'A';
+      for (const [place, letter] of [
+        [origin, 'A'],
+        [destination, 'B'],
+      ] as const) {
+        const isPickup = letter === 'A';
 
-      const label = document.createElement('span');
-      label.textContent = `${isPickup ? 'Pickup' : 'Drop-off'}: ${place.name}`;
+        const label = document.createElement('span');
+        label.textContent = `${isPickup ? 'Pickup' : 'Drop-off'}: ${place.name}`;
 
-      const svgHtml = `
+        const svgHtml = `
         <div class="raindrop-pin-wrapper raindrop-pin-${letter.toLowerCase()}">
           <svg class="raindrop-svg" viewBox="0 0 36 50" width="36" height="50">
             <defs>
@@ -145,34 +151,63 @@ export default function LeafletRouteMap({
         </div>
       `;
 
-      L.marker([place.latitude, place.longitude], {
-        icon: L.divIcon({
-          className: `street-pin street-pin-${letter.toLowerCase()}`,
-          html: svgHtml,
-          iconSize: [36, 70],
-          iconAnchor: [18, 50],
-        }),
-      })
-        .bindPopup(label)
-        .addTo(layers.current);
-    }
+        L.marker([place.latitude, place.longitude], {
+          icon: L.divIcon({
+            className: `street-pin street-pin-${letter.toLowerCase()}`,
+            html: svgHtml,
+            iconSize: [36, 70],
+            iconAnchor: [18, 50],
+          }),
+        })
+          .bindPopup(label)
+          .addTo(layers.current);
+      }
 
-    // Add small dots for intermediate stops
-    if (activeStops.length > 2) {
-      for (let i = 1; i < activeStops.length - 1; i++) {
-        const stop = activeStops[i];
-        L.circleMarker([stop.latitude, stop.longitude], {
-          radius: 4,
-          color: '#285943',
-          fillColor: '#ffffff',
-          fillOpacity: 1,
-          weight: 2,
-        }).addTo(layers.current);
+      if (activeStops.length > 2) {
+        for (let i = 1; i < activeStops.length - 1; i++) {
+          const stop = activeStops[i];
+          L.circleMarker([stop.latitude, stop.longitude], {
+            radius: 4,
+            color: '#285943',
+            fillColor: '#ffffff',
+            fillOpacity: 1,
+            weight: 2,
+          }).addTo(layers.current);
+        }
       }
     }
 
-    map.current.fitBounds(allLatLngs, { padding: [30, 30], animate: false });
-  }, [corridor, originId, destinationId]);
+    for (const point of demandPoints) {
+      if (point.pickupCount > 0) {
+        const latLng: L.LatLngExpression = [point.latitude, point.longitude];
+        bounds.push(latLng);
+        L.circleMarker(latLng, {
+          radius: Math.min(18, 7 + point.pickupCount),
+          color: '#047857',
+          fillColor: '#22c55e',
+          fillOpacity: 0.78,
+          weight: 2,
+        })
+          .bindPopup(`${point.name}: ${point.pickupCount} simulated pickup requests`)
+          .addTo(layers.current);
+      }
+      if (point.destinationCount > 0) {
+        const latLng: L.LatLngExpression = [point.latitude, point.longitude];
+        bounds.push(latLng);
+        L.circleMarker(latLng, {
+          radius: Math.min(18, 7 + point.destinationCount),
+          color: '#b91c1c',
+          fillColor: '#ef4444',
+          fillOpacity: 0.78,
+          weight: 2,
+        })
+          .bindPopup(`${point.name}: ${point.destinationCount} simulated destination requests`)
+          .addTo(layers.current);
+      }
+    }
+    if (bounds.length)
+      map.current.fitBounds(L.latLngBounds(bounds), { padding: [30, 30], animate: false });
+  }, [corridorKey, originId, destinationId, demandKey]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '100%' }}>

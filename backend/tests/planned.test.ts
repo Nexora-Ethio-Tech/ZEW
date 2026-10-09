@@ -57,6 +57,21 @@ test('search and reservations respect the configured vehicle capacity, including
   assert.equal((await call('/matches', { ...journey, seats: 1 })).json().matches.length, 0);
 });
 
+test('passenger dashboard shares anonymous preview demand counts without rider details', async (t) => {
+  const { call } = await fixture(t);
+  const dashboard = (await call('/dashboard')).json();
+  assert.ok(
+    dashboard.previewDemand.some((point: { pickupCount: number }) => point.pickupCount > 0),
+  );
+  assert.ok(
+    dashboard.previewDemand.some(
+      (point: { destinationCount: number }) => point.destinationCount > 0,
+    ),
+  );
+  assert.equal('riders' in dashboard, false);
+  assert.equal('phone' in dashboard.previewDemand[0], false);
+});
+
 test('automatic group request assigns the cheapest eligible trip within the server-enforced fare cap', async (t) => {
   const { call, journey } = await fixture(t);
   const response = await call('/group-requests', { ...journey, seats: 1, maxFare: 200 });

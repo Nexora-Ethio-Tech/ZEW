@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { Icon } from './icon';
-import type { Corridor } from '@/lib/api';
+import type { Corridor, DemandPoint } from '@/lib/api';
 
 const LeafletRouteMap = dynamic(() => import('./leaflet-route-map'), {
   ssr: false,
@@ -15,17 +15,31 @@ export function RouteMap({
   destinationId,
   collapsed,
   onToggleCollapse,
+  demandPoints,
+  demandLabel,
+  demandDescription,
 }: {
   corridor?: Corridor;
-  originId: string;
-  destinationId: string;
+  originId?: string;
+  destinationId?: string;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  demandPoints?: DemandPoint[];
+  demandLabel?: string;
+  demandDescription?: string;
 }) {
   return (
-    <div className="route-map" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '100%' }}>
+    <div
+      className="route-map"
+      style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '100%' }}
+    >
       <div style={{ flex: 1, width: '100%', height: '100%', position: 'relative' }}>
-        <LeafletRouteMap corridor={corridor} originId={originId} destinationId={destinationId} />
+        <LeafletRouteMap
+          corridor={corridor}
+          originId={originId}
+          destinationId={destinationId}
+          demandPoints={demandPoints}
+        />
         {onToggleCollapse && (
           <div className="map-overlay-box bottom-right">
             <button
@@ -43,11 +57,16 @@ export function RouteMap({
         <div>
           <Icon name="route" />
           <span>
-            <strong>{corridor?.name}</strong>
-            <small>Illustrative stop order · not a road route</small>
+            <strong>{demandLabel ?? corridor?.name}</strong>
+            <small>
+              {demandLabel
+                ? (demandDescription ??
+                  'Green: pickups · red: destinations · simulated preview demand, not live traffic')
+                : 'Illustrative stop order · not a road route'}
+            </small>
           </span>
         </div>
-        <span className="schematic">Schematic corridor</span>
+        <span className="schematic">{demandLabel ? 'Assigned only' : 'Schematic corridor'}</span>
       </div>
     </div>
   );

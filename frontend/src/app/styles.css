@@ -2129,9 +2129,12 @@ footer {
 }
 
 /* Map Tile Dark Filter */
+[data-theme='dark'] .leaflet-tile-pane,
+.dark-theme .leaflet-tile-pane {
+  filter: brightness(0.75) contrast(1.25) invert(0.9) hue-rotate(190deg) !important;
+}
 [data-theme='dark'] .leaflet-container,
 .dark-theme .leaflet-container {
-  filter: brightness(0.75) contrast(1.25) invert(0.9) hue-rotate(190deg) !important;
   background: #0f172a !important;
 }
 
@@ -2233,9 +2236,9 @@ footer {
   border-color: #3a4b40 !important;
   color: #f3f6f4 !important;
 }
-[data-theme='dark'] .card :is(h1,h2,h3,h4,strong,p,span,small,label),
-[data-theme='dark'] .modal :is(h1,h2,h3,h4,strong,p,span,small,label),
-[data-theme='dark'] .topbar :is(span,strong) {
+[data-theme='dark'] .card :is(h1, h2, h3, h4, strong, p, span, small, label),
+[data-theme='dark'] .modal :is(h1, h2, h3, h4, strong, p, span, small, label),
+[data-theme='dark'] .topbar :is(span, strong) {
   color: inherit;
 }
 [data-theme='dark'] .muted,

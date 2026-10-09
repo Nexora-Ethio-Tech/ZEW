@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { DataStore as Store } from '../../shared/data-store.js';
+import { corridors } from '../trips/model.js';
+import { demoRoutePlaces } from '../groups/model.js';
 
 export async function dispatchRoutes(app: FastifyInstance, { store }: { store: Store }) {
   app.get('/driver/dashboard', async (req) => {
@@ -14,7 +16,53 @@ export async function dispatchRoutes(app: FastifyInstance, { store }: { store: S
       )
         await store.mutateAssigned(req.sessionId, request.id, 'expire', () => null);
     }
-    const requests = await store.listAssigned(req.sessionId);
+    const requests = (await store.listAssigned(req.sessionId)).map((request) => {
+      const stopPoint = corridors
+        .flatMap((corridor) => corridor.stops)
+        .find((stop) => stop.name.toLowerCase() === request.pickup.toLowerCase());
+      const groupPoint = Object.values(demoRoutePlaces).find(
+        (place) => place.name.toLowerCase() === request.pickup.toLowerCase(),
+      );
+      const destinationStop = corridors
+        .flatMap((corridor) => corridor.stops)
+        .find((stop) => stop.name.toLowerCase() === request.destination.toLowerCase());
+      const groupDestination = Object.values(demoRoutePlaces).find(
+        (place) => place.name.toLowerCase() === request.destination.toLowerCase(),
+      );
+      return {
+        ...request,
+        pickupPoint:
+          request.pickupPoint ??
+          (stopPoint
+            ? {
+                latitude: stopPoint.latitude,
+                longitude: stopPoint.longitude,
+                label: stopPoint.name,
+              }
+            : groupPoint
+              ? {
+                  latitude: groupPoint.latitude,
+                  longitude: groupPoint.longitude,
+                  label: groupPoint.name,
+                }
+              : undefined),
+        destinationPoint:
+          request.destinationPoint ??
+          (destinationStop
+            ? {
+                latitude: destinationStop.latitude,
+                longitude: destinationStop.longitude,
+                label: destinationStop.name,
+              }
+            : groupDestination
+              ? {
+                  latitude: groupDestination.latitude,
+                  longitude: groupDestination.longitude,
+                  label: groupDestination.name,
+                }
+              : undefined),
+      };
+    });
     return {
       driver,
       requests,

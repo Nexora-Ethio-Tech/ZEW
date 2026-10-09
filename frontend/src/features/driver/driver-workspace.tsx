@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { api, day, time } from '@/lib/api';
 import { restoreAccount, signOut, type Account } from '@/lib/auth';
 import { Icon } from '@/components/icon';
+import { RouteMap } from '@/components/route-map';
+import type { DemandPoint } from '@/lib/api';
 import { AuthModal } from '@/features/auth/auth-modal';
 import './driver.css';
 
@@ -16,6 +18,8 @@ interface Request {
   riderName: string;
   pickup: string;
   destination: string;
+  pickupPoint?: { latitude: number; longitude: number; label: string };
+  destinationPoint?: { latitude: number; longitude: number; label: string };
   seats: number;
   fare: number;
   payout: number;
@@ -186,6 +190,29 @@ export function DriverWorkspace() {
     companions.length > 0 &&
     companions.every((ride) => ride.status === 'accepted' && ride.boardingVerified);
   const shown = tab === 'requests' ? incoming : tab === 'active' ? active : history;
+  const assignedPoints = new Map<string, DemandPoint>();
+  for (const request of requests.filter((ride) =>
+    ['requested', 'accepted', 'in_progress'].includes(status(ride)),
+  )) {
+    for (const [point, type] of [
+      [request.pickupPoint, 'pickup'],
+      [request.destinationPoint, 'destination'],
+    ] as const) {
+      if (!point) continue;
+      const key = `${point.latitude.toFixed(5)}:${point.longitude.toFixed(5)}`;
+      const current = assignedPoints.get(key) ?? {
+        id: key,
+        name: point.label,
+        latitude: point.latitude,
+        longitude: point.longitude,
+        pickupCount: 0,
+        destinationCount: 0,
+      };
+      if (type === 'pickup') current.pickupCount += request.seats;
+      else current.destinationCount += request.seats;
+      assignedPoints.set(key, current);
+    }
+  }
   return (
     <div className="driver-app">
       <aside className="driver-sidebar">
@@ -254,6 +281,15 @@ export function DriverWorkspace() {
               Retry
             </button>
           </div>
+        )}
+        {data && tab !== 'earnings' && (
+          <section className="driver-map-panel" aria-label="Assigned passenger stops map">
+            <RouteMap
+              demandPoints={[...assignedPoints.values()]}
+              demandLabel="Assigned passenger stops"
+              demandDescription="Green: pickups · red: destinations · only requests assigned to you"
+            />
+          </section>
         )}
         {!data ? (
           <p role="status">Loading your requests…</p>

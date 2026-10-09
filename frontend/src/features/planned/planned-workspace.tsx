@@ -22,7 +22,13 @@ import {
   type Matches,
   type Trip,
 } from '@/lib/api';
-import { getTranslation, getStoredLanguage, storeLanguage, type Language, type Theme } from '@/lib/i18n';
+import {
+  getTranslation,
+  getStoredLanguage,
+  storeLanguage,
+  type Language,
+  type Theme,
+} from '@/lib/i18n';
 import { applyTheme, getStoredTheme } from '@/lib/theme';
 
 type View = 'find' | 'rides' | 'saved';
@@ -146,6 +152,14 @@ export function PlannedWorkspace() {
   const stopName = (id: string) =>
     data?.corridors.flatMap((c) => c.stops).find((s) => s.id === id)?.name ?? id;
   const corridor = data?.corridors.find((c) => c.id === journey.corridorId);
+  const previewDemand = (data?.previewDemand ?? []).filter((point) =>
+    corridor?.stops.some((stop) => {
+      const lat = (point.latitude - stop.latitude) * 111_000;
+      const lng =
+        (point.longitude - stop.longitude) * 111_000 * Math.cos((stop.latitude * Math.PI) / 180);
+      return Math.hypot(lat, lng) <= 2500;
+    }),
+  );
   const active =
     data?.bookings.filter((b) => b.status === 'confirmed' || b.status === 'in_progress') ?? [];
 
@@ -225,7 +239,9 @@ export function PlannedWorkspace() {
       setResults(undefined);
       setView('rides');
       setFilter('upcoming');
-      setNotice('We found a group match within your fare limit. Your request is waiting for driver acceptance.');
+      setNotice(
+        'We found a group match within your fare limit. Your request is waiting for driver acceptance.',
+      );
     });
   }
 
@@ -396,7 +412,16 @@ export function PlannedWorkspace() {
                       />
                       <label className="field">
                         {t('maximumFare')}
-                        <input aria-label="Maximum fare per seat" type="number" min={1} max={100000} step="1" required value={maxFare} onChange={(e) => setMaxFare(Number(e.target.value))} />
+                        <input
+                          aria-label="Maximum fare per seat"
+                          type="number"
+                          min={1}
+                          max={100000}
+                          step="1"
+                          required
+                          value={maxFare}
+                          onChange={(e) => setMaxFare(Number(e.target.value))}
+                        />
                       </label>
                       <button className="primary full" disabled={busy} type="submit">
                         {busy ? t('findingGroup') : t('findMyGroup')}
@@ -421,6 +446,8 @@ export function PlannedWorkspace() {
                         corridor={corridor}
                         originId={journey.origin}
                         destinationId={journey.destination}
+                        demandPoints={previewDemand}
+                        demandLabel="Preview passenger demand"
                         collapsed={mapCollapsed}
                         onToggleCollapse={() => setMapCollapsed(!mapCollapsed)}
                       />
@@ -429,7 +456,11 @@ export function PlannedWorkspace() {
                   {results && (
                     <div className="empty-inline" role="status">
                       <Icon name="people" size={30} />
-                      <p>{results.matches.length ? 'Ready to find a group within your fare limit.' : 'No group matches this journey yet. Try another time or route.'}</p>
+                      <p>
+                        {results.matches.length
+                          ? 'Ready to find a group within your fare limit.'
+                          : 'No group matches this journey yet. Try another time or route.'}
+                      </p>
                     </div>
                   )}
                 </>
@@ -502,7 +533,7 @@ export function PlannedWorkspace() {
         <Modal
           title={
             {
-                help: 'Same direction. Shared ride.',
+              help: 'Same direction. Shared ride.',
               save: 'Save your everyday route',
               booking: 'Your ride, at a glance',
               account: 'Account & Workspace',

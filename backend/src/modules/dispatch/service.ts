@@ -138,6 +138,16 @@ export function syncDispatch(db: DatabaseSync, workspaceId: string, state: State
       riderName: state.user?.name ?? 'Passenger',
       pickup: view.pickupName,
       destination: view.mapDestination.name,
+      pickupPoint: {
+        latitude: view.mapPickup.latitude,
+        longitude: view.mapPickup.longitude,
+        label: view.pickupName,
+      },
+      destinationPoint: {
+        latitude: view.mapDestination.latitude,
+        longitude: view.mapDestination.longitude,
+        label: view.mapDestination.name,
+      },
       seats: quote.count,
       fare: quote.total,
       payout: quote.driverPayout,
@@ -165,6 +175,8 @@ export function syncDispatch(db: DatabaseSync, workspaceId: string, state: State
         riderName: state.user?.name ?? 'Passenger',
         pickup: stopName(booking.origin),
         destination: stopName(booking.destination),
+        pickupPoint: stopPoint(booking.origin),
+        destinationPoint: stopPoint(booking.destination),
         seats: booking.seats,
         fare: booking.fare,
         payout: Math.round(booking.fare * 90) / 100,
@@ -180,6 +192,13 @@ export function syncDispatch(db: DatabaseSync, workspaceId: string, state: State
       booking.vehicle = driver.vehicle;
     }
   }
+}
+
+function stopPoint(id: string) {
+  const stop = corridors.flatMap((corridor) => corridor.stops).find((item) => item.id === id);
+  return stop
+    ? { latitude: stop.latitude, longitude: stop.longitude, label: stop.name }
+    : undefined;
 }
 
 export function driverAction(state: State, request: AssignedRow, action: string, code?: string) {

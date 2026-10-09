@@ -45,6 +45,8 @@ test('verified driver receives passenger circle, verifies boarding, completes on
   const dashboard = (await call(driver, '/driver/dashboard')).json();
   assert.equal(dashboard.requests.length, 1);
   assert.equal(dashboard.requests[0].id, group.id);
+  assert.ok(Number.isFinite(dashboard.requests[0].pickupPoint.latitude));
+  assert.ok(Number.isFinite(dashboard.requests[0].destinationPoint.longitude));
   assert.equal('code' in dashboard.requests[0], false);
   assert.equal('workspace_id' in dashboard.requests[0], false);
   const action = (action: string, code?: string) =>

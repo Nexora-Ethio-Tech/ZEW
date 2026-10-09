@@ -3,6 +3,14 @@ export interface Corridor {
   name: string;
   stops: { id: string; name: string; area: string; latitude: number; longitude: number }[];
 }
+export interface DemandPoint {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  pickupCount: number;
+  destinationCount: number;
+}
 export interface Journey {
   corridorId: string;
   origin: string;
@@ -42,6 +50,7 @@ export interface Commute extends Journey {
 }
 export interface Dashboard {
   corridors: Corridor[];
+  previewDemand: DemandPoint[];
   trips: Trip[];
   bookings: Booking[];
   commutes: Commute[];

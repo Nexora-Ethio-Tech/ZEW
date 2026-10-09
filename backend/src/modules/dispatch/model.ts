@@ -11,6 +11,8 @@ export interface DispatchRequest {
   riderName: string;
   pickup: string;
   destination: string;
+  pickupPoint?: { latitude: number; longitude: number; label: string };
+  destinationPoint?: { latitude: number; longitude: number; label: string };
   seats: number;
   fare: number;
   payout: number;
