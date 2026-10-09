@@ -77,7 +77,7 @@ export function AuthModal({
         return;
       }
       if (tab === 'signup') {
-        const { error } = await provider.auth.signUp({
+        const { data, error } = await provider.auth.signUp({
           email: email.trim(),
           password,
           options: {
@@ -86,6 +86,14 @@ export function AuthModal({
           },
         });
         if (error) throw error;
+        if (data.user?.identities?.length === 0) {
+          setPassword('');
+          setVerificationSent(false);
+          setConfirmationRequired(false);
+          setTab('login');
+          setError('No new confirmation email was sent. If you already registered, sign in or use Forgot password? to recover access.');
+          return;
+        }
         // No API session or account is created until the provider verifies the user.
         setPassword('');
         setVerificationSent(true);
@@ -148,12 +156,12 @@ export function AuthModal({
             <p>
               {tab === 'recovery'
                 ? 'If this email belongs to an account, a password reset link will arrive at '
-                : 'Supabase accepted the signup request. Check for an account confirmation email at '}
+                : 'Check for an account confirmation email at '}
               <strong>{email.trim()}</strong>.
               {tab === 'recovery'
                 ? ' Open it to choose a new password.'
                 : ' Open the link to confirm your email. If you already have an account, sign in instead.'}{' '}
-              Check your spam folder too. If nothing arrives, use Resend confirmation email or contact the site administrator to check Supabase email delivery.
+              Check your spam folder too.
             </p>
             {error && (
               <p className="auth-error-notice" role="alert">

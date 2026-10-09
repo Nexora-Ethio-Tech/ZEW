@@ -10,6 +10,7 @@ const ws = new WebSocket(tab.webSocketDebuggerUrl),
   requests = [],
   errors = [];
 let id = 0,
+  existingAccount = false,
   signupFails = true;
 const send = (method, params = {}) =>
   new Promise((resolve, reject) => {
@@ -60,7 +61,7 @@ ws.onmessage = (event) => {
                     code: 'email_not_confirmed',
                     error_code: 'email_not_confirmed',
                   }
-                : { id: 'browser-auth-fixture', email: 'test@example.com', identities: [] },
+                : { id: 'browser-auth-fixture', email: 'test@example.com', identities: existingAccount ? [] : [{ provider: 'email' }] },
           ),
         ).toString('base64'),
       });
@@ -136,6 +137,13 @@ try {
     false,
   );
   signupFails = false;
+  existingAccount = true;
+  await evaluate('document.querySelector(".auth-form").requestSubmit()');
+  await wait('document.querySelector("[role=alert]")?.textContent.includes("No new confirmation email was sent")');
+  assert.equal(await evaluate('!!document.querySelector("#auth-name")'), false);
+  await click('Create account');
+  existingAccount = false;
+  await fill('#auth-password', 'Browser-test-password-42!');
   await evaluate('document.querySelector(".auth-form").requestSubmit()');
   await wait('document.querySelector("#auth-title").textContent.includes("Check your inbox")');
   assert.equal(

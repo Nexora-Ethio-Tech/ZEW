@@ -116,3 +116,7 @@ Validation: `npm run check` and `npm run build` passed. The account browser regr
 Landing journey buttons open registration, and direct `/planned` visits send visitors to `/login?tab=signup`. The browser no longer creates guest sessions. The API rejects both new guest session requests and historical guest tokens; public health and fare estimates remain available. Historical workspace data is preserved. Business regressions and isolated browser fixtures now use confirmed test identities.
 
 Validation: `npm run check` passed 57 backend tests (one external PostgreSQL test skipped), eight frontend tests and six deployment configuration cases. `npm run build` passed. Git pushes to `master` are configured to deploy both applications; preview environments still require isolated database and authentication configuration.
+
+## Existing-account signup handling (2026-10-09)
+
+Signup now recognizes Supabase's obfuscated existing-account response (empty identities) and opens sign-in with password recovery available instead of promising another confirmation email. New signup confirmation and resend remain provider-owned. A read-only operator check found the reported account already confirmed; SMTP and production callback settings are configured. This check does not establish delivery to other recipients. Startup configuration is unchanged.
