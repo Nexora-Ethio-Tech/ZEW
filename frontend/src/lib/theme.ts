@@ -2,7 +2,8 @@ export type Theme = 'light' | 'dark';
 
 export function getStoredTheme(): Theme {
   if (typeof window === 'undefined') return 'light';
-  return (localStorage.getItem('zew_theme') as Theme) || 'light';
+  const stored = localStorage.getItem('zew_theme');
+  return stored === 'dark' || stored === 'light' ? stored : 'light';
 }
 
 export function applyTheme(theme: Theme) {

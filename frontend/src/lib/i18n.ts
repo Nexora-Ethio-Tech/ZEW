@@ -1,6 +1,16 @@
 export type Language = 'en' | 'am' | 'om';
 export type Theme = 'light' | 'dark';
 
+export function getStoredLanguage(): Language {
+  if (typeof window === 'undefined') return 'en';
+  const stored = localStorage.getItem('zew_language');
+  return stored === 'am' || stored === 'om' ? stored : 'en';
+}
+
+export function storeLanguage(language: Language) {
+  if (typeof window !== 'undefined') localStorage.setItem('zew_language', language);
+}
+
 export const translations: Record<Language, Record<string, string>> = {
   en: {
     cityBadge: 'ADDIS ABABA',
@@ -69,6 +79,11 @@ export const translations: Record<Language, Record<string, string>> = {
     darkTheme: 'Dark Theme',
     exploreDemo: 'Find a ride',
     demoNotice: 'Preview environment. No live rides or payments.',
+    languageLabel: 'Language',
+    maximumFare: 'Maximum you can afford per seat (ETB)',
+    findMyGroup: 'Find my group',
+    findingGroup: 'Finding your group…',
+    workspaceControls: 'Workspace controls',
   },
   am: {
     cityBadge: 'አዲስ አበባ',
@@ -134,6 +149,11 @@ export const translations: Record<Language, Record<string, string>> = {
     darkTheme: 'ጨለምተኝነት ገጽታ',
     exploreDemo: 'ጉዞ ይፈልጉ',
     demoNotice: 'የሙከራ ማሳያ። እውነተኛ ጉዞ ወይም ክፍያ የለም።',
+    languageLabel: 'ቋንቋ',
+    maximumFare: 'በአንድ መቀመጫ መክፈል የሚችሉት ከፍተኛ ዋጋ (ብር)',
+    findMyGroup: 'ቡድኔን ፈልግ',
+    findingGroup: 'ቡድንዎን በመፈለግ ላይ…',
+    workspaceControls: 'የመስሪያ ቦታ ቁጥጥሮች',
   },
   om: {
     cityBadge: 'FINFINNEE',
@@ -203,6 +223,11 @@ export const translations: Record<Language, Record<string, string>> = {
     darkTheme: 'Dukkana (Dark)',
     exploreDemo: 'Imala barbaadaa',
     demoNotice: 'Agarsiisa yaalii. Imalli fi kaffaltiin dhugaa hin jiru.',
+    languageLabel: 'Afaan',
+    maximumFare: 'Gatii ol aanaa teessoo tokkoof kaffaluu dandeessan (ETB)',
+    findMyGroup: 'Garee koo barbaadi',
+    findingGroup: 'Garee keessan barbaadaa…',
+    workspaceControls: 'To’annoo bakka hojii',
   },
 };
 

@@ -9,6 +9,7 @@ export function WorkspaceHeader({
   toggleTheme,
   openAccount,
   signIn,
+  translate,
 }: {
   account: Account | null;
   language: Language;
@@ -17,6 +18,7 @@ export function WorkspaceHeader({
   toggleTheme: () => void;
   openAccount: () => void;
   signIn: () => void;
+  translate: (key: string) => string;
 }) {
   return (
     <header className="topbar">
@@ -29,7 +31,7 @@ export function WorkspaceHeader({
         <select
           value={language}
           onChange={(e) => setLanguage(e.target.value as Language)}
-          aria-label="Select Language"
+          aria-label={translate('languageLabel')}
         >
           <option value="en">English</option>
           <option value="am">አማርኛ</option>

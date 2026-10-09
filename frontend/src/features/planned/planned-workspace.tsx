@@ -22,7 +22,7 @@ import {
   type Matches,
   type Trip,
 } from '@/lib/api';
-import { getTranslation, type Language, type Theme } from '@/lib/i18n';
+import { getTranslation, getStoredLanguage, storeLanguage, type Language, type Theme } from '@/lib/i18n';
 import { applyTheme, getStoredTheme } from '@/lib/theme';
 
 type View = 'find' | 'rides' | 'saved';
@@ -67,6 +67,7 @@ export function PlannedWorkspace() {
     const active = getStoredTheme();
     setTheme(active);
     applyTheme(active);
+    setLang(getStoredLanguage());
   }, []);
   useEffect(() => {
     if (journey.corridorId || !data?.corridors.length) return;
@@ -279,13 +280,13 @@ export function PlannedWorkspace() {
           <button
             className="nav-item"
             onClick={() => open('account')}
-            aria-label="Workspace controls"
+            aria-label={t('workspaceControls')}
           >
-            <Icon name="people" /> Workspace controls
+            <Icon name="people" /> {t('workspaceControls')}
           </button>
           <button className="nav-item help-button" onClick={() => open('help')}>
             <Icon name="help" />
-            How Zew works
+            {t('howZewWorks')}
           </button>
         </div>
       </aside>
@@ -295,7 +296,11 @@ export function PlannedWorkspace() {
           account={user}
           language={lang}
           theme={theme}
-          setLanguage={setLang}
+          setLanguage={(language) => {
+            setLang(language);
+            storeLanguage(language);
+          }}
+          translate={t}
           toggleTheme={handleToggleTheme}
           openAccount={() => open('account')}
           signIn={() => open('auth')}
@@ -390,11 +395,11 @@ export function PlannedWorkspace() {
                         departureLabel={t('departureAddisTime')}
                       />
                       <label className="field">
-                        Maximum you can afford per seat (ETB)
+                        {t('maximumFare')}
                         <input aria-label="Maximum fare per seat" type="number" min={1} max={100000} step="1" required value={maxFare} onChange={(e) => setMaxFare(Number(e.target.value))} />
                       </label>
                       <button className="primary full" disabled={busy} type="submit">
-                        {busy ? 'Finding your group…' : 'Find my group'}
+                        {busy ? t('findingGroup') : t('findMyGroup')}
                         <Icon name="arrow" size={18} />
                       </button>
                       <button type="button" className="save-link" onClick={() => open('save')}>

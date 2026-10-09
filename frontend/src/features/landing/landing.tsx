@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Icon } from '@/components/icon';
 import { AuthModal } from '../auth/auth-modal';
-import { getTranslation, type Language, type Theme } from '@/lib/i18n';
+import { getTranslation, getStoredLanguage, storeLanguage, type Language, type Theme } from '@/lib/i18n';
 import { applyTheme, getStoredTheme } from '@/lib/theme';
 import type { Account } from '@/lib/auth';
 import './landing.css';
@@ -31,6 +31,7 @@ export function LandingPage({
     const value = getStoredTheme();
     setTheme(value);
     applyTheme(value);
+    setLang(getStoredLanguage());
   }, []);
   useEffect(() => {
     let active = true;
@@ -82,7 +83,11 @@ export function LandingPage({
         <div className="landing-auth-actions">
           <select
             value={lang}
-            onChange={(event) => setLang(event.target.value as Language)}
+            onChange={(event) => {
+              const language = event.target.value as Language;
+              setLang(language);
+              storeLanguage(language);
+            }}
             aria-label="Select language"
             className="landing-language"
           >

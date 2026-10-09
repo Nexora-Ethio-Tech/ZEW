@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Icon } from '@/components/icon';
+import { AppearanceControls } from '@/components/appearance-controls';
 import { authConfigured, getSupabase } from '@/lib/supabase';
 import { establishSession, type Account } from '@/lib/auth';
 import './auth.css';
@@ -133,6 +134,7 @@ export function AuthModal({
       }}
     >
       <div className="auth-modal-card">
+        <AppearanceControls always />
         <button
           className="auth-close-btn"
           onClick={onClose}

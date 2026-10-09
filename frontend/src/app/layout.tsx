@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import '@/components/route-map.css';
 import './styles.css';
 import { Pwa } from '@/components/pwa';
+import { AppearanceControls } from '@/components/appearance-controls';
 
 export const metadata: Metadata = {
   title: 'Zew — Go your way, together',
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body>
         {children}
+        <AppearanceControls />
         <Pwa />
       </body>
     </html>
