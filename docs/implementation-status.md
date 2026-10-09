@@ -94,3 +94,11 @@ The earlier foundations phase added no runtime package. The Vercel migration add
 - Hosted runtime credentials are restricted to application tables; API startup cannot migrate schemas or administer Supabase Auth. TLS certificate verification stays enabled. SMTP and management credentials remain local operator settings.
 - Driver administration, invitation eligibility, aggregate status, maintenance and session revocation select PostgreSQL when `DATABASE_URL` is configured.
 - A database-wide advisory transaction lock preserves booking correctness across instances; higher write throughput would require finer-grained locks and load testing. Supabase backup/restore and external alert delivery are not claimed as verified by the application regression.
+
+### Hosted release verification
+
+Production frontend: https://zew-blue.vercel.app. Production API: https://zew-api.vercel.app. Both Vercel deployments reached READY. Supabase’s site URL and production email callback were saved and read back; SMTP and email-confirmation settings were preserved. Following a new live sign-in email still requires the recipient.
+
+The live frontend proxy passed health, guest isolation, denied driver access, private quote ownership, reservation creation, same-key replay, cancellation, payment refusal and logout revocation. The smoke reservation was cancelled. Browser checks passed API-loaded fare controls, theme toggles, account dialogs, forged driver-cache rejection, and tablet/mobile layouts. The final `npm run check` and `npm run build` passed; type checking now includes the Vercel function entry point.
+
+Deployment commits use the owner-approved Vercel identity; previous history is preserved. Direct CLI deployment is active; automatic Git deployment is not connected for this private organization repository on the current Hobby account.

@@ -90,6 +90,7 @@ try {
     'document.querySelector(".hero-city-img")?.complete && document.querySelector(".hero-city-img")?.naturalWidth > 0',
   );
   await evaluate('document.fonts.ready.then(()=>true)');
+  await wait('document.querySelectorAll(".fare-people-selector button").length === 4');
   assert.equal(await evaluate(`!!document.querySelector('a[href="/rides"]')`), true);
   await screenshot('zew-landing-desktop');
   for (const [count, fare] of [
@@ -136,7 +137,7 @@ try {
   await labelled('Close dialog');
   // A saved browser profile is never sufficient proof of identity.
   await evaluate(
-    `localStorage.setItem('zew-user-account', JSON.stringify({id:'forged',name:'Forged',email:'fake@example.test',role:'admin'}));localStorage.setItem('zew-demo-session','0'.repeat(64));`,
+    `localStorage.setItem('zew-user-account', JSON.stringify({id:'forged',name:'Forged',email:'fake@example.test',role:'driver'}));localStorage.setItem('zew-demo-session','0'.repeat(64));`,
   );
   await send('Page.reload');
   await wait('localStorage.getItem("zew-user-account") === null');

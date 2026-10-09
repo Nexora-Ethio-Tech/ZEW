@@ -6,7 +6,7 @@ if (!env.DATABASE_URL) throw new Error('Configure DATABASE_URL before deploying 
 const app = buildApp({ store: new PostgresStore(env.DATABASE_URL), logger: true });
 let ready: Promise<unknown> | undefined;
 export default async function handler(request: IncomingMessage, response: ServerResponse) {
-  ready ??= app.ready().catch((error) => {
+  ready ??= Promise.resolve(app.ready()).catch((error) => {
     ready = undefined;
     throw error;
   });

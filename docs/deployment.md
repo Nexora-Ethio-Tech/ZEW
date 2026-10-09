@@ -2,7 +2,7 @@
 
 Deploy two applications: Next.js (`frontend/`) and the Fastify Node function (`backend/`). Supabase PostgreSQL holds application state; Supabase Auth verifies accounts. This is a private transport preview with staged matching and simulated payments.
 
-Production frontend: **https://zew-blue.vercel.app**. API project: `zew-api`, intended origin **https://zew-api.vercel.app**. Keep secrets in ignored operator environment files and encrypted Vercel settings.
+Production frontend: **https://zew-blue.vercel.app**. API project: `zew-api`, production origin **https://zew-api.vercel.app**. Keep secrets in ignored operator environment files and encrypted Vercel settings.
 
 ## Database setup and migration
 
