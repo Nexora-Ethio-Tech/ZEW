@@ -28,25 +28,27 @@ export function WorkspaceHeader({
         </span>
       </div>
       <div className="topbar-right planned-toolbar">
-        <select
+        <div className="planned-appearance-controls" aria-label="Appearance and language settings">
+          <select
           value={language}
           onChange={(e) => setLanguage(e.target.value as Language)}
           aria-label={translate('languageLabel')}
-        >
-          <option value="en">English</option>
-          <option value="am">አማርኛ</option>
-          <option value="om">Afaan Oromoo</option>
-        </select>
-        <button
-          type="button"
-          className="secondary"
-          onClick={toggleTheme}
-          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-        >
-          {theme === 'light' ? '☀ Light' : '☾ Dark'}
-        </button>
+          >
+            <option value="en">English</option>
+            <option value="am">አማርኛ</option>
+            <option value="om">Afaan Oromoo</option>
+          </select>
+          <button
+            type="button"
+            className="secondary"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
+          >
+            {theme === 'light' ? '☀ Light' : '☾ Dark'}
+          </button>
+        </div>
         {account ? (
-          <button className="secondary" onClick={openAccount} aria-label="Account details">
+          <button className="secondary planned-account-button" onClick={openAccount} aria-label="Account details" title={account.name}>
             {account.name}
           </button>
         ) : (

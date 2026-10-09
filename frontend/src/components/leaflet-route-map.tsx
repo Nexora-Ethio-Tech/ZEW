@@ -37,14 +37,8 @@ export default function LeafletRouteMap({
     }).setView([9.01, 38.77], 13);
     map.current = instance;
 
-    const isDark =
-      typeof document !== 'undefined' &&
-      (document.documentElement.getAttribute('data-theme') === 'dark' ||
-        document.documentElement.classList.contains('dark-theme'));
-
-    const defaultTileUrl = isDark
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    // Keep the configured provider in both themes; dark mode is styled with the Leaflet filter below.
+    const defaultTileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
     const tileUrl = process.env.NEXT_PUBLIC_MAP_TILE_URL ?? defaultTileUrl;
     const tileAttribution =
