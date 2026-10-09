@@ -55,6 +55,7 @@ export function PlannedWorkspace() {
   const [results, setResults] = useState<Matches>();
   const [mapCollapsed, setMapCollapsed] = useState(false);
   const [selected, setSelected] = useState<Trip>();
+  const [maxFare, setMaxFare] = useState(200);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -204,6 +205,26 @@ export function PlannedWorkspace() {
         setResults(matches);
         setMapCollapsed(true);
       }
+    });
+  }
+
+  async function findGroup(e?: FormEvent) {
+    e?.preventDefault();
+    await run(async () => {
+      const activeDeparture =
+        !journey.departure || Date.parse(journey.departure) <= Date.now()
+          ? new Date().toISOString()
+          : journey.departure;
+      const booking = await api<{ booking: { id: string } }>('/group-requests', 'POST', {
+        ...journey,
+        departure: activeDeparture,
+        maxFare,
+      });
+      await refresh();
+      setResults(undefined);
+      setView('rides');
+      setFilter('upcoming');
+      setNotice('We found a group match within your fare limit. Your request is waiting for driver acceptance.');
     });
   }
 
@@ -357,7 +378,7 @@ export function PlannedWorkspace() {
               {view === 'find' && (
                 <>
                   <section className="journey-grid">
-                    <form className="search-card card" onSubmit={search}>
+                    <form className="search-card card" onSubmit={findGroup}>
                       <div className="section-title">
                         <h2>{t('whereHeading')}</h2>
                         <Icon name="route" />
@@ -368,8 +389,12 @@ export function PlannedWorkspace() {
                         update={updateJourney}
                         departureLabel={t('departureAddisTime')}
                       />
+                      <label className="field">
+                        Maximum you can afford per seat (ETB)
+                        <input aria-label="Maximum fare per seat" type="number" min={1} max={100000} step="1" required value={maxFare} onChange={(e) => setMaxFare(Number(e.target.value))} />
+                      </label>
                       <button className="primary full" disabled={busy} type="submit">
-                        {busy ? 'Finding your route…' : t('findMyRide')}
+                        {busy ? 'Finding your group…' : 'Find my group'}
                         <Icon name="arrow" size={18} />
                       </button>
                       <button type="button" className="save-link" onClick={() => open('save')}>
@@ -397,18 +422,10 @@ export function PlannedWorkspace() {
                     </div>
                   </section>
                   {results && (
-                    <RideResults
-                      trips={results.matches}
-                      busy={busy}
-                      choose={(trip) => {
-                        setSelected(trip);
-                        open('booking');
-                      }}
-                      profile={(trip) => {
-                        setSelected(trip);
-                        open('driver-profile');
-                      }}
-                    />
+                    <div className="empty-inline" role="status">
+                      <Icon name="people" size={30} />
+                      <p>{results.matches.length ? 'Ready to find a group within your fare limit.' : 'No group matches this journey yet. Try another time or route.'}</p>
+                    </div>
                   )}
                 </>
               )}
@@ -480,7 +497,7 @@ export function PlannedWorkspace() {
         <Modal
           title={
             {
-              help: 'Same direction. Shared ride.',
+                help: 'Same direction. Shared ride.',
               save: 'Save your everyday route',
               booking: 'Your ride, at a glance',
               account: 'Account & Workspace',
@@ -507,17 +524,17 @@ export function PlannedWorkspace() {
                 [
                   '01',
                   'Choose your journey',
-                  'Pick your departure time and how many seats you need.',
+                  'Pick your pickup, destination, departure time, and maximum fare per seat.',
                 ],
                 [
                   '02',
-                  'Find your forward match',
-                  'The system checks stop order, departure time, and available seats.',
+                  'Get grouped automatically',
+                  'Zew checks the available shared departures and assigns a match within your fare limit.',
                 ],
                 [
                   '03',
-                  'Review your preview reservation',
-                  'Reserve a seat and wait for your driver to accept. Share your code when you board; your driver starts and completes the ride.',
+                  'Wait for acceptance',
+                  'Your request waits for driver acceptance. This is a preview reservation; no payment is collected.',
                 ],
               ].map(([n, title, description]) => (
                 <div className="help-step" key={n}>

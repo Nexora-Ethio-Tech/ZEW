@@ -77,6 +77,21 @@ export async function matches(store: Store, sessionId: string, input: Journey) {
   };
 }
 
+export async function reserveWithinBudget(
+  store: Store,
+  sessionId: string,
+  input: Journey & { maxFare: number },
+) {
+  const { maxFare, ...journey } = input;
+  const results = await matches(store, sessionId, journey);
+  const selected = results.matches
+    .filter((trip) => trip.fare <= maxFare)
+    .sort((a, b) => a.fare - b.fare || a.differenceMinutes - b.differenceMinutes)[0];
+  if (!selected) throw new ApiError(409, 'No group match is available within that fare limit. Try a higher limit or another departure.');
+  const booking = await reserve(store, sessionId, selected.quoteId!);
+  return { booking, assignedFarePerSeat: selected.fare, assignedDeparture: selected.departure };
+}
+
 export async function quote(store: Store, sessionId: string, input: Journey & { tripId: string }) {
   const candidates = departures(await store.read(sessionId), input.departure);
   const trip = candidates.trips.find((t) => t.id === input.tripId);

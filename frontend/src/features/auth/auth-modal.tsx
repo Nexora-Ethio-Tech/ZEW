@@ -148,12 +148,12 @@ export function AuthModal({
             <p>
               {tab === 'recovery'
                 ? 'If this email belongs to an account, a password reset link will arrive at '
-                : 'Check for an account confirmation email at '}
+                : 'Supabase accepted the signup request. Check for an account confirmation email at '}
               <strong>{email.trim()}</strong>.
               {tab === 'recovery'
                 ? ' Open it to choose a new password.'
                 : ' Open the link to confirm your email. If you already have an account, sign in instead.'}{' '}
-              Check your spam folder too.
+              Check your spam folder too. If nothing arrives, use Resend confirmation email or contact the site administrator to check Supabase email delivery.
             </p>
             {error && (
               <p className="auth-error-notice" role="alert">

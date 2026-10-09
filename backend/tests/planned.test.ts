@@ -56,6 +56,21 @@ test('search and reservations respect the configured vehicle capacity, including
   db.prepare('UPDATE dispatch_settings SET test_driver_id=NULL WHERE id=1').run();
   assert.equal((await call('/matches', { ...journey, seats: 1 })).json().matches.length, 0);
 });
+
+test('automatic group request assigns the cheapest eligible trip within the server-enforced fare cap', async (t) => {
+  const { call, journey } = await fixture(t);
+  const response = await call('/group-requests', { ...journey, seats: 1, maxFare: 200 });
+  assert.equal(response.statusCode, 201);
+  assert.ok(response.json().booking.id);
+  assert.ok(response.json().assignedFarePerSeat <= 200);
+  const dashboard = (await call('/dashboard')).json();
+  assert.equal(dashboard.bookings.length, 1);
+  assert.equal(dashboard.bookings[0].fare, response.json().assignedFarePerSeat);
+  assert.equal(
+    (await call('/group-requests', { ...journey, seats: 1, maxFare: 1 })).statusCode,
+    409,
+  );
+});
 test('cancellation can release a reservation after the vehicle capacity is reduced', async (t) => {
   const { db, call, journey, trip } = await fixture(t);
   const response = await call('/bookings', { ...journey, tripId: trip.id });

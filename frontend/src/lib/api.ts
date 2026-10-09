@@ -9,6 +9,7 @@ export interface Journey {
   destination: string;
   departure: string;
   seats: number;
+  maxFare?: number;
 }
 export interface Trip extends Journey {
   id: string;

@@ -5,6 +5,7 @@ import { ApiError } from '../../shared/http-error.js';
 import {
   dashboard,
   matches,
+  reserveWithinBudget,
   quote,
   reserve,
   cancel,
@@ -16,6 +17,22 @@ import { journeyInput, quoteInput, bookingInput, commuteInput } from './schemas.
 export async function plannedRoutes(app: FastifyInstance, { store }: { store: Store }) {
   app.get('/dashboard', async (req) => dashboard(store, req.sessionId));
   app.post('/matches', async (req) => matches(store, req.sessionId, journeyInput.parse(req.body)));
+  app.post('/group-requests', async (req, reply) => {
+    const raw = z
+      .object({
+        corridorId: z.string(),
+        origin: z.string(),
+        destination: z.string(),
+        departure: z.string(),
+        seats: z.number().int().min(1).max(50),
+        maxFare: z.number().finite().positive().max(100000),
+      })
+      .strict()
+      .parse(req.body);
+    const { maxFare, ...journey } = raw;
+    journeyInput.parse(journey);
+    return reply.code(201).send(await reserveWithinBudget(store, req.sessionId, { ...journey, maxFare }));
+  });
   app.post('/booking-quotes', async (req, reply) =>
     reply.code(201).send(await quote(store, req.sessionId, quoteInput.parse(req.body))),
   );
