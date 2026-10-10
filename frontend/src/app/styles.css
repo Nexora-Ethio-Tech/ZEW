@@ -2236,6 +2236,18 @@ footer {
   border-color: #3a4b40 !important;
   color: #f3f6f4 !important;
 }
+[data-theme='dark'] .icon-button,
+[data-theme='dark'] .auth-close-btn {
+  color: #f3f6f4 !important;
+  background: #34463d !important;
+  border: 1px solid #71877a;
+  box-shadow: 0 0 0 1px #111a16;
+}
+[data-theme='dark'] .icon-button:hover,
+[data-theme='dark'] .auth-close-btn:hover {
+  color: #ffffff !important;
+  background: #456052 !important;
+}
 [data-theme='dark'] .card :is(h1, h2, h3, h4, strong, p, span, small, label),
 [data-theme='dark'] .modal :is(h1, h2, h3, h4, strong, p, span, small, label),
 [data-theme='dark'] .topbar :is(span, strong) {
