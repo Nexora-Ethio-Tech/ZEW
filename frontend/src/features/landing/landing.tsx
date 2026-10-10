@@ -61,7 +61,7 @@ export function LandingPage({
   return (
     <div className={`landing-shell ${theme}-theme`}>
       <a href="#main-content" className="landing-skip">
-        Skip to content
+        {t('skipToContent')}
       </a>
       <header className="landing-nav">
         <Link href="/" className="landing-logo" aria-label="Zew home">
@@ -74,7 +74,8 @@ export function LandingPage({
           <a href="#how-it-works">{t('howItWorks')}</a>
           <a href="#showcase">{t('fareSplitting')}</a>
           <button type="button" className="landing-nav-action" onClick={() => setAuth('signup')}>
-            Find a ride{' '}
+            {t('findMyRide')}{' '}
+
             <span className="diagonal-arrow">
               <Icon name="arrow" size={22} />
             </span>
@@ -88,7 +89,7 @@ export function LandingPage({
               setLang(language);
               storeLanguage(language);
             }}
-            aria-label="Select language"
+            aria-label={t('selectLanguage')}
             className="landing-language"
           >
             <option value="en">EN</option>
@@ -98,7 +99,7 @@ export function LandingPage({
           <button
             className="landing-theme"
             onClick={toggleTheme}
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
+            aria-label={t(theme === 'light' ? 'switchToDarkTheme' : 'switchToLightTheme')}
           >
             <Icon name="sun" size={18} />
           </button>
@@ -116,7 +117,7 @@ export function LandingPage({
         <section className="landing-hero">
           <div className="landing-hero-copy">
             <p className="landing-eyebrow">
-              <span className="landing-dot" /> ADDIS ABABA, A LITTLE CLOSER
+              <span className="landing-dot" /> {t('landingEyebrow')}
             </p>
             <h1>
               {t('heroTitleLine1')}
@@ -144,7 +145,7 @@ export function LandingPage({
               </button>
             </div>
             <div className="hero-people">
-              <p>One direction. A shared possibility.</p>
+              <p>{t('sharedPossibility')}</p>
             </div>
             <p className="landing-demo-note">
               <Icon name="shield" size={15} /> {t('demoNotice')}
@@ -154,7 +155,7 @@ export function LandingPage({
             <div className="hero-image-frame">
               <Image
                 src="/images/hero_addis_commute.png"
-                alt="Illustration of an avenue and skyline in Addis Ababa"
+                alt={t('heroImageAlt')}
                 fill
                 priority
                 sizes="(max-width: 760px) 100vw, 50vw"
@@ -162,16 +163,16 @@ export function LandingPage({
               />
               <div className="hero-photo-caption">
                 <span>9.03° N · 38.75° E</span>
-                <span>OUR CITY. OUR INSPIRATION.</span>
+                <span>{t('cityInspiration')}</span>
               </div>
             </div>
             <span className="hero-city-tag">
-              <Icon name="pin" size={14} /> Inspired by Addis
+              <Icon name="pin" size={14} /> {t('inspiredByAddis')}
             </span>
             <div className="hero-journey-card">
               <div className="hero-card-heading">
-                <span>YOUR NEXT SHARED CHAPTER</span>
-                <span className="hero-demo-badge">PREVIEW</span>
+                <span>{t('nextSharedChapter')}</span>
+                <span className="hero-demo-badge">{t('preview')}</span>
               </div>
               <div className="hero-route">
                 <div className="hero-route-line">
@@ -180,10 +181,10 @@ export function LandingPage({
                   <i />
                 </div>
                 <div>
-                  <small>PICKUP</small>
-                  <strong>{farePreview?.pickup ?? 'Fare loading'}</strong>
-                  <small>DESTINATION</small>
-                  <strong>{farePreview?.destination ?? 'Fare loading'}</strong>
+                  <small>{t('pickup')}</small>
+                  <strong>{farePreview?.pickup ?? t('fareLoading')}</strong>
+                  <small>{t('destination')}</small>
+                  <strong>{farePreview?.destination ?? t('fareLoading')}</strong>
                 </div>
                 <span className="hero-route-icon">
                   <Icon name="car" size={28} />
@@ -195,14 +196,14 @@ export function LandingPage({
                     {farePreview
                       ? Math.round((farePreview.total / farePreview.maxPeople) * 100) / 100
                       : '—'}{' '}
-                    <small>ETB / person</small>
+                    <small>{t('etbPerson')}</small>
                   </span>
-                  <p>{farePreview?.maxPeople ?? '—'} people · projected shared fare</p>
+                  <p>{farePreview?.maxPeople ?? '—'} {t('peopleProjectedFare')}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setAuth('signup')}
-                  aria-label="Find a ride for this journey"
+                  aria-label={t('findRideForJourney')}
                 >
                   <Icon name="arrow" size={22} />
                 </button>
@@ -211,26 +212,25 @@ export function LandingPage({
           </div>
         </section>
         <div className="landing-city-strip">
-          <span>Built around a simple idea.</span>
+          <span>{t('builtAroundIdea')}</span>
           <p>
-            Less solo.
-            <i /> More together.
-            <i /> A fairer share.
+            {t('lessSolo')}
+            <i /> {t('moreTogether')}
+            <i /> {t('fairerShare')}
           </p>
           <Icon name="leaf" size={22} />
         </div>
         <section id="how-it-works" className="landing-section">
           <div className="section-heading">
             <div>
-              <p className="section-kicker">THE JOURNEY, REIMAGINED</p>
+              <p className="section-kicker">{t('journeyReimagined')}</p>
               <h2>
-                A little planning.
-                <br />A lot more possibility.
+                {t('planningPossibilityTitle')}
+                <br />
               </h2>
             </div>
             <p>
-              Choose your route, departure time and seats. Review a matching ride and its total
-              before confirming.
+              {t('planningPossibilityDesc')}
             </p>
           </div>
           <div className="steps-grid">
@@ -251,31 +251,30 @@ export function LandingPage({
         </section>
         <section id="showcase" className="fare-showcase">
           <div className="fare-showcase-copy">
-            <p className="section-kicker">SAME JOURNEY. SMALLER SHARE.</p>
+            <p className="section-kicker">{t('sameJourneySmallerShare')}</p>
             <h2>
-              Good company.
+              {t('goodCompany')}
               <br />
-              <em>Better arithmetic.</em>
+              <em>{t('betterArithmetic')}</em>
             </h2>
             <p>
-              A shared fare goes a little further. Explore the fare breakdown for a Bole journey.
+              {t('fareShowcaseDesc')}
             </p>
             <div className="fare-showcase-route">
-              <Icon name="pin" size={18} /> {farePreview?.pickup ?? 'Pickup'}{' '}
+              <Icon name="pin" size={18} /> {farePreview?.pickup ?? t('routePickup')}{' '}
               <span>··············</span>
-              <Icon name="arrow" size={18} /> {farePreview?.destination ?? 'Destination'}
+              <Icon name="arrow" size={18} /> {farePreview?.destination ?? t('destination')}
             </div>
             <small>
-              Projected total: {farePreview ? `${farePreview.total} ETB` : 'unavailable'}. Road
-              pricing and payment are not connected.
+              {t('projectedTotal')}: {farePreview ? `${farePreview.total} ETB` : t('fareUnavailable')}. {t('roadPricingDisclaimer')}
             </small>
           </div>
           <div className="fare-calculator">
             <div className="fare-calculator-heading">
-              <span>HOW MANY ARE SHARING?</span>
+              <span>{t('howManySharing')}</span>
               <Icon name="people" size={20} />
             </div>
-            <div className="fare-people-selector" role="group" aria-label="Passenger count">
+            <div className="fare-people-selector" role="group" aria-label={t('passengerCount')}>
               {Array.from({ length: farePreview?.maxPeople ?? 0 }, (_, index) => index + 1).map(
                 (count) => (
                   <button
@@ -294,14 +293,14 @@ export function LandingPage({
                 {farePreview ? Math.round((farePreview.total / riders) * 100) / 100 : '—'}
                 <span>ETB</span>
               </strong>
-              <p>Your projected share, per person</p>
+              <p>{t('projectedSharePerPerson')}</p>
             </div>
             <div className="fare-calculator-savings">
-              <span>Compared with the solo fare</span>
-              <strong>{Math.round((1 - 1 / riders) * 100)}% less</strong>
+              <span>{t('comparedSoloFare')}</span>
+              <strong>{Math.round((1 - 1 / riders) * 100)}{t('percentLess')}</strong>
             </div>
             <button type="button" onClick={() => setAuth('signup')}>
-              Find a ride <Icon name="arrow" size={19} />
+              {t('findMyRide')} <Icon name="arrow" size={19} />
             </button>
           </div>
         </section>
@@ -309,20 +308,20 @@ export function LandingPage({
           <span className="cta-sun" aria-hidden="true">
             <Icon name="arrow" size={50} />
           </span>
-          <p className="section-kicker">FOR THE WAY WE WANT TO MOVE</p>
+          <p className="section-kicker">{t('wayWeWantToMove')}</p>
           <h2>
-            Your city.
+            {t('cityYourWayTogether')}
             <br />
-            Your way.<em> Together.</em>
+
           </h2>
           <button
             type="button"
             className="landing-btn-primary"
             onClick={() => setAuth('signup')}
           >
-            Find a ride <Icon name="arrow" size={20} />
+            {t('findMyRide')} <Icon name="arrow" size={20} />
           </button>
-          <p>Sign up to explore ride sharing.</p>
+          <p>{t('signupExploreSharing')}</p>
         </section>
       </main>
       <footer className="landing-footer">
@@ -333,20 +332,20 @@ export function LandingPage({
               <Icon name="arrow" size={22} />
             </span>
           </Link>
-          <p>A shared-ride idea, made for Addis.</p>
+          <p>{t('sharedRideIdeaAddis')}</p>
         </div>
         <div className="landing-footer-links">
           <button type="button" onClick={() => setAuth('signup')}>
-            Planned commutes <Icon name="arrow" size={14} />
+            {t('plannedCommutes')} <Icon name="arrow" size={14} />
           </button>
           <button onClick={() => setAuth('login')}>
-            Account sign-in <Icon name="arrow" size={14} />
+            {t('accountSignin')} <Icon name="arrow" size={14} />
           </button>
         </div>
         <p className="footer-disclaimer">
-          Preview environment. No live passenger matching, dispatch, or payments.
+          {t('landingDisclaimer')}
         </p>
-        <span className="footer-made">MADE WITH POSSIBILITY IN ADDIS ABABA</span>
+        <span className="footer-made">{t('madeWithPossibility')}</span>
       </footer>
       {auth && (
         <AuthModal
